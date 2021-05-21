@@ -400,7 +400,7 @@ int main(int argc,char **argv)
 
 
   // Print input parameters as header
-  printf("#   Output of gen_ulens \n");
+  printf("#   Output of genulens \n");
   printf("#   You need to weight each line by the 1st value of each line from the left \n");
   printf("#---------- Parameters for IMF and Sun ----------\n");
   printf("#      IMF:  alpha0= %5.2f ( %.2f <M< %.2f ),\n",alpha0_B,M0_B,Mu);
@@ -436,8 +436,7 @@ int main(int argc,char **argv)
 
   // Crude normalize bulge mass
   double crude_integrate(double xmax, double ymax, double zmax, int nbun);
-  double Mbulge = 1.88e+10; // from Table 2 of Portail+17
-  double massVVVbox = crude_integrate(2200, 1400, 1200, 15); // VVV box by Prtail+17
+  double massVVVbox = crude_integrate(2200, 1400, 1200, 15); // VVV box defined by Wegg & Gerhard (2013), MNRAS, 435, 1874
   double massentire = crude_integrate(6000, 3000, 3000, 30); // should include entire bulge
   double fm1 = 1, fmX = 0;
   if (addX >= 5){
@@ -449,7 +448,7 @@ int main(int argc,char **argv)
     fmX = 1 - fm1;
   }  
   double MVVVP17 = 1.32e+10;
-  rho0b = (frho0b * MVVVP17 - MVVVd)/massVVVbox; // normalized by mass in the VVV box by Portail+17.
+  rho0b = (frho0b * MVVVP17 - MVVVd)/massVVVbox; // normalized by mass in the VVV box by Portail et al. (2017), MNRAS, 465, 1621
   n0MSb = rho0b * fb_MS * m2nb_MS; // number density of bar MS stars
   n0RGb = n0MSb * nMS2nRGb; // number density of bar RG stars (for mu calculation)
   n0b   = n0MSb + rho0b * (1 - fb_MS) * m2nb_WD; // number density of b MS+WD stars
@@ -731,7 +730,7 @@ int main(int argc,char **argv)
   }
 
   // Monte Carlo simulation
-  printf ("#----- Output of Monte Carlo simulation w/ VERBOSITY = %d -------- \n",VERBOSITY);
+  printf ("#----- Output of Monte Carlo simulation w/ VERBOSITY= %d and seed= %ld -------- \n",VERBOSITY,seed);
   double getcumu2xist (int n, double *x, double *F, double *f, double Freq, int ist, int inv);
   double ncntall = 0, ncnts = 0, ncntbWD = 0, ncntbCD = 0; 
   double nBD = 0, nMS = 0, nWD = 0, nNS= 0, nBH =  0;
