@@ -8,20 +8,20 @@ CFLAGS  = -g -O3
 #
 default: genulens
 
-# To create the executable file count we need the object files
-# countwords.o, counter.o, and scanner.o:
+# To create the executable file genulens we need the object files
+# genulens.o and option.o:
 #
 genulens: genulens.o option.o
 	$(CC) $(CFLAGS) -o genulens genulens.o option.o
 
-# To create the object file countwords.o, we need the source
-# files countwords.c, scanner.h, and counter.h:
+# To create the object file option.o, we need the source
+# files option.cpp and option.h:
 #
 option.o:  option.cpp option.h
 	$(CC) $(CFLAGS) -c option.cpp
 
-# To create the object file counter.o, we need the source files
-# counter.c and counter.h:
+# To create the object file genulens.o, we need the source file
+# genulens.cpp:
 #
 genulens.o:  genulens.cpp
 	$(CC) $(CFLAGS) -c genulens.cpp
