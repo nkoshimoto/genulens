@@ -3,9 +3,38 @@
 Please cite the paper for any use of this code for your scientific publications.  
 
 ## Installation
-If you have `git`, you can download the package by  
-`git clone https://github.com/nkoshimoto/genulens.git`  
-This is recommended because that way you can track any future updates with `git`.  
+If you have `git`, you can download the package by 
+``` 
+$ git clone https://github.com/nkoshimoto/genulens.git
+```
+This is recommended because that way you can track any future updates with `git`.
 
-If you do not have `git`, you can simply download the package by clicking "Code" on the upper right in [the repository page](https://github.com/nkoshimoto/genulens) and then select "Download ZIP".
+If you do not have `git`, you can simply download the package by clicking the green button "Code" on the upper right in [the repository page](https://github.com/nkoshimoto/genulens), selecting "Download ZIP", and then unzipping it.
+
+In the downloaded directory (genulens), move into another genulens directory  
+``` 
+$ cd genulens  
+```
+There is Makefile in the directory, and you need a C++ compiler to `make`.  
+The default compiler is `clang++`, which is available in macOS.  
+Please replace the first line in Makefile with `g++` or any other C++ compiler if you prefer.  
+If you are not sure if you have `clang++` or `g++`, you can check it by  
+```
+$ which clang++ (or g++)
+```
+If your terminal returns a full path for it, then you have the compiler.
+
+After making sure that you have a C++ compiler and specify it in Makefile, you can compile the program by  
+```
+$ make
+```
+
+If  
+```
+$ ./genulens  
+```
+returns output lines that stars from "#   Output of genulens " and ends with "# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112596 / 112596 = 1.000000", you are ready to use `genulens`.  
+Please make sure that the "input\_files" directory in the same directory where you run `genulens`.
+
+
 
