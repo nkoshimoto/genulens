@@ -33,10 +33,10 @@ If
 ```
 $ ./genulens  
 ```
-returns output lines that starts from 
-"#   Output of genulens "  
+returns output lines that starts from   
+  * #   Output of genulens   
 and ends with  
-"# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112596 / 112596 = 1.000000", 
+  * # Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112596 / 112596 = 1.000000  
 you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because it uses random numbers.  
 Please make sure that the "input\_files" directory in the same directory where you run `genulens`.
 
