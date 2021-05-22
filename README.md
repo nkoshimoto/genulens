@@ -39,8 +39,8 @@ returns output lines that starts from
 and ends with  
 > \# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112596 / 112596 = 1.000000  
 
-you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because it uses random numbers.  
-Please make sure that the "input\_files" directory in the same directory where you run `genulens`.
+you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because the calculation uses random numbers.  
+Please make sure that the input\_files/ directory in the same directory where you run `genulens`.
 
 
 
