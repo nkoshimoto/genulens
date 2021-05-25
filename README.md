@@ -7,6 +7,12 @@
 `genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), arXiv:2104.03306](https://arxiv.org/abs/2104.03306).  
 The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784949](http://doi.org/10.5281/zenodo.4784949).   
 Please cite the papers if you find this code useful in your research. 
+
+The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
+
+Data values of files in input\_files/ directory mostly come from other people's studies.  
+See the header of each file for references.  
+Please cite those papers as well if they are specially relevant to your work.  
  
 
 ## Installation
