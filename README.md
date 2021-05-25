@@ -10,7 +10,7 @@ Please cite the papers if you find this code useful in your research.
 
 Data values of files in input\_files/ directory mostly come from other people's studies.  
 See the header of each file for references.  
-Please cite those papers as well if they are specially relevant to your work.  
+Please cite those references as well if they are specially relevant to your work.  
 
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
  
