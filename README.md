@@ -5,7 +5,9 @@
 
 # genulens
 `genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), arXiv:2104.03306](https://arxiv.org/abs/2104.03306).  
-Please cite the paper if you find this code (or the Galactic model itself) useful in your research.  
+The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784949](http://doi.org/10.5281/zenodo.4784949).   
+Please cite the papers if you find this code useful in your research. 
+ 
 
 ## Installation
 If you have `git`, you can download the package by 
@@ -49,6 +51,7 @@ Please make sure that the input\_files/ directory in the same directory where yo
 
 
 ## Usage
-See [document](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
-The document is unfinished, and will be revised and polished in the future.
+See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
+This document is still incomplete and will be revised in the future.
+
 
