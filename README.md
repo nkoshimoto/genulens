@@ -43,4 +43,7 @@ you are ready to use `genulens`. Note that the exact numbers of the end line mig
 Please make sure that the input\_files/ directory in the same directory where you run `genulens`.
 
 
+## Usage
+See [document](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
+The document is still in the process of being written, and will be revised and refined in the future.
 
