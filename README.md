@@ -45,5 +45,5 @@ Please make sure that the input\_files/ directory in the same directory where yo
 
 ## Usage
 See [document](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
-The document is still in the process of being written, and will be revised and refined in the future.
+The document is unfinished, and will be revised and polished in the future.
 
