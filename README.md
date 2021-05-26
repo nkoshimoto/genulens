@@ -14,7 +14,7 @@ The copyright of an included supplementary code, "option.cpp", belongs to Ian A.
 ## Installation
 If you have `git`, you can download the package by 
 ``` 
-$ git clone https://github.com/nkoshimoto/genulens.git
+git clone https://github.com/nkoshimoto/genulens.git
 ```
 This is recommended because that way you can track any future updates with `git`.
 
@@ -22,25 +22,25 @@ If you do not have `git`, you can simply download the package by clicking the gr
 
 In the downloaded directory (genulens), move into another genulens directory  
 ``` 
-$ cd genulens  
+cd genulens  
 ```
 There is Makefile in the directory, and you need a C++ compiler to `make`.  
 The default compiler is `clang++`, which is available in macOS.  
 Please replace the first line in Makefile with `g++` or any other C++ compiler if you prefer.  
 If you are not sure if you have `clang++` or `g++`, you can check it by  
 ```
-$ which clang++ (or g++)
+which clang++ (or g++)
 ```
 If your terminal returns a full path for it, then you have the compiler.
 
 After making sure that you have a C++ compiler and specify it in Makefile, you can compile the program by  
 ```
-$ make
+make
 ```
 
 If  
 ```
-$ ./genulens  
+./genulens  
 ```
 returns output lines that starts from   
 > \#   Output of genulens   
