@@ -1,8 +1,9 @@
 /* Generate microlensing events following the Galactic model developed by Koshimoto, Baba & Bennett (2021).
- * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C with public alternatives.
- * We found that the version with ran1 and gasdev from the Numerical Recipes in C was faster (~1.3 times) than the current version.
- * We suspects that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look same.
- * Please replace them by yourself if you want. Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. */
+ * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C (NR) with public alternatives.
+ * We found that the version with ran1 and gasdev from the NR was faster (~1.3 times) than the current version.
+ * We suspect that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look same.
+ * Please replace them by yourself if you want because we are not allowed to include a NR function in a public package. 
+ * Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. */
 #include <iostream>
 #include <iomanip>
 #include <math.h> 
@@ -407,7 +408,14 @@ int main(int argc,char **argv)
 
 
   // Print input parameters as header 
-  printf("#   Output of genulens \n");
+  printf("#   Output of \"./genulens ");
+  for (int i=1;i<argc;i++) {
+    printf("%s", argv[i]);
+    if (i < argc - 1) {
+      printf(" ");
+    }
+  }
+  printf("\"\n");
   printf("#   You need to weight each line by the 1st value of each line from the left \n");
   printf("#---------- Parameters for IMF and Sun ----------\n");
   printf("#      IMF:  alpha0= %5.2f ( %.2f <M< %.2f ),\n",alpha0_B,M0_B,Mu);

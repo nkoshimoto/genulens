@@ -43,7 +43,7 @@ If
 ./genulens  
 ```
 returns output lines that starts from   
-> \#   Output of genulens   
+> \#   Output of "./genulens "  
 
 and ends with  
 > \# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112596 / 112596 = 1.000000  
