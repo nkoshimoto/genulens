@@ -2,7 +2,7 @@
  * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C with public alternatives.
  * We found that the version with ran1 and gasdev from the Numerical Recipes in C was faster (~1.3 times) than the current version.
  * We suspects that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look similar.
- * Please replace them by yourself if you want. Note that a negative seed value has to be used in the NR function in contrast to a positive seed value for this version. */
+ * Please replace them by yourself if you want. Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. */
 #include <iostream>
 #include <iomanip>
 #include <math.h> 
