@@ -1,7 +1,7 @@
 /* Generate microlensing events following the Galactic model developed by Koshimoto, Baba & Bennett (2021).
  * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C with public alternatives.
  * We found that the version with ran1 and gasdev from the Numerical Recipes in C was faster (~1.3 times) than the current version.
- * We suspects that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look similar.
+ * We suspects that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look same.
  * Please replace them by yourself if you want. Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. */
 #include <iostream>
 #include <iomanip>
@@ -17,6 +17,8 @@
 
 using namespace std;
 
+#define EPS 1.2e-7
+#define RNMX (1.0 - EPS)
 #define       PI 3.1415926535897932385
 #define NDATAMAX 8000000000 // take ~6hours?
 #define    KAPPA 8.1439 // 
@@ -37,9 +39,12 @@ using namespace std;
 default_random_engine generator(12304357); // Initialization of random generator
 
 /* Generate a random number between 0 and 1 (excluded) from a uniform distribution. */
-double ran1(){
-    uniform_real_distribution<double> distribution(0.0,1.0);
-    return distribution(generator);
+float ran1(){
+    uniform_real_distribution<float> distribution(0.0,1.0);
+		float ran;
+		ran = distribution(generator);
+		if (ran > RNMX) return RNMX;
+		else return ran;
 }
 
 /* Generate a random number from a Gaussian distribution of mean 0, and std 
