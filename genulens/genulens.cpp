@@ -1,6 +1,8 @@
 /* Generate microlensing events following the Galactic model developed by Koshimoto, Baba & Bennett (2021).
  * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C with public alternatives.
- * We found that the version with ran1 and gasdev from the Numerical Recipes in C was faster (~1.3 times) than the current version. Please replace them by yourself if you want. */
+ * We found that the version with ran1 and gasdev from the Numerical Recipes in C was faster (~1.3 times) than the current version.
+ * We suspects that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look similar.
+ * Please replace them by yourself if you want. Note that a negative seed value has to be used in the NR function in contrast to a positive seed value for this version. */
 #include <iostream>
 #include <iomanip>
 #include <math.h> 
@@ -36,7 +38,7 @@ default_random_engine generator(12304357); // Initialization of random generator
 
 /* Generate a random number between 0 and 1 (excluded) from a uniform distribution. */
 double ran1(){
-    uniform_real_distribution<float> distribution(0.0,1.0);
+    uniform_real_distribution<double> distribution(0.0,1.0);
     return distribution(generator);
 }
 
@@ -399,7 +401,7 @@ int main(int argc,char **argv)
   y0d[2] = (DISK == 1) ? exp(-R0/Rd[2] - pow(((double)Rh/R0),nh))  :  exp(-R0/Rd[2]);
 
 
-  // Print input parameters as header
+  // Print input parameters as header 
   printf("#   Output of genulens \n");
   printf("#   You need to weight each line by the 1st value of each line from the left \n");
   printf("#---------- Parameters for IMF and Sun ----------\n");
@@ -783,7 +785,7 @@ int main(int argc,char **argv)
      ran = ran* cumu_rho_S[i_s][nbin];
      double D_s = getcumu2xist(nbin+1, D, cumu_rho_S[i_s],rhoD_S[i_s],ran,kst,0);
      int nbinDs = floor(D_s/dD);
-     // printf ("%5.0f %4d\n",D_s, nbinDs);
+     // printf ("i_s= %d ran= %.17f (/max= %.17f) kst= %d (/nbin= %d) F[kst]-F[kst-1]= %.17e - %.17e Ds= %5.0f\n",i_s,ran,cumu_rho_S[i_s][nbin],kst,nbin, cumu_rho_S[i_s][kst], cumu_rho_S[i_s][kst-1], rhoD_S[i_s][kst], rhoD_S[i_s][kst-1], D_s);
 
      // pick D_l
      ran = ran1(); 
