@@ -1,6 +1,6 @@
 CC = clang++
 CFLAGS  = -g -O3
-INCP = -lgsl
+LIBS = -lm -lgsl -lgslcblas
 
 # typing 'make' will invoke the first target entry in the file 
 # (in this case the default target entry)
@@ -13,7 +13,7 @@ default: genulens
 # genulens.o and option.o:
 #
 genulens: genulens.o option.o
-	$(CC) $(CFLAGS) -o genulens genulens.o option.o $(INCP)
+	$(CC) $(CFLAGS) -o genulens genulens.o option.o $(LIBS)
 
 # To create the object file option.o, we need the source
 # files option.cpp and option.h:
@@ -25,7 +25,7 @@ option.o:  option.cpp option.h
 # genulens.cpp:
 #
 genulens.o:  genulens.cpp
-	$(CC) $(CFLAGS) -c genulens.cpp $(INCP)
+	$(CC) $(CFLAGS) -c genulens.cpp
 
 # To start over from scratch, type 'make clean'.  This
 # removes the executable file, as well as old .o object
