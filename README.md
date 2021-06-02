@@ -3,19 +3,20 @@
 [![arXiv](http://img.shields.io/badge/arXiv-2104.03306-orange.svg?style=flat)](https://arxiv.org/abs/2104.03306)
 
 
+
+# Warning
+Since June 2 2021, the source code, genulens.cpp, has been replaced with a version with a random number generator from GSL (GNU Scientific Library).  
+This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
+The statistics (the median, 1 sigma, 2 sigma values) for each parameter are probably OK, but the distributions are jagged compared to the GSL one with a same number of simulation.  
+Please install the new version with the GSL random number functions if you are using the version before June 2 2021.  
+
+
 # genulens
 `genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), arXiv:2104.03306](https://arxiv.org/abs/2104.03306).  
 The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784949](http://doi.org/10.5281/zenodo.4784949).   
 Please cite the papers if you find this code useful in your research. 
 
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
-
-
-## Warning
-Since June 2 2021, the source code, genulens.cpp, has been replaced with a version with a random number generator from GSL (GNU Scientific Library).  
-This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
-The statistics (the median, 1 sigma, 2 sigma values) for each parameter are probably OK, but the distributions are jagged compared to the GSL one with a same number of simulation.  
-Please install the new version with the GSL random number functions if you are using the version before June 2 2021.  
 
  
 
