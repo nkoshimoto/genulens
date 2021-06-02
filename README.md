@@ -21,7 +21,7 @@ Note that this new version requires that you have GSL in your environment.
  
 ## Before Installation
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
-If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded derectory.
+If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
 
 ## Installation
 If you have `git`, you can download the package by 
