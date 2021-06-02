@@ -1,11 +1,8 @@
 /* Generate microlensing events following the Galactic model developed by Koshimoto, Baba & Bennett (2021).
- * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C (NR) with public alternatives.
+ * N. Koshimoto wrote the original .c version and C. Ranc converted it into .cpp to replace functions (ran1 and gasdev) from the Numerical Recipes in C (NR) with public alternatives (from GSL).
  * We found that the version with ran1 and gasdev from the NR was faster (~1.3 times) than the current version.
- * We suspect that the behavior of random number might be better with the NR function (if you do a same number of simulation, using the NR function is less jagged.) although the statistics (median, 1- or 2-sigma values) look same.
  * Please replace them by yourself if you want because we are not allowed to include a NR function in a public package. 
  * Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. */
-#include <iostream>
-#include <iomanip>
 #include <math.h> 
 #include <stdio.h> 
 #include <string.h> 
@@ -13,10 +10,8 @@
 #include <random>
 #include "option.h"
 #include <stdlib.h>
-#include <unistd.h>
-#include <getopt.h>
-
-using namespace std;
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
 
 #define EPS 1.2e-7
 #define RNMX (1.0 - EPS)
@@ -37,22 +32,20 @@ using namespace std;
 #define MAXMEANLOGA 1.7 // 
 #define MINMEANLOGA 0.6 // 
 
-default_random_engine generator(12304357); // Initialization of random generator
 
 /* Generate a random number between 0 and 1 (excluded) from a uniform distribution. */
-float ran1(){
-    uniform_real_distribution<float> distribution(0.0,1.0);
-		float ran;
-		ran = distribution(generator);
-		if (ran > RNMX) return RNMX;
-		else return ran;
+const gsl_rng_type * T;
+gsl_rng * r;
+double ran1(){
+    double u = gsl_rng_uniform(r);
+    // if (u > RNMX) ran1();
+    return u;
 }
 
 /* Generate a random number from a Gaussian distribution of mean 0, and std 
    deviation 1.0. */
 double gasdev(){
-    normal_distribution<double> distribution(0.0,1.0);
-    return distribution(generator);
+    return gsl_ran_ugaussian(r);
 }
 
 // --- define global parameters ------
@@ -133,7 +126,10 @@ int main(int argc,char **argv)
   //--- read parameters ---
   int CheckD   = getOptiond(argc,argv,"CheckD", 1, 0);
   long seed    = getOptioni(argc,argv,"seed", 1, 12304357); // seed of random number
-  generator.seed(seed); // ---> this line will initialize the RNG with seed parameter.
+  gsl_rng_env_setup();
+  T = gsl_rng_default;
+  r = gsl_rng_alloc (T);
+  gsl_rng_set(r, seed); 
   //--- Set params for Galactic model (default: E+E_X model in Koshimoto+2021) ---
   double M0_B      = getOptiond(argc,argv,"M0", 1, 1.0);
   double M1_B      = getOptiond(argc,argv,"M1", 1, 0.859770466578045);
@@ -1121,6 +1117,7 @@ int main(int argc,char **argv)
   printf ("# (n_BD n_MS n_WD n_NS n_BH)/n_all= ( %6.0f %6.0f %6.0f %6.0f %6.0f ) / %6.0f = ( %.6f %.6f %.6f %.6f %.6f )\n", nBD, nMS, nWD, nNS, nBH,ncntall, nBD/ncntall, nMS/ncntall, nWD/ncntall, nNS/ncntall, nBH/ncntall);
   double f_like_tE= wtlike/wtlike_tE;
   printf ("# Nlike/N= %d / %ld      wtlike/wtlike_tE= %.0f / %.0f = %f\n",Nlike,NSIMU,wtlike,wtlike_tE,f_like_tE);
+  gsl_rng_free(r);
   free (D);  
   free (cumu_rho_all_S);
   free (cumu_rho_all_L);
