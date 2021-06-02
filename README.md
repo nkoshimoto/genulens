@@ -16,8 +16,8 @@ The copyright of an included supplementary code, "option.cpp", belongs to Ian A.
 Since June 2 2021, the source code, genulens.cpp, has been replaced with a version with a random number generator from GSL (GNU Scientific Library).  
 This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
 The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.  
-Please install the new version with the GSL random number functions if you are using the version before June 2 2021.  
-Note that this new version requires that you have GSL in your environment.  
+Please install the new version if you are using the version before June 2 2021.  
+Note that the new version requires that you have GSL in your environment.  
  
 ## Before Installation
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
