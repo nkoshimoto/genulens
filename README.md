@@ -4,13 +4,6 @@
 
 
 
-# Warning
-Since June 2 2021, the source code, genulens.cpp, has been replaced with a version with a random number generator from GSL (GNU Scientific Library).  
-This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
-The statistics (the median, 1 sigma, 2 sigma values) for each parameter are probably OK, but the distributions are jagged compared to the GSL one with a same number of simulation.  
-Please install the new version with the GSL random number functions if you are using the version before June 2 2021.  
-
-
 # genulens
 `genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), arXiv:2104.03306](https://arxiv.org/abs/2104.03306).  
 The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784949](http://doi.org/10.5281/zenodo.4784949).   
@@ -18,7 +11,17 @@ Please cite the papers if you find this code useful in your research.
 
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
 
+
+## Warning
+Since June 2 2021, the source code, genulens.cpp, has been replaced with a version with a random number generator from GSL (GNU Scientific Library).  
+This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
+The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.  
+Please install the new version with the GSL random number functions if you are using the version before June 2 2021.  
+Note that this new version requires that you have GSL in your environment.  
  
+## Before Installation
+Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
+If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded derectory.
 
 ## Installation
 If you have `git`, you can download the package by 
@@ -55,7 +58,7 @@ returns output lines that starts from
 > \#   Output of "./genulens "  
 
 and ends with  
-> \# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112596 / 112596 = 1.000000  
+> \# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112366 / 112366 = 1.000000   
 
 you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because the calculation uses random numbers.  
 Please make sure that the input\_files/ directory in the same directory where you run `genulens`.
