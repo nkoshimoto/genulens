@@ -23,6 +23,7 @@ Note that the new version requires that you have GSL in your environment.
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
 If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
 
+
 ## Installation
 If you have `git`, you can download the package by 
 ``` 
@@ -54,11 +55,19 @@ make
 The command `make` does not work if the GSL is not in your default path.   
 In this case, you need to edit Makefile so that it specifies the paths for GSL.  
 The file Makefile\_GSLpath.example is an example makefile in such a case, although you need to still replace the specified paths in the file with your own.  
-The header of Makefile\_GSLpath.example explains how you can find the paths.  
+The header of Makefile\_GSLpath.example explains how you should edit the file.  
+In short, you can find the paths by   
+```
+gsl-config --libs
+```
+and
+```
+gsl-config --cflags
+```
 
 
 
-If  
+After the program is compiled, if  
 ```
 ./genulens  
 ```
