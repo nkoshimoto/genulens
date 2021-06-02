@@ -50,12 +50,13 @@ After making sure that you have a C++ compiler and specify it in Makefile, you c
 make
 ```
 
-***  
-The command `make` does not work if the GSL is not in your default path.   
-In this case, you need to edit Makefile so that it specifies the paths for GSL.  
-The file Makefile\_GSLpath.example is an example makefile in such a case, although you need to still replace the specified paths in the file with your own.  
-The header of Makefile\_GSLpath.example explains how you can find the paths.  
-***   
+    ***  
+    Note:  
+    The command `make` does not work if the GSL is not in your default path.   
+    In this case, you need to edit Makefile so that it specifies the paths for GSL.  
+    The file Makefile\_GSLpath.example is an example makefile in such a case, although you need to still replace the specified paths in the file with your own.  
+    The header of Makefile\_GSLpath.example explains how you can find the paths.  
+    ***   
 
 
 
