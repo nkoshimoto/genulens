@@ -23,6 +23,12 @@ Note that the new version requires that you have GSL in your environment.
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
 If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
 
+You can check if where you have GSL by  
+```
+gsl-config --libs
+```
+If the command gsl-config does not work in the terminal, it might mean that the GSL lib is not installed, or unknown to the OS.
+
 
 ## Installation
 If you have `git`, you can download the package by 
@@ -46,23 +52,23 @@ which clang++ (or g++)
 ```
 If your terminal returns a full path for it, then you have the compiler.
 
-After making sure that you have a C++ compiler and specify it in Makefile, you can compile the program by  
+You might also need to change the paths for GSL specified in Makefile.  
+There are two lines to specify paths for GSL in the file;  
+> INCLUDE = -I/opt/local/include  
+> LINK = -L/opt/local/lib  
+Please replace the path in INCLUDE with the path returned by  
 ```
-make
+gsl-config --cflags
 ```
-
-
-The command `make` does not work if the GSL is not in your default path.   
-In this case, you need to edit Makefile so that it specifies the paths for GSL.  
-The file Makefile\_GSLpath.example is an example makefile in such a case, although you need to still replace the specified paths in the file with your own.  
-The header of Makefile\_GSLpath.example explains how you should edit the file.  
-In short, you can find the paths by   
+and replace the path in LINK with the path returned by  
 ```
 gsl-config --libs
 ```
-and
+
+
+After making sure that you have a C++ compiler and specify it and the paths for GSL in Makefile, you can compile the program by  
 ```
-gsl-config --cflags
+make
 ```
 
 
