@@ -76,7 +76,7 @@ and ends with
 > \# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112366 / 112366 = 1.000000   
 
 you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because the calculation uses random numbers.  
-Please make sure that the input\_files/ directory in the same directory as where you run `genulens`.
+Please make sure that the input\_files/ directory is in the same directory as where you run `genulens`.
 
 
 ## Usage
