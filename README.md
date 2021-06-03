@@ -11,14 +11,6 @@ Please cite the papers if you find this code useful in your research.
 
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
 
-
-## v1.1 since Jun 2 2021
-On June 2 2021, we released a new version (v1.1) with a random number generator from GSL (GNU Scientific Library).  
-This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
-The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.  
-Please install the new version if you are using the version before June 2 2021 (v1.0).  
-Note that the new version requires that you have GSL in your environment.  
- 
 ## Before installation
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
 If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
@@ -92,3 +84,13 @@ See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
 This document is still incomplete and will be revised in the future.
 
 
+## Major updates
+### v1.1
+On June 3 2021, we released version 1.1 with a random number generator from GSL (GNU Scientific Library).  
+This is because we realized that the random number generator from the C++ standard library, which was used in v1.0, does not have a very good randomness.  
+The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.  
+Please install the new version if you are using the version before June 2 2021 (v1.0).  
+Note that the new version requires that you have GSL in your environment.  
+ 
+### v1.0
+First release on May 24 2021.
