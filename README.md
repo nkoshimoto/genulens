@@ -23,7 +23,7 @@ Note that the new version requires that you have GSL in your environment.
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
 If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
 
-You can check if where you have GSL by  
+You can check where you have GSL by  
 ```
 gsl-config --libs
 ```
