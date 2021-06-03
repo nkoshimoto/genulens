@@ -56,6 +56,7 @@ You might also need to change the paths for GSL specified in Makefile.
 There are two lines to specify paths for GSL in the file;  
 > INCLUDE = -I/opt/local/include  
 > LINK = -L/opt/local/lib  
+
 Please replace the path in INCLUDE with the path returned by  
 ```
 gsl-config --cflags
