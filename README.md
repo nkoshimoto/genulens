@@ -66,6 +66,7 @@ and replace the path in LINK with the path returned by
 gsl-config --libs
 ```
 
+   
 
 After making sure that you have a C++ compiler and specify it and the paths for GSL in Makefile, you can compile the program by  
 ```
