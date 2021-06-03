@@ -72,9 +72,7 @@ After making sure that you have a C++ compiler and specify it and the paths for 
 make
 ```
 
-
-
-After the program is compiled, if  
+If  
 ```
 ./genulens  
 ```
