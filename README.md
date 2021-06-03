@@ -6,7 +6,7 @@
 
 # genulens
 `genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), arXiv:2104.03306](https://arxiv.org/abs/2104.03306).  
-The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784949](http://doi.org/10.5281/zenodo.4784949).   
+The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784948](http://doi.org/10.5281/zenodo.4784948).   
 Please cite the papers if you find this code useful in your research. 
 
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
@@ -87,9 +87,8 @@ This document is still incomplete and will be revised in the future.
 ## Major updates
 ### v1.1
 On June 3 2021, we released version 1.1 using a random number generator from GSL (GNU Scientific Library).  
-This is because we realized that the random number generator from the C++ standard library, which was used in v1.0, does not have a very good randomness.  
+This is because we realized that the random number generator from the C++ standard library, which was used in v1.0, does not have very good randomness.  
 The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.  
-Please install the new version if you are using the version before June 2 2021 (v1.0).  
 Note that the new version requires that you have GSL in your environment.  
  
 ### v1.0
