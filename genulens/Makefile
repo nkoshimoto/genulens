@@ -1,11 +1,11 @@
 # This is an example of Makefile.
 # You might be able to use this Makefile without any edition.
-# If you can't use this, the C++ compiler specified in the CC line or the GSL paths in the INCLUDE and LINK lines are probably inappropriate.
+# If the default form does not work, the C++ compiler specified in the CC line or the GSL paths specified in the INCLUDE and LINK lines are probably inappropriate.
 # Please replace them with what you have.
 # The paths for GSL can be found by 
 #   $ gsl-config --libs   (<- for LINK)
 #   $ gsl-config --cflags (<- for INCLUDE)
-# If the command gsl-config does not work in the terminal, it might mean that the GSL lib is not installed, or unknown to the OS.
+# If the command gsl-config does not work in the terminal, it probably means that the GSL lib is not installed, or unknown to the OS.
 #
 CC = clang++
 #CC = g++-mp-9
