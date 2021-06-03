@@ -12,14 +12,14 @@ Please cite the papers if you find this code useful in your research.
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
 
 
-## Warning
-Since June 2 2021, the source code, genulens.cpp, has been replaced with a version with a random number generator from GSL (GNU Scientific Library).  
+## v1.1 since Jun 2 2021
+On June 2 2021, we released a new version (v1.1) with a random number generator from GSL (GNU Scientific Library).  
 This is because we realized that the random number generator from the C++ standard library, which was used before, does not have a very good randomness.  
 The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.  
-Please install the new version if you are using the version before June 2 2021.  
+Please install the new version if you are using the version before June 2 2021 (v1.0).  
 Note that the new version requires that you have GSL in your environment.  
  
-## Before Installation
+## Before installation
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
 If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
 
@@ -84,7 +84,7 @@ and ends with
 > \# Nlike/N= 100000 / 100000      wtlike/wtlike\_tE= 112366 / 112366 = 1.000000   
 
 you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because the calculation uses random numbers.  
-Please make sure that the input\_files/ directory in the same directory where you run `genulens`.
+Please make sure that the input\_files/ directory in the same directory as where you run `genulens`.
 
 
 ## Usage
