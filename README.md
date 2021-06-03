@@ -27,7 +27,7 @@ You can check where you have GSL by
 ```
 gsl-config --libs
 ```
-If the command gsl-config does not work in the terminal, it might mean that the GSL lib is not installed, or unknown to the OS.
+If the command gsl-config does not work in the terminal, it probably means that the GSL lib is not installed, or unknown to the OS.
 
 
 ## Installation
