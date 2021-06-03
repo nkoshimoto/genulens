@@ -80,7 +80,7 @@ Please make sure that the input\_files/ directory in the same directory as where
 
 
 ## Usage
-See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
+See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).  
 This document is still incomplete and will be revised in the future.
 
 
