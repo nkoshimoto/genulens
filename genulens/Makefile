@@ -1,6 +1,18 @@
+# This is an example of Makefile.
+# You need to replace the paths in INCLUDE and LINK with your own.
+# The paths for GSL can be found by 
+#   $ gsl-config --libs   (<- for LINK)
+#   $ gsl-config --cflags (<- for INCLUDE)
+# If the command gsl-config does not work in the terminal, it might mean that the GSL lib is not installed, or unknown to the OS.
+# After replacing the paths in LINK and INCLUDE with yours, you can use this file as the Makefile.
+#
 CC = clang++
+#CC = g++-mp-9
 CFLAGS  = -g -O3
+# CFLAGS  = -g
 LIBS = -lm -lgsl -lgslcblas
+INCLUDE = -I/opt/local/include
+LINK = -L/opt/local/lib
 
 # typing 'make' will invoke the first target entry in the file 
 # (in this case the default target entry)
@@ -13,7 +25,7 @@ default: genulens
 # genulens.o and option.o:
 #
 genulens: genulens.o option.o
-	$(CC) $(CFLAGS) -o genulens genulens.o option.o $(LIBS)
+	$(CC) $(CFLAGS) -o genulens genulens.o option.o $(LINK) $(LIBS)
 
 # To create the object file option.o, we need the source
 # files option.cpp and option.h:
@@ -25,7 +37,7 @@ option.o:  option.cpp option.h
 # genulens.cpp:
 #
 genulens.o:  genulens.cpp
-	$(CC) $(CFLAGS) -c genulens.cpp
+	$(CC) $(CFLAGS) -c genulens.cpp $(INCLUDE)
 
 # To start over from scratch, type 'make clean'.  This
 # removes the executable file, as well as old .o object
