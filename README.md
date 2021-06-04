@@ -60,7 +60,7 @@ gsl-config --libs
 
    
 
-After making sure that you have a C++ compiler and specify it and the paths for GSL in Makefile, you can compile the program by  
+After making sure that you specify your C++ compiler and the paths for GSL in Makefile, you can compile the program by  
 ```
 make
 ```
