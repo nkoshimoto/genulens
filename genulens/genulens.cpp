@@ -1389,7 +1389,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
   // for Bar 
   double wt_B = 0, wtWD_B = 0, sumM_B = 0, sumMWD_B = 0, sumstars_B = 0, sumWDs_B = 0, sumRGs_B = 0;
   for (int i= 0; i< nageB; i++){
-    double tau = 0.01*agesB[nageB];
+    double tau = 0.01*agesB[i];
     double wtSFR = (tau - 9.0)/1.0;
     wtSFR = exp(-0.5*wtSFR*wtSFR);
     double logMdie = log10(MinidieB[i]);
