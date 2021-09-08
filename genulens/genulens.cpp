@@ -299,9 +299,9 @@ int main(int argc,char **argv)
   // Store Mass Function and calculate normalization factors for density distributions
   void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0);
   nm = 1000;
-  logMass_B        = (double*)calloc(nm, sizeof(double *));
-  PlogM_B          = (double*)calloc(nm, sizeof(double *));
-  PlogM_cum_norm_B = (double*)calloc(nm, sizeof(double *));
+  logMass_B        = (double*)calloc(nm+1, sizeof(double *));
+  PlogM_B          = (double*)calloc(nm+1, sizeof(double *));
+  PlogM_cum_norm_B = (double*)calloc(nm+1, sizeof(double *));
   imptiles_B       = (int*)calloc(22, sizeof(int *));
   store_IMF_nBs(1, logMass_B, PlogM_B, PlogM_cum_norm_B, imptiles_B, M0_B, M1_B, M2_B, M3_B, Ml, Mu, alpha1_B, alpha2_B, alpha3_B, alpha4_B, alpha0_B);
 
@@ -1199,18 +1199,16 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
   /* Store IMF with a broken-power law form.
    * Update normalize factors for the density distribution if B == 1 */
   double *PlogM_cum, *Mass, *PMlogM_cum, *PMlogM_cum_norm;
-  Mass            = (double *)calloc(nm, sizeof(double *));
-  PlogM_cum       = (double *)calloc(nm, sizeof(double *));
-  PMlogM_cum      = (double *)calloc(nm, sizeof(double *));
-  PMlogM_cum_norm = (double *)calloc(nm, sizeof(double *));
+  Mass            = (double *)calloc(nm+1, sizeof(double *));
+  PlogM_cum       = (double *)calloc(nm+1, sizeof(double *));
+  PMlogM_cum      = (double *)calloc(nm+1, sizeof(double *));
+  PMlogM_cum_norm = (double *)calloc(nm+1, sizeof(double *));
   double logMrange=log10(Mu)-log10(Ml);
+	double dlogM = (double) logMrange/nm;
   for (int i=0; i<=nm; i++){
-    double Mp  = (double)    i/nm * logMrange + log10(Ml);
-    double Mp2 = (double)(i+1)/nm * logMrange + log10(Ml);
+    double Mp  = i*dlogM + log10(Ml);
     logMass[i] = Mp;
     Mass[i]  = pow(10, Mp);
-    double Mass2 = pow(10, Mp2);
-    double dlogM = Mp2 - Mp;
     double alpha = (Mass[i] < M3) ? alpha4 : (Mass[i] < M2) ? alpha3 : (Mass[i] < M1) ? alpha2 : (Mass[i] < M0) ? alpha1 : alpha0;
     double temp00    = pow(M0,alpha0+1.);
     double temp01    = pow(M0,alpha1+1.);
@@ -1247,7 +1245,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
 
   // Calc average mass-loss for WDs
   double *ageMloss;
-  ageMloss       = (double *)calloc(nm, sizeof(double *));
+  ageMloss       = (double *)calloc(nm+1, sizeof(double *));
   double cumMwt = 0, cumWDwt = 0;
   void Mini2Mrem (double *pout, double M, int mean); 
   for (int i=nm;i>=0;i--){
@@ -1302,12 +1300,12 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
     double logMdie = log10(MinidieD[itmp]);
     double logMRG1 = log10(MRGstD[itmp]);
     double logMRG2 = log10(MRGenD[itmp]);
-    double PM = getx2y(nm, logMass, PMlogM_cum_norm, logMdie);
-    double P  = getx2y(nm, logMass,  PlogM_cum_norm, logMdie);
-    double PRG1 = getx2y(nm, logMass,  PlogM_cum_norm, logMRG1);
-    double PRG2 = getx2y(nm, logMass,  PlogM_cum_norm, logMRG2);
+    double PM = getx2y(nm+1, logMass, PMlogM_cum_norm, logMdie);
+    double P  = getx2y(nm+1, logMass,  PlogM_cum_norm, logMdie);
+    double PRG1 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMRG1);
+    double PRG2 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMRG2);
     double PRG = PRG2 - PRG1; 
-    double aveMloss = getx2y(nm, logMass,  ageMloss, logMdie);
+    double aveMloss = getx2y(nm+1, logMass,  ageMloss, logMdie);
     double PMWD = (1 - PM) * aveMloss;
     double PWD  = (1 - P);
     double wtSFR = exp(-gamma*(ageen-i)*0.01); // weight of this age
@@ -1364,12 +1362,12 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
       double logMdie = log10(MinidieD[nageD - 2]);
       double logMRG1 = log10(MRGstD[nageD - 2]);
       double logMRG2 = log10(MRGenD[nageD - 2]);
-      double PM = getx2y(nm, logMass, PMlogM_cum_norm, logMdie);
-      double P  = getx2y(nm, logMass,  PlogM_cum_norm, logMdie);
-      double PRG1 = getx2y(nm, logMass,  PlogM_cum_norm, logMRG1);
-      double PRG2 = getx2y(nm, logMass,  PlogM_cum_norm, logMRG2);
+      double PM = getx2y(nm+1, logMass, PMlogM_cum_norm, logMdie);
+      double P  = getx2y(nm+1, logMass,  PlogM_cum_norm, logMdie);
+      double PRG1 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMRG1);
+      double PRG2 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMRG2);
       double PRG = PRG2 - PRG1; // PRG: fraction of red giant defined by giants sample in Gaia+18, A&A, 616, A11 
-      double aveMloss = getx2y(nm, logMass,  ageMloss, logMdie);
+      double aveMloss = getx2y(nm+1, logMass,  ageMloss, logMdie);
       double PMWD = (1 - PM) * aveMloss;
       double PWD  = (1 - P);
       double aveMMS = PM   * PMlogM_cum[nm] / P   / PlogM_cum[nm]; // MSun/star for main sequence
@@ -1395,12 +1393,12 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
     double logMdie = log10(MinidieB[i]);
     double logMRG1 = log10(MRGstB[i]);
     double logMRG2 = log10(MRGenB[i]);
-    double PM = getx2y(nm, logMass, PMlogM_cum_norm, logMdie);
-    double P  = getx2y(nm, logMass,  PlogM_cum_norm, logMdie);
-    double PRG1 = getx2y(nm, logMass,  PlogM_cum_norm, logMRG1);
-    double PRG2 = getx2y(nm, logMass,  PlogM_cum_norm, logMRG2);
+    double PM = getx2y(nm+1, logMass, PMlogM_cum_norm, logMdie);
+    double P  = getx2y(nm+1, logMass,  PlogM_cum_norm, logMdie);
+    double PRG1 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMRG1);
+    double PRG2 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMRG2);
     double PRG = PRG2 - PRG1; // 
-    double aveMloss = getx2y(nm, logMass,  ageMloss, logMdie);
+    double aveMloss = getx2y(nm+1, logMass,  ageMloss, logMdie);
     double PMWD = (1 - PM) * aveMloss;
     double PWD  = (1 - P);
     P   *= wtSFR;
@@ -2024,7 +2022,7 @@ int make_LFs(double *MIs, double **CumuN_MIs, double **CumuNalls, double **CumuN
        if (j == 0 || j == iage) wtSFR *= 0.5; // daikei sekibun
        if (j == 0 && icomp == 0) wtSFR *= 3; // add 0.00 Gyr - 0.05 Gyr
        double logMini = log10(Minis[j][0]); // should be ~0.09 Msun
-       double PBD = getx2y(nm, logMass,  PlogM_cum_norm, logMini);
+       double PBD = getx2y(nm+1, logMass,  PlogM_cum_norm, logMini);
        pIs[Nbin - 5] += wtSFR * PBD;
        for (int k=0; k< nMinis[j] - 1; k++){
          if (Minis[j][k+1] == 0) continue;
@@ -2034,8 +2032,8 @@ int make_LFs(double *MIs, double **CumuN_MIs, double **CumuNalls, double **CumuN
          double MIc = 0.5 * (MIcs[j][k] + MIcs[j][k+1]);
          double logMini1 = log10(Minis[j][k]);
          double logMini2 = log10(Minis[j][k+1]);
-         double P1 = getx2y(nm, logMass,  PlogM_cum_norm, logMini1);
-         double P2 = getx2y(nm, logMass,  PlogM_cum_norm, logMini2);
+         double P1 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMini1);
+         double P2 = getx2y(nm+1, logMass,  PlogM_cum_norm, logMini2);
          double wtM = P2 - P1;
          int pI = (MIc - MIst)/dI;
          if (pI < 0) pI = 0;
@@ -2157,7 +2155,7 @@ void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen,
       if (j == 0 || j == iage) wtSFR *= 0.5; // daikei sekibun
       if (j == 0 && icomp == 0) wtSFR *= 3; // add 0.00 Gyr - 0.05 Gyr
       double logMini = log10(Minis[j][0]); // should be ~0.09 Msun
-      double PBD = getx2y(nm, logMass_B,  PlogM_cum_norm_B, logMini);
+      double PBD = getx2y(nm+1, logMass_B,  PlogM_cum_norm_B, logMini);
       f_VI_Is[icomp][NbinVI - 5][NbinMI - 5] += wtSFR * PBD;
       sumwt += wtSFR * PBD;
       for (int k=0; k< nMinis[j] - 1; k++){
@@ -2167,8 +2165,8 @@ void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen,
         if (Mini1 > Mini2) printf ("Warning!! Mini1 > Mini2 !!!! @ tau= %.2f M1= %.9f M2= %.9f\n",tau,Mini1,Mini2);
         double logMini1 = log10(Minis[j][k]);
         double logMini2 = log10(Minis[j][k+1]);
-        double P1 = getx2y(nm, logMass_B,  PlogM_cum_norm_B, logMini1);
-        double P2 = getx2y(nm, logMass_B,  PlogM_cum_norm_B, logMini2);
+        double P1 = getx2y(nm+1, logMass_B,  PlogM_cum_norm_B, logMini1);
+        double P2 = getx2y(nm+1, logMass_B,  PlogM_cum_norm_B, logMini2);
         double wtM = P2 - P1;
         for (int l=0; l<3; l++){
           double VI  = (l == 0) ? VIcs[j][k] 
