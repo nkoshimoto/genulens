@@ -69,6 +69,10 @@ double m2nb_WD  = 1/0.847318; // Msun/WD   in bulge / bar
 double nMS2nRGb = 2.33232e-03; // n_RG/n_MS for bulge / bar
 double rho0b, n0MSb, n0RGb, n0b;
 
+// Nuclear disk (for |b| < 1 deg.)
+int ND, x0ND = 250, y0ND = 125, z0ND = 50;
+double C1ND = 2, rho0ND = 0, n0MSND = 0, n0RGND = 0, n0ND = 0;
+
 // --- Parameters for Disk ---
 // Density values will be overwritten in store_IMF_nBs using given IMF
 double rho0d[8]   = {5.16e-03+3.10e-04, 5.00e-03+5.09e-04, 3.85e-03+5.42e-04, 3.18e-03+5.54e-04,
@@ -402,6 +406,11 @@ int main(int argc,char **argv)
   y0d[1] = (DISK == 1) ? exp(-R0/Rd[1] - pow(((double)Rh/R0),nh))  :  exp(-R0/Rd[1]);
   y0d[2] = (DISK == 1) ? exp(-R0/Rd[2] - pow(((double)Rh/R0),nh))  :  exp(-R0/Rd[2]);
 
+  // normalize ND mass
+  rho0ND  = 0.25*0.2e+10/PI/x0ND/y0ND/z0ND;
+  n0MSND = rho0ND * fb_MS * m2nb_MS; // number density of ND MS stars
+  n0RGND = n0MSND * nMS2nRGb; // number density of ND RG stars (for mu calculation)
+  n0ND   = n0MSND + rho0ND * (1 - fb_MS) * m2nb_WD; // number density of ND MS+WD stars
 
   // Print input parameters as header 
   printf("#   Output of \"./genulens ");
@@ -543,6 +552,10 @@ int main(int argc,char **argv)
   if (DMrc == 0)
     DMrc = 14.3955 - 0.0239 * lSIMU + 0.0122*fabs(bSIMU)+0.128; // Eqs(2)-(3) of Nataf+16 
 
+  // Consider Nuclear Disk if  (y, z) reaches (125, 50) x 5 (= 625, 250) at 8 kpc
+  ND = (fabs(lSIMU) < 5 && fabs(bSIMU) < 2) ? 1 : 0;
+  printf ("#  Consider Nuclear Disk?: %d\n",ND);
+
   if (NSIMU == 0) exit(1);
   int idata = 0;
   lDs        = (double *)malloc(sizeof(double *) * 1);
@@ -602,7 +615,7 @@ int main(int argc,char **argv)
 
   //------- Store cumu_rho for each ith disk as a function of distance -----------
   void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb);  // return rho for each component 
-  double rhos[9] = {}, xyz[3] = {}, xyb[2] = {};
+  double rhos[10] = {}, xyz[3] = {}, xyb[2] = {};
   // Lens   : include REMNANT, mass basis 
   // Source : only stars, number basis 
   int Dmax = 16000;
@@ -636,8 +649,8 @@ int main(int argc,char **argv)
     double extVI = EVI0 * (1 - exp(-D[ibin]/hscale));
     // printf ("%5.0f %7.3f ",D[ibin],extI);
     for (int i=0;i<9;i++){
-      double nMS = (i == 8) ? n0MSb*rhos[8] : n0MSd[i]*rhos[i];
-      double rho = (i == 8) ? n0b  *rhos[8] : n0d[i]  *rhos[i];
+      double nMS = (i == 8) ? n0MSb*rhos[8] + n0MSND*rhos[9] : n0MSd[i]*rhos[i];
+      double rho = (i == 8) ? n0b  *rhos[8] + n0ND  *rhos[9] : n0d[i]  *rhos[i];
       if (AI0 > 0 && Isen - Isst > 0 && EVI0 > 0 && VIsen - VIsst > 0){
         double fIVIs = fIVI_detect(extI, Isst, Isen, extVI, VIsst, VIsen, i);
         rhoD_S[i][ibin] = nMS * fIVIs * 1e-06 * D[ibin] * D[ibin];
@@ -2431,6 +2444,13 @@ void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb){
   yb = -x * sintheta + y * costheta;
   zb =  z;                          
   rhos[8] = calc_rhoB(xb,yb,zb);
+  // ND added on 20211018
+  if (ND == 1){
+    // See Eq. (28) of Portail et al. 2017
+    xn = fabs(xb/x0ND), yn = fabs(yb/y0ND), zn = fabs(zb/z0ND);
+    rs = pow((pow(xn, C1ND) + pow(yn, C1ND)), 1/C1ND) + zn;
+    rhos[9] = exp(-rs);  
+  }
   xyb[0] = xb;
   xyb[1] = yb;
 }
