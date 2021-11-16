@@ -11,6 +11,9 @@ Please cite the papers if you find this code useful in your research.
 
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
 
+## For star simulation
+A version to simulate stars rather than microlensing events is currently under development, and will be issued shortly.
+
 ## Before installation
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.  
 If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
