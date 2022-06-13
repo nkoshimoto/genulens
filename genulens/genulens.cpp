@@ -505,6 +505,7 @@ int main(int argc,char **argv)
   double MND;
   if (fabs(lSIMU) < 5 && fabs(bSIMU) < 2)  ND = 3;
   ND       = getOptiond(argc,argv,"NSD",     1,  ND); // 0: wo nuclear disk, 1: w/ nuclear disk by P17, 2: w/ Sormani+21-like NSD
+  if (ND > 0) ND = 3;
   if (ND == 1){ // Consider Portail+17's NSD
     MND  = 2.0e+09;
     x0ND = 250;
@@ -667,7 +668,7 @@ int main(int argc,char **argv)
   if (u0obs > 0)   printf("#  u0obs = %.3f\n",u0obs);
   if (AI0   > 0)   printf("#  Consider %.2f <  Is < %.2f, (Dmean,  AIrc,  AI0) = (%.0f, %.2f, %.2f)\n",Isst,Isen,Dmean,AIrc,AI0);
   if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (Dmean, EVIrc, EVI0) = (%.0f, %.2f, %.2f)\n",VIsst,VIsen,Dmean,EVIrc,EVI0);
-  else printf ("# gammaDs=    %.2f      : omomi in Gamma as Ds^gammaDs\n",gammaDs);
+  if (AI0 == 0 && EVI0 == 0) printf ("# gammaDs=    %.2f      : omomi in Gamma as Ds^gammaDs\n",gammaDs);
 
 
 
