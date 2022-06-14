@@ -582,6 +582,12 @@ int main(int argc,char **argv)
   // printf("PA= %f, cosPA= %f, sinPA= %f\n",PA,cosPA,sinPA);
   double vEarthl  = getOptiond(argc,argv,"vEarthlb", 1, 11.9392); // in km/s, default for MB16227 occured on May
   double vEarthb  = getOptiond(argc,argv,"vEarthlb", 2,-17.9020); // in km/s, default for MB16227 occured on May
+  double vEarthE  = getOptiond(argc,argv,"vEarthEN", 1, 0); // in km/s
+  double vEarthN  = getOptiond(argc,argv,"vEarthEN", 2, 0); // in km/s
+  if (vEarthl == 11.9392 && vEarthb == -17.9020 && vEarthN != 0 && vEarthE != 0){
+    vEarthb =  cosPA*vEarthN - sinPA*vEarthE;
+    vEarthl =  sinPA*vEarthN + cosPA*vEarthE;
+  }
   double gammaDs  = getOptiond(argc,argv,"gammaDs",  1, 0.5);
   double wtD_L    = getOptiond(argc,argv,"wtD_L",    1, 0);  // parameter for importance sampling 
   double wtM_L    = getOptiond(argc,argv,"wtM_L",    1, 0);  // parameter for importance sampling
