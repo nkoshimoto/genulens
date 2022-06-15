@@ -653,9 +653,10 @@ int main(int argc,char **argv)
   bDs        = (double *)malloc(sizeof(double *) * 1);
   lDs[0]    = lSIMU; //
   bDs[0]    = bSIMU; //
+  double hdust = getOptiond(argc,argv,"hdust", 1, 164.0); // in pc. 164 pc = dust scale height from Nataf+13 
   double cosb = cos(bDs[idata]/180.0*PI), sinb = sin(bDs[idata]/180.0*PI), 
          cosl = cos(lDs[idata]/180.0*PI), sinl = sin(lDs[idata]/180.0*PI);
-  double hscale = 164.0/(fabs(sinb) + 0.0001);  // 164 pc = dust scale height from Nataf+13
+  double hscale = hdust/(fabs(sinb) + 0.0001);  // 164 pc = dust scale height from Nataf+13
   double Dmean  = (DMrc > 0) ? pow(10, 0.2*DMrc) * 10
                  : -9.99;
   double AI0  = (hscale > 0 && Dmean > 0) ? AIrc  / (1 - exp(-Dmean/hscale)) : 0; // 
@@ -687,8 +688,8 @@ int main(int argc,char **argv)
      printf("#    (musN, musE) = (%.3f, %.3f) +- (%.3f, %.3f) Fe_add= (%6.1f, %6.1f)\n",musNobs,musEobs,musNe,musEe,femusN,femusE);
   if (ILe > 0)    printf("#      IL = %.3f +- %.3f Fe_add= %6.1f det= %d (0: det, 1: upper limit, 2: lower limit)\n",ILobs,ILe,feIL,ILdet);
   if (u0obs > 0)   printf("#  u0obs = %.3f\n",u0obs);
-  if (AI0   > 0)   printf("#  Consider %.2f <  Is < %.2f, (Dmean,  AIrc,  AI0) = (%.0f, %.2f, %.2f)\n",Isst,Isen,Dmean,AIrc,AI0);
-  if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (Dmean, EVIrc, EVI0) = (%.0f, %.2f, %.2f)\n",VIsst,VIsen,Dmean,EVIrc,EVI0);
+  if (AI0   > 0)   printf("#  Consider %.2f <  Is < %.2f, (hdust, Dmean,  AIrc,  AI0) = (%.0f, %.0f, %.2f, %.2f)\n",Isst,Isen,hdust,Dmean,AIrc,AI0);
+  if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (hdust, Dmean, EVIrc, EVI0) = (%.0f, %.0f, %.2f, %.2f)\n",VIsst,VIsen,hdust,Dmean,EVIrc,EVI0);
   if (AI0 == 0 && EVI0 == 0) printf ("# gammaDs=    %.2f      : omomi in Gamma as Ds^gammaDs\n",gammaDs);
 
 
@@ -1184,7 +1185,7 @@ int main(int argc,char **argv)
      // Constraint from mus (measured in heliocentric)
      int like_mus = 1;
      if (musRCG == 1){ // Recalculate muS relative to RCG
-        double musfac  = 1.0 - D_s/R0; // need to subtract proper motion of RCG if the origin is RCG. assume v_RCG=0 and D_RCG=Rsun
+        double musfac  = 1.0 - D_s/Dmean; // need to subtract proper motion of RCG if the origin is RCG. assume v_RCG=0 and D_RCG=Dmean
         vxrel_s = vx_s - musfac*vxsun, vxrel_l = vx_l - musfac*vxsun;
         vyrel_s = vy_s - musfac*vysun, vyrel_l = vy_l - musfac*vysun;
         vzrel_s = vz_s - musfac*vzsun, vzrel_l = vz_l - musfac*vzsun;
