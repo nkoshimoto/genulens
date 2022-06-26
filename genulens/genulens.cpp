@@ -363,6 +363,9 @@ int main(int argc,char **argv)
   double AIrc    = getOptiond(argc,argv,"AIrc", 1, 0); // AI for RC
   double EVIrc   = getOptiond(argc,argv,"EVIrc", 1, 0); // E(V-I) for RC
   double DMrc    = getOptiond(argc,argv,"DMrc", 1, 0); //mean DM for RC, default is given later
+  if (fabs(lSIMU) > 10 || fabs(bSIMU) > 7 || fabs(bSIMU) < 1.5){
+    printf("# WARNING: genulens is designed for use in |l| < ~10 and ~1.5 < |b| < ~7 and (l,b)= (%.3f, %.3f) deg. is outside of the range.\n",lSIMU,bSIMU);
+  }
   // When only Isrange is given
   int narry = 960;
   int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum_norm);
