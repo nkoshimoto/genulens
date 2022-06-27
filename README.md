@@ -15,8 +15,8 @@ The copyright of an included supplementary code, "option.cpp", belongs to Ian A.
 
 ## Major updates
 ### v1.2 (June 2022)
-- Although [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract) did not developed their Galactic model for the Galactic Central region (|b| < 1 deg.), the nuclear stellar disk (NSD) component was added to `genulens` due to a demand.  Although it was not fitted to the data for the Galactic Central region, we have confirmed that there is no major discrepancy with the star count data by the GALACTICNUCLEUS survey (Koshimoto et al., in preparation).  
-- Accordingly, the position of the Galactic Center in the model was changed from (l, b) = (0, 0) to (l, b) = (-0.056, -0.046), which is the position of Sgr A*.  
+- Although [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract) did not developed their Galactic model for the Galactic Central region (|b| < 1 deg.), the nuclear stellar disk (NSD) component was added to `genulens` due to a demand, which affects |b| < ~0.5 deg. Although it was not fitted to the data for the Galactic Central region, we have confirmed that there is no major discrepancy with the star count data by the GALACTICNUCLEUS survey (Koshimoto et al., in preparation).  
+- Accordingly, the position of the Galactic Center in the model was changed from (l, b) = (0, 0) to (l, b) = (-0.056, -0.046) deg., which is the position of Sgr A*.  
 - The directory hierarchy was also changed. The former nkoshimoto/genulens/genulens was deleted and its contents were brought under nkoshimoto/genulens/. Therefore, if you have been using a wrapper program that assumes the previous directory structure, please change it.
 - I have made a significant revision on the [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).  , which explains many options available in `genulens`.
 
