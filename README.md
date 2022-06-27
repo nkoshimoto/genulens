@@ -6,7 +6,7 @@
 
 # genulens
 `genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract).
-The Galactic model is optimized for the bulge direction, and it is best to be used for analyzing microlensing events in $|l| < \sim10$ deg. and $|b| < \sim7$ deg.  
+The Galactic model is optimized for the bulge direction, and it is best to be used for analyzing microlensing events in $|l| < 10$ deg. and $|b| < 7$ deg.  
 The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784948](http://doi.org/10.5281/zenodo.4784948).
 Please cite the papers if you find this code useful in your research.
 
