@@ -10,15 +10,18 @@ The Galactic model is optimized for the bulge direction, and it is best to be us
 The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784948](http://doi.org/10.5281/zenodo.4784948).
 Please cite the papers if you find this code useful in your research.
 
+A simulator for stars, [`genstars`](https://github.com/nkoshimoto/genstars), is also available.
+
 The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
 
 
 ## Major updates
-### v1.2 (June 2022)
+### v1.2 and star generator (June 2022)
 - Although [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract) did not developed their Galactic model for the Galactic Central region (|b| < 1 deg.), the nuclear stellar disk (NSD) component was added to `genulens` due to a demand, which affects |b| < ~0.5 deg. Although it was not fitted to the data for the Galactic Central region, we have confirmed that there is no major discrepancy with the star count data by the GALACTICNUCLEUS survey (Koshimoto et al., in preparation).  
 - Accordingly, the position of the Galactic Center in the model was changed from (l, b) = (0, 0) to (l, b) = (-0.056, -0.046) deg., which is the position of Sgr A*.  
 - The directory hierarchy was also changed. The former nkoshimoto/genulens/genulens was deleted and its contents were brought under nkoshimoto/genulens/. Therefore, if you have been using a wrapper program that assumes the previous directory structure, please change it.
 - I have made a significant revision on the [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf). Now it explains many options available in `genulens`.
+- `genstars`, a version to simulate stars rather than microlensing events, is now available [here](https://github.com/nkoshimoto/genstars)
 
 
 ### v1.1 (June 2021)
@@ -29,10 +32,6 @@ Note that this version requires that you have GSL in your environment.
 
 ### v1.0 (May 2021)
 First release on May 24 2021.
-
-
-## For star simulation
-A version to simulate stars rather than microlensing events is currently under development, and will be issued shortly.
 
 ## Before installation
 Please ensure that GSL (GNU Scientific Library) is installed in your environment.
