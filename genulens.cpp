@@ -1042,7 +1042,7 @@ int main(int argc,char **argv)
      // Binary system assuming the picked M is a primary
      // -- Binary distribution developed by Koshimoto+2020, AJ, 159, 268 is used
      int swl = 0; // 0: single, 1: close binary, 2: wide binary
-     double M_l2 = 99, q21 = 99, u0S = 99, al = 99, alpmin = 99, apdetS = 99, apdetL = 99;
+     double M_l2 = 99999, q21 = 99999, u0S = 99999, al = 99999, alpmin = 99999, apdetS = 99999, apdetL = 99999;
      if (BINARY && fREM == 0){  // Remnant in a binary should be ideally considered, but currently not yet
        double mult = 0.196 + 0.255*M_l; // Table 2 of Koshimoto+20, AJ, 159, 268
        if (mult > MAXMULT) mult = MAXMULT;
