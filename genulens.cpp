@@ -63,6 +63,7 @@ double gasdev(){
 static int ncomp = 10; // 7xthin + thick + bar, V, I, J, H, Ks 
 static double tSFR = 7.0;  // time scale of SFR, 7.0 Gyr
 static double rhot0;
+static double MiniWDmax= 9; // 
 
 // --- for fit to tE --- (from get_chi2_for_tE.c)
 static int agesD[250], agesB[50], agesND[10];
@@ -610,11 +611,15 @@ int main(int argc,char **argv)
   // double fethetaE  = getOptiond(argc,argv,"thetaE", 3, 0); // parameter for importance sampling
   double fethetaE = 0;
   int    thetaEdet = getOptiond(argc,argv,"thetaEdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit
+  double thetaEmin = getOptiond(argc,argv,"thetaErange", 1, 0); // in mas
+  double thetaEmax = getOptiond(argc,argv,"thetaErange", 2, 0); // in mas
   double piEobs = getOptiond(argc,argv,"piE", 1, 0); // parallax amplitude 
   double piEe   = getOptiond(argc,argv,"piE", 2, 0); // 
   // double fepiE  = getOptiond(argc,argv,"piE", 3, 0); // parameter for importance sampling
   double fepiE = 0;
   int    piEdet = getOptiond(argc,argv,"piEdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit
+  double piEmin = getOptiond(argc,argv,"piErange", 1, 0); 
+  double piEmax = getOptiond(argc,argv,"piErange", 2, 0); 
   double piENobs = getOptiond(argc,argv,"piEN", 1, 0); // 
   double piENe   = getOptiond(argc,argv,"piEN", 2, 0); // 
   // double fepiEN  = getOptiond(argc,argv,"piEN", 3, 0); // parameter for importance sampling
@@ -669,6 +674,10 @@ int main(int argc,char **argv)
   //   if (AI0 > 7) AI0 = 7;
   //   if (AI0 < 0) AI0 = 0;
   // }
+  if ((thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0) && SMALLGAMMA == 0){
+    printf("# SMALLGAMMA set to 1 because thetaErange or piErange is given\n");
+    SMALLGAMMA = 1;
+  }
   printf("#-------------- Input parameters ---------------\n");
   printf("#    CenSgrA= %d     (0: GC at (l,b)=(0,0), 1: GC at (l,b)= (%.3f, %.3f))\n", CenSgrA, lSgrA, bSgrA);
   printf("#    UNIFORM= %d     (0: L= N(obs, err), 1: L= U(obs-err, obs+err))\n", UNIFORM);
@@ -694,7 +703,10 @@ int main(int argc,char **argv)
   if (AI0   > 0)   printf("#  Consider %.2f <  Is < %.2f, (hdust, Dmean,  AIrc,  AI0) = (%.0f, %.0f, %.2f, %.2f)\n",Isst,Isen,hdust,Dmean,AIrc,AI0);
   if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (hdust, Dmean, EVIrc, EVI0) = (%.0f, %.0f, %.2f, %.2f)\n",VIsst,VIsen,hdust,Dmean,EVIrc,EVI0);
   if (AI0 == 0 && EVI0 == 0) printf ("# gammaDs=    %.2f      : omomi in Gamma as Ds^gammaDs\n",gammaDs);
-
+  if (thetaEmax - thetaEmin > 0) 
+    printf("# thetaErange : %.4f - %.4f\n",thetaEmin, thetaEmax);
+  if (piEmax - piEmin > 0) 
+    printf("# piErange : %.4f - %.4f\n",piEmin, piEmax);
 
 
   // Weight by wtM_L
@@ -962,31 +974,17 @@ int main(int argc,char **argv)
      double D_l = getcumu2xist(nbin+1, D, cumu_rho_L[i_l],rhoD_L[i_l],ran,kst,0);
      addGamma *= 2 * cumu_rho_all_L[nbinDs] / cumu_rho_all_L[nbin];
 
-     // pick velocities
-     void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD); //
-     double vxyz_S[3] = {}, vxyz_L[3] = {};
-     get_vxyz_ran(vxyz_S, i_s, tau_s, D_s, lDs[idata], bDs[idata]);
-     get_vxyz_ran(vxyz_L, i_l, tau_l, D_l, lDs[idata], bDs[idata]);
-     double vx_s = vxyz_S[0], vx_l = vxyz_L[0];
-     double vy_s = vxyz_S[1], vy_l = vxyz_L[1];
-     double vz_s = vxyz_S[2], vz_l = vxyz_L[2];
+     /***************************************************************/
+     // Importance sampling when thetaErange or piErange is given
+     // This part is added on July 6, 2022
 
-     // Lens mass
-     double logM, M_l;
-     ran = ran1();
-     inttmp = ran*20;
-     kst = 1; // to avoid bug when inttmp = 0
-     for (int itmp = inttmp; itmp > 0; itmp--){
-       kst = imptiles_B[itmp] - 1; 
-       if (kst > 0) break;
-     }
-     logM = getcumu2xist(nm, logMass_B, PlogM_cum_norm_B, PlogM_B, ran, kst, 0);
-     M_l = pow(10, logM);
-     double Morg = M_l; // for wtM_L
-      
+     // Calculate pirel 
+     double pirel = 1000*(1/D_l - 1/D_s);
 
-     // Reject or Evolve into WD
-     double Minidie;
+     // Determine max present day mass
+     double MBHmax = 15.6775; // max mass when REMNANT when Mini ~ 42.21, depend on Mini2Mrem!!!
+     double MWDmax = 1.375; // max mass for WD
+     double Minidie; // max mass for MS
      if (i_l == 8){ // bulge 
        int iage_l = tau_l * 2 + 0.5;
        iage_l *= 50;
@@ -1007,8 +1005,117 @@ int main(int argc,char **argv)
        int itmp = (iage_l - agesD[0])/(agesD[1] - agesD[0]);
        Minidie = MinidieD[itmp];
      }
-     // print "tau= tau_l -> iage= iage_l, Minidie= Minidie{iage_l}\n";
+     double MMSmax = (BINARY == 1) ? 2 * Minidie : Minidie; // equal-mass binary is max mass when BINARY
+     double MPDmax = (REMNANT == 1) ? MBHmax 
+                   : (onlyWD == 1 && MWDmax > MMSmax) ? MWDmax
+                   : MMSmax;
+     double MPDmin = Ml;
+     
+     // Calculate Mrange from thetaErange and piErange
+     double MthEmin = MPDmin, MthEmax = MPDmax, MpiEmin = MPDmin, MpiEmax = MPDmax;
+     if (thetaEmax - thetaEmin > 0){
+       double Mtmp;
+       Mtmp = thetaEmin*thetaEmin/KAPPA/pirel;
+       MthEmin = (Mtmp < MPDmin) ? MPDmin 
+               : (Mtmp > MPDmax) ? MPDmax
+               : Mtmp;
+       Mtmp = thetaEmax*thetaEmax/KAPPA/pirel;
+       MthEmax = (Mtmp < MPDmin) ? MPDmin 
+               : (Mtmp > MPDmax) ? MPDmax
+               : Mtmp;
+     }
+     if (piEmax - piEmin > 0){
+       double Mtmp;
+       Mtmp = pirel/KAPPA/piEmax/piEmax; // lower value
+       MpiEmin = (Mtmp < MPDmin) ? MPDmin 
+               : (Mtmp > MPDmax) ? MPDmax
+               : Mtmp;
+       Mtmp = pirel/KAPPA/piEmin/piEmin; // larger value
+       MpiEmax = (Mtmp < MPDmin) ? MPDmin 
+               : (Mtmp > MPDmax) ? MPDmax
+               : Mtmp;
+     }
 
+     // Reject when no overlap between allowed Mranges by thetaE and piE
+     if (MthEmin >= MpiEmax || MpiEmin >= MthEmax || MthEmax - MthEmin <= 0 || MpiEmax - MpiEmin <= 0)
+     { 
+       j--;
+       continue;
+     }
+
+     // Determine Mrange
+     double Minimin = 0, Minimax = 0;
+     if (thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0){
+       Minimin = (MthEmin > MpiEmin) ? MthEmin : MpiEmin;
+       Minimax = (MthEmax < MpiEmax) ? MthEmax : MpiEmax;
+       if (REMNANT == 1 && onlyWD == 0){ // When can be NS or BH
+         double MWDmin = 0.109 * Minidie + 0.394;
+         double MNSmin = 1.60 - 0.158 * 4; // 4 sigma of 1.60 + 0.158*gasdev(), migth be unphysical?
+         // max: 
+         // 1. If NS is possible, consider up to Mu (120 Msun) cuz Mrem2Mini is difficult for NS or BH.
+         // 2. If NS is impossible but WD is possible, consider up to the corresponding initial mass.
+         // 3. If NS or WD is impossible (i.e., star), initial mass = present-day mass
+         Minimax = (Minimax > MNSmin) ? Mu  // Consider up to Mu when exceed min mass of NS (~)
+                 : (Minimax > MWDmin) ? (Minimax - 0.394)/0.109  // 
+                 : Minimax;
+         // min: 
+         // 1. If need to be NS/BH, minimum mass is MiniWDmax
+         // 2. If need to be WD, minimum mass is the corresponding initial mass.
+         // 3. If not need to be WD/NS/BH, initial mass = present-day mass 
+         Minimin = (Minimin > MWDmax && Minimin > MMSmax) ? MiniWDmax // need to be NS or BH
+                 : (Minimin > MMSmax) ? (Minimin - 0.394)/0.109  // Minidie < Minimin < MWDmax, need to be WD
+                 : (BINARY == 1) ? 0.5 * Minimin // equal mass binary
+                 : Minimin;
+       }else if(onlyWD == 1){  // When can be WD
+         double MWDmin = 0.109 * Minidie + 0.394;
+         Minimax = (Minimax > MWDmin) ? (Minimax - 0.394)/0.109  // can be WD
+                 : Minimax;
+         Minimin = (Minimin > MMSmax) ? (Minimin - 0.394)/0.109  // need to be WD
+                 : (BINARY == 1) ? 0.5 * Minimin // equal mass binary
+                 : Minimin;
+       }else{
+         Minimin = (BINARY == 1) ? 0.5 * Minimin // equal mass binary
+                 : Minimin;
+       }
+       // printf("# MthEmin-max= %.6f - %.6f\n",MthEmin,MthEmax);
+       // printf("# MpiEmin-max= %.6f - %.6f\n",MpiEmin,MpiEmax);
+       // printf("# Minimin-max= %.6f - %.6f\n",Minimin,Minimax);
+     }
+
+     /***************************************************************/
+
+     // pick velocities
+     void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD); //
+     double vxyz_S[3] = {}, vxyz_L[3] = {};
+     get_vxyz_ran(vxyz_S, i_s, tau_s, D_s, lDs[idata], bDs[idata]);
+     get_vxyz_ran(vxyz_L, i_l, tau_l, D_l, lDs[idata], bDs[idata]);
+     double vx_s = vxyz_S[0], vx_l = vxyz_L[0];
+     double vy_s = vxyz_S[1], vy_l = vxyz_L[1];
+     double vz_s = vxyz_S[2], vz_l = vxyz_L[2];
+
+     // Lens mass
+     double logM, M_l;
+     if (Minimax - Minimin > 0 && Minimin > 0){
+       int nbinMmin = floor((log10(Minimin) - logMst)/dlogM);
+       int nbinMmax = floor((log10(Minimax) - logMst)/dlogM) + 1;
+       if (nbinMmin < 0) nbinMmin = 0;
+       if (nbinMmax > nm) nbinMmax = nm;
+       ran = ran1() * (PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin]) + PlogM_cum_norm_B[nbinMmin]; // limit Mmin - Mmax
+       addGamma *= PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin]; // reduce weight by the confined region
+     }else{
+       ran = ran1();
+     }
+     inttmp = ran*20;
+     kst = 1; // to avoid bug when inttmp = 0
+     for (int itmp = inttmp; itmp > 0; itmp--){
+       kst = imptiles_B[itmp] - 1; 
+       if (kst > 0) break;
+     }
+     logM = getcumu2xist(nm, logMass_B, PlogM_cum_norm_B, PlogM_B, ran, kst, 0);
+     M_l = pow(10, logM);
+     double Morg = M_l; // for wtM_L
+
+     // Reject or Evolve into WD
      int fREM = 0;
      void Mini2Mrem (double *pout, double M, int mean); 
      // printf "# iage_l M_l > Minidie{iage_l}" if M_l > Minidie{iage_l}; 
@@ -1073,7 +1180,6 @@ int main(int argc,char **argv)
          double Mtmp1 = (ran < Ptmp) ? M_l  : M_l2; // lens candidate
          double Mtmp2 = (ran < Ptmp) ? M_l2 : M_l;  // lens companion candidate, could be lens together
          double qtmp = Mtmp2/Mtmp1; // Can be > 1
-         double pirel = 1000*(1/D_l - 1/D_s); // temporal pirel
          double thetaE1  = sqrt(Mtmp1* pirel*KAPPA);
          double thetaE12 = sqrt((Mtmp1+Mtmp2)* pirel*KAPPA);
          //   pick up aproj
@@ -1126,7 +1232,6 @@ int main(int argc,char **argv)
      double vt = murel*D_l/KS2MY;
 
      // Microlens parameters
-     double pirel = 1000*(1/D_l - 1/D_s);  // mas
      double thetaE = sqrt(M_l* pirel * KAPPA); // 99 just for DSGAMMA
      if (thetaE == 0){ // oukyuu sochi
        printf ("#ERROR: thetaE = 0!! M_l=  %.5e\n",M_l);
@@ -1936,7 +2041,6 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
 //----------------
 void Mini2Mrem (double *pout, double Mini, int mean) {  // mean = 1: give mean, 0: give random
   /* Return remnant mass for a given initial mass following the initial-final mass relation by Lam et al. 2020, ApJ, 889, 31 */
-  double MiniWDmax= 9;  // To make it continuous boundary between WD & NS
   double Mrem, fREM; 
   // Below is from Table 1 of Lam et al. 2020, ApJ, 889, 31
   double PNS = (Mini < MiniWDmax) ? 0  // 100% WD
