@@ -674,10 +674,10 @@ int main(int argc,char **argv)
   //   if (AI0 > 7) AI0 = 7;
   //   if (AI0 < 0) AI0 = 0;
   // }
-  if ((thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0) && SMALLGAMMA == 0){
-    printf("# SMALLGAMMA set to 1 because thetaErange or piErange is given\n");
-    SMALLGAMMA = 1;
-  }
+  // if ((thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0) && SMALLGAMMA == 0){
+  //   printf("# SMALLGAMMA set to 1 because thetaErange or piErange is given\n");
+  //   SMALLGAMMA = 1;
+  // }
   printf("#-------------- Input parameters ---------------\n");
   printf("#    CenSgrA= %d     (0: GC at (l,b)=(0,0), 1: GC at (l,b)= (%.3f, %.3f))\n", CenSgrA, lSgrA, bSgrA);
   printf("#    UNIFORM= %d     (0: L= N(obs, err), 1: L= U(obs-err, obs+err))\n", UNIFORM);
@@ -918,7 +918,7 @@ int main(int argc,char **argv)
        if (NSIMU > NDATAMAX) printf ("# Decrease NSIMU to %ld\n",NDATAMAX) ;
        if (NSIMU > NDATAMAX) NSIMU = NDATAMAX;
      }
-     double ran, cumu, addGamma = 1;
+     double ran, cumu, addGammaIS = 1;
      int inttmp, kst;
      // pick D_s
      ran = ran1(); 
@@ -947,12 +947,28 @@ int main(int argc,char **argv)
      int nbinDs = floor(D_s/dD);
      // printf ("i_s= %d ran= %.17f (/max= %.17f) kst= %d (/nbin= %d) F[kst]-F[kst-1]= %.17e - %.17e Ds= %5.0f\n",i_s,ran,cumu_rho_S[i_s][nbin],kst,nbin, cumu_rho_S[i_s][kst], cumu_rho_S[i_s][kst-1], rhoD_S[i_s][kst], rhoD_S[i_s][kst-1], D_s);
 
+     /***************************************************************/
+     // Importance sampling when thetaErange and piErange are given
+     // This part is added on July 8, 2022
+     // Determine D_l range when thetaErange and piErange are both given
+     int nbinDlmin = 0, nbinDlmax = nbinDs;
+     if (thetaEmax - thetaEmin > 0 && piEmax - piEmin > 0){
+       double Dlmin = 1000 / (piEmax*thetaEmax + 1000/D_s);
+       double Dlmax = 1000 / (piEmin*thetaEmin + 1000/D_s);
+       nbinDlmin = floor(Dlmin/dD);
+       nbinDlmax = floor(Dlmax/dD) + 1;
+       if (nbinDlmin < 0) nbinDlmin = 0; 
+       if (nbinDlmax > nbinDs) nbinDlmax = nbinDs; 
+       // printf("Dlmin= %.2f Dlmax= %.2f\n",Dlmin,Dlmax);
+     }
+     /***************************************************************/
+     
      // pick D_l
      ran = ran1(); 
      cumu = 0;
      int i_l;
      for (i_l=0;i_l<ncomp;i_l++){
-       cumu += cumu_rho_L[i_l][nbinDs]/cumu_rho_all_L[nbinDs];
+       cumu += (cumu_rho_L[i_l][nbinDlmax] - cumu_rho_L[i_l][nbinDlmin])/(cumu_rho_all_L[nbinDlmax] - cumu_rho_all_L[nbinDlmin]);
        if (ran < cumu) break;
      }
      if (i_l == ncomp){ // when nbinDs == 0
@@ -962,17 +978,16 @@ int main(int argc,char **argv)
      double tau_l = (i_l == 9) ? mageND + sageND*gasdev()
                   : (i_l == 8) ? mageB + sageB*gasdev()
                   : medtauds[i_l];
-     ran = ran1() * cumu_rho_L[i_l][nbinDs] / cumu_rho_L[i_l][nbin]; // D_l must be < D_s
-     inttmp = ran*20;
+     ran = ran1() * (cumu_rho_L[i_l][nbinDlmax] - cumu_rho_L[i_l][nbinDlmin]) + cumu_rho_L[i_l][nbinDlmin];
+     inttmp = ran*20 / cumu_rho_L[i_l][nbin]; // make inttmp < 1
      kst = 1;
      // printf ("inttmp= %2d\n",inttmp);
      for (int itmp = inttmp; itmp > 0; itmp--){
        kst = ibinptiles_L[i_l][itmp];
        if (kst > 0) break;
      }
-     ran = ran* cumu_rho_L[i_l][nbin];
      double D_l = getcumu2xist(nbin+1, D, cumu_rho_L[i_l],rhoD_L[i_l],ran,kst,0);
-     addGamma *= 2 * cumu_rho_all_L[nbinDs] / cumu_rho_all_L[nbin];
+     addGammaIS *=  (cumu_rho_all_L[nbinDlmax] - cumu_rho_all_L[nbinDlmin])/ cumu_rho_all_L[nbin];
 
      /***************************************************************/
      // Importance sampling when thetaErange or piErange is given
@@ -1038,16 +1053,16 @@ int main(int argc,char **argv)
 
      // Reject when no overlap between allowed Mranges by thetaE and piE
      if (MthEmin >= MpiEmax || MpiEmin >= MthEmax || MthEmax - MthEmin <= 0 || MpiEmax - MpiEmin <= 0)
-     { 
+     {
        j--;
        continue;
      }
 
      // Determine Mrange
-     double Minimin = 0, Minimax = 0;
+     int nbinMmin = 0, nbinMmax = 0;
      if (thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0){
-       Minimin = (MthEmin > MpiEmin) ? MthEmin : MpiEmin;
-       Minimax = (MthEmax < MpiEmax) ? MthEmax : MpiEmax;
+       double Minimin = (MthEmin > MpiEmin) ? MthEmin : MpiEmin;
+       double Minimax = (MthEmax < MpiEmax) ? MthEmax : MpiEmax;
        if (REMNANT == 1 && onlyWD == 0){ // When can be NS or BH
          double MWDmin = 0.109 * Minidie + 0.394;
          double MNSmin = 1.60 - 0.158 * 4; // 4 sigma of 1.60 + 0.158*gasdev(), migth be unphysical?
@@ -1077,6 +1092,10 @@ int main(int argc,char **argv)
          Minimin = (BINARY == 1) ? 0.5 * Minimin // equal mass binary
                  : Minimin;
        }
+       nbinMmin = floor((log10(Minimin) - logMst)/dlogM);
+       nbinMmax = floor((log10(Minimax) - logMst)/dlogM) + 1;
+       if (nbinMmin < 0) nbinMmin = 0;
+       if (nbinMmax > nm) nbinMmax = nm;
        // printf("# MthEmin-max= %.6f - %.6f\n",MthEmin,MthEmax);
        // printf("# MpiEmin-max= %.6f - %.6f\n",MpiEmin,MpiEmax);
        // printf("# Minimin-max= %.6f - %.6f\n",Minimin,Minimax);
@@ -1095,13 +1114,9 @@ int main(int argc,char **argv)
 
      // Lens mass
      double logM, M_l;
-     if (Minimax - Minimin > 0 && Minimin > 0){
-       int nbinMmin = floor((log10(Minimin) - logMst)/dlogM);
-       int nbinMmax = floor((log10(Minimax) - logMst)/dlogM) + 1;
-       if (nbinMmin < 0) nbinMmin = 0;
-       if (nbinMmax > nm) nbinMmax = nm;
+     if (nbinMmax - nbinMmin > 0){  // importance sampling
        ran = ran1() * (PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin]) + PlogM_cum_norm_B[nbinMmin]; // limit Mmin - Mmax
-       addGamma *= PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin]; // reduce weight by the confined region
+       addGammaIS *= PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin]; // reduce weight by the confined region
      }else{
        ran = ran1();
      }
@@ -1242,8 +1257,9 @@ int main(int argc,char **argv)
      double piE  = pirel/thetaE;
      double piEN = piE * ( murelb*cosPA + murell*sinPA)/murel;
      double piEE = piE * (-murelb*sinPA + murell*cosPA)/murel;
-     double Gamma = 8e-09 * D_l*D_l*thetaE*murel; // 8e-09 makes Gamma to be < ~1
-     Gamma *= addGamma;
+     double Gamma = 1.6e-08 * D_l*D_l*thetaE*murel; // 1.6e-08 makes Gamma to be < ~1
+     // double Gamma = 8e-09 * D_l*D_l*thetaE*murel; // 8e-09 makes Gamma to be < ~1
+     // printf("Ml= %.6f, D_l= %.2f Gamma= %.5e piE= %.5f thetaE= %.5f tE= %.3f\n",M_l, D_l,Gamma,piE,thetaE,tE);
      // for mean tE
      SumGamma += Gamma;
      SumtE    += Gamma*tE;
@@ -1257,7 +1273,7 @@ int main(int argc,char **argv)
        continue;
      }
      double like_obs(double mod, double obs, double err, double fe, int det, int UNIFORM);
-     addGamma = 1;
+     double addGamma = 1;
      double wtj = (Gamma > 1 || SMALLGAMMA == 1) ? Gamma : 1;
 
      // Correction for wtM_L and wtD_L
@@ -1346,8 +1362,8 @@ int main(int argc,char **argv)
      }
 
      // Combine all constraints
-     Gamma *= addGamma;
-     wtj   *= addGamma;
+     Gamma *= addGamma * addGammaIS;
+     wtj   *= addGamma * addGammaIS;
      int like = like_tE*like_thetaE*like_piE*like_mus*like_IL;
      if (like_tE == 1) wtlike_tE += wtj;
      if (like    == 1) Nlike ++, wtlike    += wtj;
