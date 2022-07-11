@@ -657,6 +657,43 @@ int main(int argc,char **argv)
   int    ILdet = getOptiond(argc,argv,"ILdet", 1, 2); // 0: det, 1: upper limit, 2: lower limit, default: 2
   double u0obs = getOptiond(argc,argv,"u0", 1, 0); // affect only when BINARY == 1
   // char *pthEfile = getOptions(argc,argv, "pthetaE", 1, ""); // give P(thE) by file
+  //
+  // Set importance sampling parameters
+  int    NOIS = getOptiond(argc,argv,"NOIS", 1, 0); // 0: Set tErange, thetaErange, piErange automatically
+  double fIS0 = (UNIFORM == 1) ? 1.02 : 4.0;
+  double fIStE     = getOptiond(argc,argv,"fIStE", 1, fIS0); // Consider +- 4 sigma
+  double fISthetaE = getOptiond(argc,argv,"fISthetaE", 1, fIS0); // Consider +- 4 sigma
+  double fISpiE    = getOptiond(argc,argv,"fISpiE", 1, fIS0); //
+  if (NOIS == 0){
+    if (tEobs - tEe > 0 && tEe > 0 && tEmax - tEmin == 0){
+      tEmin = tEobs - fIStE * tEe;
+      tEmax = tEobs + fIStE * tEe;
+      if (tEmin <= 0 || tEdet == 1) tEmin = 1e-10;
+      if (tEdet == 2) tEmax = 1e+6;
+    }
+    if (thetaEobs - thetaEe > 0 && thetaEe > 0 && thetaEmax - thetaEmin == 0){
+      thetaEmin = thetaEobs - fISthetaE * thetaEe;
+      thetaEmax = thetaEobs + fISthetaE * thetaEe;
+      if (thetaEmin <= 0 || thetaEdet == 1) thetaEmin = 1e-10;
+      if (thetaEdet == 2) thetaEmax = 1e+6;
+    }
+    if (piEobs - piEe > 0 && piEe > 0 && piEmax - piEmin == 0){
+      piEmin = piEobs - fISpiE * piEe;
+      piEmax = piEobs + fISpiE * piEe;
+      if (piEmin <= 0 || piEdet == 1) piEmin = 1e-10;
+      if (piEdet == 2) piEmax = 1e+6;
+    }
+    if (piENe > 0 && piEEe > 0 && piEmax - piEmin == 0){
+      double piENabsmin = (fabs(piENobs) - fISpiE * piENe < 0) ? 0 : fabs(piENobs) - fISpiE * piENe;
+      double piEEabsmin = (fabs(piEEobs) - fISpiE * piEEe < 0) ? 0 : fabs(piEEobs) - fISpiE * piEEe;
+      double piENabsmax = fabs(piENobs) + fISpiE * piENe;
+      double piEEabsmax = fabs(piEEobs) + fISpiE * piEEe;
+      piEmin = sqrt(piENabsmin*piENabsmin + piEEabsmin*piEEabsmin);
+      piEmax = sqrt(piENabsmax*piENabsmax + piEEabsmax*piEEabsmax);
+      if (piEmin <= 0) piEmin = 1e-10;
+    }
+  }
+
   if (DMrc == 0)
     DMrc = 14.3955 - 0.0239 * lSIMU + 0.0122*fabs(bSIMU)+0.128; // Eqs(2)-(3) of Nataf+16 
 
@@ -709,11 +746,12 @@ int main(int argc,char **argv)
   if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (hdust, Dmean, EVIrc, EVI0) = (%.0f, %.0f, %.2f, %.2f)\n",VIsst,VIsen,hdust,Dmean,EVIrc,EVI0);
   if (AI0 == 0 && EVI0 == 0) printf ("# gammaDs=    %.2f      : omomi in Gamma as Ds^gammaDs\n",gammaDs);
   if (tEmax - tEmin > 0) 
-    printf("# tErange     : %.4f - %.4f\n",tEmin, tEmax);
+    printf("# Sampling parameter range : \n");
+    printf("#     tErange     : %.4f - %.4f\n",tEmin, tEmax);
   if (thetaEmax - thetaEmin > 0) 
-    printf("# thetaErange : %.4f - %.4f\n",thetaEmin, thetaEmax);
+    printf("#     thetaErange : %.4f - %.4f\n",thetaEmin, thetaEmax);
   if (piEmax - piEmin > 0) 
-    printf("# piErange    : %.4f - %.4f\n",piEmin, piEmax);
+    printf("#     piErange    : %.4f - %.4f\n",piEmin, piEmax);
 
 
   // Weight by wtM_L
@@ -957,6 +995,7 @@ int main(int argc,char **argv)
      int nbinDs = floor(D_s/dD);
 
      // pick D_l
+
      /***************************************************************/
      /*** Importance sampling when thetaErange and piErange are given ***/
      // This part is added on July 8, 2022
@@ -1335,13 +1374,13 @@ int main(int argc,char **argv)
      // double Gamma = 8e-09 * D_l*D_l*thetaE*murel; // 8e-09 makes Gamma to be < ~1
      // printf("Ml= %.6f, D_l= %.2f Gamma= %.5e piE= %.5f thetaE= %.5f tE= %.3f\n",M_l, D_l,Gamma,piE,thetaE,tE);
      // for mean tE
-     SumGamma += Gamma;
-     SumtE    += Gamma*tE;
+     SumGamma += Gamma*addGammaIS;
+     SumtE    += Gamma*addGammaIS*tE;
      // for median tE
      int ilogtE = (log10(tE) - logtEmin)/(logtEmax - logtEmin)*NbintE;
      if (ilogtE < 0) ilogtE = 0;
      if (ilogtE > NbintE - 1) ilogtE = NbintE - 1;
-     NlogtEs[ilogtE] += Gamma;
+     NlogtEs[ilogtE] += Gamma*addGammaIS;
      if (Gamma < ran1() && SMALLGAMMA == 0){
        j--;
        continue;
@@ -1439,6 +1478,7 @@ int main(int argc,char **argv)
      Gamma *= addGamma * addGammaIS;
      wtj   *= addGamma * addGammaIS;
      int like = like_tE*like_thetaE*like_piE*like_mus*like_IL;
+     // if (VERBOSITY == 1) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %2d %2d %d %d\n", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, i_s,i_l,fREM,like);
      if (like_tE == 1) wtlike_tE += wtj;
      if (like    == 1) Nlike ++, wtlike    += wtj;
      else continue;
