@@ -35,6 +35,8 @@
 #define     srob 500.0
 #define    vescd 550.0 // escape velo of disk
 #define    vescb 600.0 // escape velo of bulge
+#define   MNSMIN  1.2 // roughly determined from Fig. 7 of Raithel+18
+#define   MNSMAX  2.1 // roughly determined from Fig. 7 of Raithel+18
 #define  MAXMULT 1.0 // 
 #define MAXGAMMA 4.0 // 
 #define MINGAMMA 0.0 // 
@@ -601,11 +603,14 @@ int main(int argc,char **argv)
   int BINARY      = getOptiond(argc,argv,"BINARY",   1,  0);
   int REMNANT     = getOptiond(argc,argv,"REMNANT",  1,  0);
   int onlyWD      = getOptiond(argc,argv,"onlyWD",  1,  0);
+  if (onlyWD == 1) REMNANT = 0;
   double tEobs     = getOptiond(argc,argv,"tE", 1, 54.5); // in day
   double tEe       = getOptiond(argc,argv,"tE", 2, 99999999999.0); // in day
   // double fetE      = getOptiond(argc,argv,"tE", 3, 0); // parameter for importance sampling 
   double fetE = 0;
   int    tEdet     = getOptiond(argc,argv,"tEdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit
+  double tEmin = getOptiond(argc,argv,"tErange", 1, 0); // in mas
+  double tEmax = getOptiond(argc,argv,"tErange", 2, 0); // in mas
   double thetaEobs = getOptiond(argc,argv,"thetaE", 1, 0); // in mas
   double thetaEe   = getOptiond(argc,argv,"thetaE", 2, 0); // in mas
   // double fethetaE  = getOptiond(argc,argv,"thetaE", 3, 0); // parameter for importance sampling
@@ -703,10 +708,12 @@ int main(int argc,char **argv)
   if (AI0   > 0)   printf("#  Consider %.2f <  Is < %.2f, (hdust, Dmean,  AIrc,  AI0) = (%.0f, %.0f, %.2f, %.2f)\n",Isst,Isen,hdust,Dmean,AIrc,AI0);
   if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (hdust, Dmean, EVIrc, EVI0) = (%.0f, %.0f, %.2f, %.2f)\n",VIsst,VIsen,hdust,Dmean,EVIrc,EVI0);
   if (AI0 == 0 && EVI0 == 0) printf ("# gammaDs=    %.2f      : omomi in Gamma as Ds^gammaDs\n",gammaDs);
+  if (tEmax - tEmin > 0) 
+    printf("# tErange     : %.4f - %.4f\n",tEmin, tEmax);
   if (thetaEmax - thetaEmin > 0) 
     printf("# thetaErange : %.4f - %.4f\n",thetaEmin, thetaEmax);
   if (piEmax - piEmin > 0) 
-    printf("# piErange : %.4f - %.4f\n",piEmin, piEmax);
+    printf("# piErange    : %.4f - %.4f\n",piEmin, piEmax);
 
 
   // Weight by wtM_L
@@ -903,6 +910,7 @@ int main(int argc,char **argv)
   double ncntall = 0, ncnts = 0, ncntbWD = 0, ncntbCD = 0; 
   double nBD = 0, nMS = 0, nWD = 0, nNS= 0, nBH =  0;
   int Nlike = 0;
+  long NrejIS = 0, Ngen = 0;
   double wtlike = 0, wtlike_tE =0;
   double SumGamma = 0, SumtE = 0; // for mean tE
   double logtEmin = -1, logtEmax = 2, NbintE = 300, NlogtEs[500] = {}; // for median tE
@@ -920,6 +928,8 @@ int main(int argc,char **argv)
      }
      double ran, cumu, addGammaIS = 1;
      int inttmp, kst;
+     Ngen++;
+
      // pick D_s
      ran = ran1(); 
      cumu = 0;
@@ -945,10 +955,10 @@ int main(int argc,char **argv)
      ran = ran* cumu_rho_S[i_s][nbin];
      double D_s = getcumu2xist(nbin+1, D, cumu_rho_S[i_s],rhoD_S[i_s],ran,kst,0);
      int nbinDs = floor(D_s/dD);
-     // printf ("i_s= %d ran= %.17f (/max= %.17f) kst= %d (/nbin= %d) F[kst]-F[kst-1]= %.17e - %.17e Ds= %5.0f\n",i_s,ran,cumu_rho_S[i_s][nbin],kst,nbin, cumu_rho_S[i_s][kst], cumu_rho_S[i_s][kst-1], rhoD_S[i_s][kst], rhoD_S[i_s][kst-1], D_s);
 
+     // pick D_l
      /***************************************************************/
-     // Importance sampling when thetaErange and piErange are given
+     /*** Importance sampling when thetaErange and piErange are given ***/
      // This part is added on July 8, 2022
      // Determine D_l range when thetaErange and piErange are both given
      int nbinDlmin = 0, nbinDlmax = nbinDs;
@@ -959,11 +969,9 @@ int main(int argc,char **argv)
        nbinDlmax = floor(Dlmax/dD) + 1;
        if (nbinDlmin < 0) nbinDlmin = 0; 
        if (nbinDlmax > nbinDs) nbinDlmax = nbinDs; 
-       // printf("Dlmin= %.2f Dlmax= %.2f\n",Dlmin,Dlmax);
      }
      /***************************************************************/
      
-     // pick D_l
      ran = ran1(); 
      cumu = 0;
      int i_l;
@@ -989,8 +997,56 @@ int main(int argc,char **argv)
      double D_l = getcumu2xist(nbin+1, D, cumu_rho_L[i_l],rhoD_L[i_l],ran,kst,0);
      addGammaIS *=  (cumu_rho_all_L[nbinDlmax] - cumu_rho_all_L[nbinDlmin])/ cumu_rho_all_L[nbin];
 
+
+     // pick velocities
+     void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD); //
+     double vxyz_S[3] = {}, vxyz_L[3] = {};
+     get_vxyz_ran(vxyz_S, i_s, tau_s, D_s, lDs[idata], bDs[idata]);
+     get_vxyz_ran(vxyz_L, i_l, tau_l, D_l, lDs[idata], bDs[idata]);
+     double vx_s = vxyz_S[0], vx_l = vxyz_L[0];
+     double vy_s = vxyz_S[1], vy_l = vxyz_L[1];
+     double vz_s = vxyz_S[2], vz_l = vxyz_L[2];
+
+     // Convert into proper motion
+     // use relation: (not exactly correct if zsun > 0)
+     //   v_l = v_x sinl      + v_y cosl
+     //   v_b = v_x cosl sinb - v_y sinl sinb + v_z cosb
+     double vxrel_s = vx_s - vxsun;
+     double vyrel_s = vy_s - vysun;
+     double vzrel_s = vz_s - vzsun;
+     double muSl   = (vxrel_s*sinl      + vyrel_s*cosl)*KS2MY/D_s;  // iru
+     double muSb   = (vxrel_s*cosl*sinb - vyrel_s*sinl*sinb + vzrel_s*cosb)*KS2MY/D_s; // iru
+     double murells[3] = {}, murelbs[3] = {}, murels[3] = {}; // 0: MS/WD, 1: NS, 2: BH
+     double phikick   = (REMNANT == 1 && onlyWD == 0) ? ran1()*2*PI : 0;
+     double thetakick = (REMNANT == 1 && onlyWD == 0) ? ran1()*PI : 0;
+     int nREM = (REMNANT == 1 && onlyWD == 0) ? 3 : 1;
+     for (int iREM = 0; iREM < nREM; iREM++){
+       double vxadd = 0, vyadd = 0, vzadd = 0;
+       if (iREM > 0){ // iREM == 1 or 2
+         double vkick = (iREM == 1) ? 350 : 100;  // Table 2 of Lam et al. 2020
+         vxadd =  vkick * cos(thetakick) * cos(phikick);
+         vyadd =  vkick * cos(thetakick) * sin(phikick);
+         vzadd =  vkick * sin(thetakick);
+       }
+       double vxrel_l = vx_l + vxadd - vxsun;
+       double vyrel_l = vy_l + vyadd - vysun;
+       double vzrel_l = vz_l + vzadd - vzsun;
+       double muLl   = (vxrel_l*sinl      + vyrel_l*cosl)*KS2MY/D_l;
+       double muLb   = (vxrel_l*cosl*sinb - vyrel_l*sinl*sinb + vzrel_l*cosb)*KS2MY/D_l;
+       double murellhel = muLl - muSl;
+       double murelbhel = muLb - muSb;
+       murells[iREM] = murellhel - vEarthl*KS2MY*(D_s-D_l)/D_s/D_l; // hel -> geo, iru
+       murelbs[iREM] = murelbhel - vEarthb*KS2MY*(D_s-D_l)/D_s/D_l; // hel -> geo, iru
+       murels[iREM]  = sqrt(murells[iREM]*murells[iREM] + murelbs[iREM]*murelbs[iREM]);
+     }
+     double murell = murells[0]; // These are updated when fREM >= 2 later
+     double murelb = murelbs[0];
+     double murel  = murels[0];
+     
+
+     // Lens mass
      /***************************************************************/
-     // Importance sampling when thetaErange or piErange is given
+     /*** Importance sampling when thetaErange or piErange is given ***/
      // This part is added on July 6, 2022
 
      // Calculate pirel 
@@ -1026,8 +1082,55 @@ int main(int argc,char **argv)
                    : MMSmax;
      double MPDmin = Ml;
      
-     // Calculate Mrange from thetaErange and piErange
-     double MthEmin = MPDmin, MthEmax = MPDmax, MpiEmin = MPDmin, MpiEmax = MPDmax;
+     // Calculate Mrange from tErange, thetaErange and piErange
+     double MtEmin = MPDmax, MtEmax = MPDmin, MthEmin = MPDmin, MthEmax = MPDmax, MpiEmin = MPDmin, MpiEmax = MPDmax;
+     if (tEmax - tEmin > 0){
+       double MMSWDmax = (MWDmax > MMSmax && (onlyWD == 1 || REMNANT == 1)) ? MWDmax : MMSmax;
+       double tmpfac = murel * murel / KAPPA/pirel/365.25/365.25;
+       double MtEMSmin = tmpfac*tEmin*tEmin;
+       if (MtEMSmin < MPDmin) MtEMSmin = MPDmin;
+       double MtEMSmax = tmpfac*tEmax*tEmax;
+       if (MtEMSmax > MMSWDmax) MtEMSmax = MMSWDmax;
+       if (MtEMSmax > MPDmin && MtEMSmin < MMSWDmax){
+         MtEmin = MtEMSmin;
+         MtEmax = MtEMSmax;
+       }
+       if (REMNANT == 1 && onlyWD == 0){
+         // With NS kick velocity
+         tmpfac = murels[1] * murels[1] / KAPPA/pirel/365.25/365.25; // NS
+         double MtENSmin = tmpfac*tEmin*tEmin;
+         if (MtENSmin < MNSMIN) MtENSmin = MNSMIN;
+         double MtENSmax = tmpfac*tEmax*tEmax;
+         if (MtENSmax > MNSMAX) MtENSmax = MNSMAX;
+         if (MtENSmax > MNSMIN && MtENSmin < MNSMAX){
+           MtEmin = (MtENSmin < MtEmin) ? MtENSmin : MtEmin;
+           MtEmax = (MtENSmax > MtEmax) ? MtENSmax : MtEmax;
+         }
+         // With BH kick velocity
+         double MBHmin = 4.9911; // when Mini ~ 15 Msun
+         tmpfac = murels[2] * murels[2] / KAPPA/pirel/365.25/365.25; // BH
+         double MtEBHmin = tmpfac*tEmin*tEmin;
+         if (MtEBHmin < MBHmin) MtEBHmin = MBHmin;
+         double MtEBHmax = tmpfac*tEmax*tEmax;
+         if (MtEBHmax > MBHmax) MtEBHmax = MBHmax;
+         if (MtEBHmax > MBHmin && MtEBHmin < MBHmax){
+           MtEmin = (MtEBHmin < MtEmin) ? MtEBHmin : MtEmin;
+           MtEmax = (MtEBHmax > MtEmax) ? MtEBHmax : MtEmax;
+         }
+         // printf("# MtEMSmin-max= %.6f - %.6f %.6f\n",MtEMSmin,MtEMSmax,murels[0]);
+         // printf("# MtENSmin-max= %.6f - %.6f %.6f\n",MtENSmin,MtENSmax, murels[1]);
+         // printf("# MtEBHmin-max= %.6f - %.6f %.6f\n",MtEBHmin,MtEBHmax, murels[2]);
+         // printf("# MtEmin-max  = %.6f - %.6f\n",MtEmin,MtEmax);
+       }
+       if (MtEmin > MtEmax){
+         j--;
+         NrejIS++;
+         continue;
+       }
+     }else{
+       MtEmin = MPDmin; // The initial values were opposite to define MtEmin and MtEmax when tErange is given
+       MtEmax = MPDmax;
+     }
      if (thetaEmax - thetaEmin > 0){
        double Mtmp;
        Mtmp = thetaEmin*thetaEmin/KAPPA/pirel;
@@ -1052,25 +1155,29 @@ int main(int argc,char **argv)
      }
 
      // Reject when no overlap between allowed Mranges by thetaE and piE
-     if (MthEmin >= MpiEmax || MpiEmin >= MthEmax || MthEmax - MthEmin <= 0 || MpiEmax - MpiEmin <= 0)
+     if (MtEmin >= MthEmax || MtEmin >= MpiEmax || MthEmin >= MpiEmax || 
+         MtEmax <= MthEmin || MtEmax <= MpiEmin || MthEmax <= MpiEmin || 
+         MtEmax - MtEmin <= 0 || MthEmax - MthEmin <= 0 || MpiEmax - MpiEmin <= 0)
      {
        j--;
+       NrejIS++;
        continue;
      }
 
      // Determine Mrange
      int nbinMmin = 0, nbinMmax = 0;
-     if (thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0){
-       double Minimin = (MthEmin > MpiEmin) ? MthEmin : MpiEmin;
-       double Minimax = (MthEmax < MpiEmax) ? MthEmax : MpiEmax;
+     if (tEmax - tEmin > 0 || thetaEmax - thetaEmin > 0 || piEmax - piEmin > 0){
+       double Minimin = (MtEmin > MthEmin) ? MtEmin : MthEmin;
+       if (MpiEmin > Minimin) Minimin = MpiEmin;
+       double Minimax = (MtEmax < MthEmax) ? MtEmax : MthEmax;
+       if (MpiEmax < Minimax) Minimax = MpiEmax;
        if (REMNANT == 1 && onlyWD == 0){ // When can be NS or BH
          double MWDmin = 0.109 * Minidie + 0.394;
-         double MNSmin = 1.60 - 0.158 * 4; // 4 sigma of 1.60 + 0.158*gasdev(), migth be unphysical?
          // max: 
          // 1. If NS is possible, consider up to Mu (120 Msun) cuz Mrem2Mini is difficult for NS or BH.
          // 2. If NS is impossible but WD is possible, consider up to the corresponding initial mass.
          // 3. If NS or WD is impossible (i.e., star), initial mass = present-day mass
-         Minimax = (Minimax > MNSmin) ? Mu  // Consider up to Mu when exceed min mass of NS (~)
+         Minimax = (Minimax > MNSMIN) ? Mu  // Consider up to Mu when exceed min mass of NS (~)
                  : (Minimax > MWDmin) ? (Minimax - 0.394)/0.109  // 
                  : Minimax;
          // min: 
@@ -1096,23 +1203,14 @@ int main(int argc,char **argv)
        nbinMmax = floor((log10(Minimax) - logMst)/dlogM) + 1;
        if (nbinMmin < 0) nbinMmin = 0;
        if (nbinMmax > nm) nbinMmax = nm;
+       // printf("# MtEmin-max = %.6f - %.6f\n",MtEmin,MtEmax);
        // printf("# MthEmin-max= %.6f - %.6f\n",MthEmin,MthEmax);
        // printf("# MpiEmin-max= %.6f - %.6f\n",MpiEmin,MpiEmax);
        // printf("# Minimin-max= %.6f - %.6f\n",Minimin,Minimax);
      }
 
      /***************************************************************/
-
-     // pick velocities
-     void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD); //
-     double vxyz_S[3] = {}, vxyz_L[3] = {};
-     get_vxyz_ran(vxyz_S, i_s, tau_s, D_s, lDs[idata], bDs[idata]);
-     get_vxyz_ran(vxyz_L, i_l, tau_l, D_l, lDs[idata], bDs[idata]);
-     double vx_s = vxyz_S[0], vx_l = vxyz_L[0];
-     double vy_s = vxyz_S[1], vy_l = vxyz_L[1];
-     double vz_s = vxyz_S[2], vz_l = vxyz_L[2];
-
-     // Lens mass
+     
      double logM, M_l;
      if (nbinMmax - nbinMmin > 0){  // importance sampling
        ran = ran1() * (PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin]) + PlogM_cum_norm_B[nbinMmin]; // limit Mmin - Mmax
@@ -1145,15 +1243,9 @@ int main(int argc,char **argv)
               j--;
               continue;
             }
-            double phitmp = ran1()*2*PI;
-            double thetatmp = ran1()*PI;
-            double vkick = (fREM == 2) ? 350 : 100;  // Table 2 of Lam et al. 2020
-            double vxadd =  vkick * cos(thetatmp) * cos(phitmp);
-            double vyadd =  vkick * cos(thetatmp) * sin(phitmp);
-            double vzadd =  vkick * sin(thetatmp);
-            vx_l  = vx_l + vxadd;
-            vy_l  = vy_l + vyadd;
-            vz_l  = vz_l + vzadd;
+            murell = murells[fREM - 1];
+            murelb = murelbs[fREM - 1];
+            murel  = murels[fREM - 1];
          }
        }else{ // reject
          j--;
@@ -1228,24 +1320,6 @@ int main(int argc,char **argv)
        }
      }
 
-     // Relative velocities
-     // use relation: (not exactly correct if zsun > 0)
-     //   v_l = v_x sinl      + v_y cosl
-     //   v_b = v_x cosl sinb - v_y sinl sinb + v_z cosb
-     double vxrel_s = vx_s - vxsun, vxrel_l = vx_l - vxsun;
-     double vyrel_s = vy_s - vysun, vyrel_l = vy_l - vysun;
-     double vzrel_s = vz_s - vzsun, vzrel_l = vz_l - vzsun;
-     double muSl   = (vxrel_s*sinl      + vyrel_s*cosl)*KS2MY/D_s;
-     double muSb   = (vxrel_s*cosl*sinb - vyrel_s*sinl*sinb + vzrel_s*cosb)*KS2MY/D_s;
-     double muLl   = (vxrel_l*sinl      + vyrel_l*cosl)*KS2MY/D_l;
-     double muLb   = (vxrel_l*cosl*sinb - vyrel_l*sinl*sinb + vzrel_l*cosb)*KS2MY/D_l;
-     double murellhel = muLl - muSl;
-     double murelbhel = muLb - muSb;
-     double murell    = murellhel - vEarthl*KS2MY*(D_s-D_l)/D_s/D_l; // hel -> geo
-     double murelb    = murelbhel - vEarthb*KS2MY*(D_s-D_l)/D_s/D_l; // hel -> geo
-     double murel = sqrt(murell*murell + murelb*murelb);
-     double vt = murel*D_l/KS2MY;
-
      // Microlens parameters
      double thetaE = sqrt(M_l* pirel * KAPPA); // 99 just for DSGAMMA
      if (thetaE == 0){ // oukyuu sochi
@@ -1310,9 +1384,9 @@ int main(int argc,char **argv)
      int like_mus = 1;
      if (musRCG == 1){ // Recalculate muS relative to RCG
         double musfac  = 1.0 - D_s/Dmean; // need to subtract proper motion of RCG if the origin is RCG. assume v_RCG=0 and D_RCG=Dmean
-        vxrel_s = vx_s - musfac*vxsun, vxrel_l = vx_l - musfac*vxsun;
-        vyrel_s = vy_s - musfac*vysun, vyrel_l = vy_l - musfac*vysun;
-        vzrel_s = vz_s - musfac*vzsun, vzrel_l = vz_l - musfac*vzsun;
+        vxrel_s = vx_s - musfac*vxsun;
+        vyrel_s = vy_s - musfac*vysun;
+        vzrel_s = vz_s - musfac*vzsun;
         muSl   = (vxrel_s*sinl      + vyrel_s*cosl)*KS2MY/D_s;
         muSb   = (vxrel_s*cosl*sinb - vyrel_s*sinl*sinb + vzrel_s*cosb)*KS2MY/D_s;
      }
@@ -1368,7 +1442,7 @@ int main(int argc,char **argv)
      if (like_tE == 1) wtlike_tE += wtj;
      if (like    == 1) Nlike ++, wtlike    += wtj;
      else continue;
-     if (VERBOSITY == 1) printf ("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.3f %1d %1d %5.2f %5.2f %d %.5e", wtj,tE,thetaE,piE,M_l,D_s, D_l,vx_s,vy_s,vz_s,vx_l,vy_l,vz_l,murel,i_s,i_l,tau_s,tau_l,fREM,Gamma);
+     // if (VERBOSITY == 1) printf ("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.3f %1d %1d %5.2f %5.2f %d %.5e", wtj,tE,thetaE,piE,M_l,D_s, D_l,vx_s,vy_s,vz_s,vx_l,vy_l,vz_l,murel,i_s,i_l,tau_s,tau_l,fREM,Gamma);
      if (VERBOSITY == 2) printf("%12.6e %12.6e %12.6e %13.6e %13.6e %5.0f %12.5e %12.5e %2d %2d %d", wtj, tE,thetaE,piEN,piEE,D_s,muSl,muSb,i_s,i_l,fREM);
      if (VERBOSITY == 3) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %2d %2d %d", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, i_s,i_l,fREM);
      if (BINARY == 1 && VERBOSITY > 0)
@@ -1412,7 +1486,9 @@ int main(int argc,char **argv)
   if (BINARY == 1) printf ("# (n_single n_binwide n_binclose)/n_all= ( %6.0f %6.0f %6.0f ) / %6.0f = ( %.6f %.6f %.6f )\n", ncnts, ncntbWD, ncntbCD, ncntall,ncnts/ncntall,ncntbWD/ncntall,ncntbCD/ncntall);
   printf ("# (n_BD n_MS n_WD n_NS n_BH)/n_all= ( %6.0f %6.0f %6.0f %6.0f %6.0f ) / %6.0f = ( %.6f %.6f %.6f %.6f %.6f )\n", nBD, nMS, nWD, nNS, nBH,ncntall, nBD/ncntall, nMS/ncntall, nWD/ncntall, nNS/ncntall, nBH/ncntall);
   double f_like_tE= wtlike/wtlike_tE;
-  printf ("# Nlike/N= %d / %ld      wtlike/wtlike_tE= %.0f / %.0f = %f\n",Nlike,NSIMU,wtlike,wtlike_tE,f_like_tE);
+  if (NrejIS > 0)
+    printf ("# N_IS/Ngen= %ld / %ld = %f of events are rejected by importance sampling part\n",NrejIS,Ngen, (double) NrejIS/Ngen);
+  printf ("# Nlike/N/Ngen= %d / %ld / %ld     wtlike/wtlike_tE= %.0f / %.0f = %f\n",Nlike,NSIMU,Ngen,wtlike,wtlike_tE,f_like_tE);
   gsl_rng_free(r);
   free (D);  
   free (cumu_rho_all_S);
@@ -2074,28 +2150,29 @@ void Mini2Mrem (double *pout, double Mini, int mean) {  // mean = 1: give mean, 
      fREM = 1; // WD
   }else{ 
      // NS (Eqs.(11)-(16) of Raithel+18)
-     double MNS = 
-            (Mini < 13.0) ? 2.24 + 0.508 *(Mini - 14.75) 
-                                 + 0.125 *(Mini - 14.75)*(Mini - 14.75) 
-                                 + 0.011 *(Mini - 14.75)*(Mini - 14.75)*(Mini - 14.75)
-          : (Mini < 15.0) ?  0.123 + 0.112 * Mini
-          : (Mini < 17.8) ?  0.996 + 0.0384* Mini
-          : (Mini < 18.5) ? -0.020 + 0.10  * Mini
-          : (Mini < 21.7 && mean == 0) ? 1.60 + 0.158*gasdev()
-          : (Mini < 21.7 && mean == 1) ? 1.60 
-          : (Mini < 27.5) ?  3232.29 - 409.429*(Mini - 2.619) 
-                                     + 17.2867*(Mini - 2.619)*(Mini - 2.619) 
-                                     - 0.24315*(Mini - 2.619)*(Mini - 2.619)*(Mini - 2.619)
-          : (mean == 0) ? 1.78 + 0.02*gasdev()
-          : 1.78;
-          // print "Mini=Mini, MNS = MNS\n";
-
+     double MNS;
+     do {
+       MNS = (Mini < 13.0) ? 2.24 + 0.508 *(Mini - 14.75) 
+                                  + 0.125 *(Mini - 14.75)*(Mini - 14.75) 
+                                  + 0.011 *(Mini - 14.75)*(Mini - 14.75)*(Mini - 14.75)
+           : (Mini < 15.0) ?  0.123 + 0.112 * Mini
+           : (Mini < 17.8) ?  0.996 + 0.0384* Mini
+           : (Mini < 18.5) ? -0.020 + 0.10  * Mini
+           : (Mini < 21.7 && mean == 0) ? 1.60 + 0.158*gasdev()
+           : (Mini < 21.7 && mean == 1) ? 1.60 
+           : (Mini < 27.5) ?  3232.29 - 409.429*(Mini - 2.619) 
+                                      + 17.2867*(Mini - 2.619)*(Mini - 2.619) 
+                                      - 0.24315*(Mini - 2.619)*(Mini - 2.619)*(Mini - 2.619)
+           : (mean == 0) ? 1.78 + 0.02*gasdev()
+           : 1.78;
+           // print "Mini=Mini, MNS = MNS\n";
+     }while(PNS > 0 && (MNS < MNSMIN || MNS > MNSMAX));
      // BH
-      double Mcore = (Mini < 42.21) ? -2.049 + 0.4140 * Mini
-                  : 5.697 + 7.8598 * 1e+8 * pow(Mini, -4.858);
-      double Mall = 15.52 - 0.3294*(Mini - 25.97) 
-                        - 0.02121*(Mini - 25.97)*(Mini - 25.97) 
-                       + 0.003120*(Mini - 25.97)*(Mini - 25.97)*(Mini - 25.97);
+     double Mcore = (Mini < 42.21) ? -2.049 + 0.4140 * Mini
+                 : 5.697 + 7.8598 * 1e+8 * pow(Mini, -4.858);
+     double Mall = 15.52 - 0.3294*(Mini - 25.97) 
+                       - 0.02121*(Mini - 25.97)*(Mini - 25.97) 
+                      + 0.003120*(Mini - 25.97)*(Mini - 25.97)*(Mini - 25.97);
      double fej = (Mini < 42.21) ? 0.9 : 1.0;
      double MBH = fej*Mcore + (1-fej)*Mall;
      // print "Mini=Mini, MBH = MBH\n";
