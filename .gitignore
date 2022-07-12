@@ -1,7 +1,8 @@
 *.o
 *.swp
 *tmp*
+sample?.dat
 *Untitled*
-*ipynb
 .DS_Store
 genulens
+.ipynb_checkpoints/
