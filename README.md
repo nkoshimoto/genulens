@@ -101,7 +101,6 @@ Please make sure that the input\_files/ directory is in the same directory as wh
 
 ## Usage
 See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).  
-This document has been significantly revised according to the v1.2 update on June 2022.  
-[genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb) may be more useful for a quicker start.
+[genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb) is also available and may be more practical for a quicker start.
 
 
