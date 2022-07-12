@@ -101,6 +101,6 @@ Please make sure that the input\_files/ directory is in the same directory as wh
 
 ## Usage
 See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).  
-[genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb) is also available and may be more practical for a quicker start.
+[genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb) is also available and you can follow some practical event analysis using `genulens`.  
 
 
