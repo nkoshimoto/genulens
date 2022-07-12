@@ -4,12 +4,15 @@
  * Please replace them by yourself if you want because we are not allowed to include a NR function in a public package. 
  * Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. 
  *
- * Update on Jun 14 2022 by N.Koshimoto
+ * This is version 1.2 of genulens.
+ *
+ * Version 1.2 update (Jun 14 - July 11 2022 by N.Koshimoto)
  *   1. NSD (nuclear stellar disk) component is added based on Sormani+22.
  *   2. GC is now located at the position of SgrA* and CenSgrA option is added to locate GC at (l,b) = (0,0)
  *   3. tE mean and median are calculated during the simulation (a large Nsimu value is needed to have a precision).
  *   4. CALCTAU option is added to calculate the optical depth and event rate. (event rate uses the tE mean value based on the simulation.)
  *   5. calc_PA function is added and PA is now automatically calculated from (l, b)
+ *   6. Importance sampling used when tE, thetaE, and/or piE is given, which makes most calculation ~10 times faster.
  *   
  * */
 #include <math.h> 
@@ -606,44 +609,36 @@ int main(int argc,char **argv)
   if (onlyWD == 1) REMNANT = 0;
   double tEobs     = getOptiond(argc,argv,"tE", 1, 54.5); // in day
   double tEe       = getOptiond(argc,argv,"tE", 2, 99999999999.0); // in day
-  // double fetE      = getOptiond(argc,argv,"tE", 3, 0); // parameter for importance sampling 
   double fetE = 0;
   int    tEdet     = getOptiond(argc,argv,"tEdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit
   double tEmin = getOptiond(argc,argv,"tErange", 1, 0); // in mas
   double tEmax = getOptiond(argc,argv,"tErange", 2, 0); // in mas
   double thetaEobs = getOptiond(argc,argv,"thetaE", 1, 0); // in mas
   double thetaEe   = getOptiond(argc,argv,"thetaE", 2, 0); // in mas
-  // double fethetaE  = getOptiond(argc,argv,"thetaE", 3, 0); // parameter for importance sampling
   double fethetaE = 0;
   int    thetaEdet = getOptiond(argc,argv,"thetaEdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit
   double thetaEmin = getOptiond(argc,argv,"thetaErange", 1, 0); // in mas
   double thetaEmax = getOptiond(argc,argv,"thetaErange", 2, 0); // in mas
   double piEobs = getOptiond(argc,argv,"piE", 1, 0); // parallax amplitude 
   double piEe   = getOptiond(argc,argv,"piE", 2, 0); // 
-  // double fepiE  = getOptiond(argc,argv,"piE", 3, 0); // parameter for importance sampling
   double fepiE = 0;
   int    piEdet = getOptiond(argc,argv,"piEdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit
   double piEmin = getOptiond(argc,argv,"piErange", 1, 0); 
   double piEmax = getOptiond(argc,argv,"piErange", 2, 0); 
   double piENobs = getOptiond(argc,argv,"piEN", 1, 0); // 
   double piENe   = getOptiond(argc,argv,"piEN", 2, 0); // 
-  // double fepiEN  = getOptiond(argc,argv,"piEN", 3, 0); // parameter for importance sampling
   double fepiEN = 0;
   double piEEobs = getOptiond(argc,argv,"piEE", 1, 0); // 
   double piEEe   = getOptiond(argc,argv,"piEE", 2, 0); // 
-  // double fepiEE  = getOptiond(argc,argv,"piEE", 3, 0); // parameter for importance sampling
   double fepiEE = 0;
   double muslobs = getOptiond(argc,argv,"musl", 1, 0); // in mas/yr 
   double musle   = getOptiond(argc,argv,"musl", 2, 0); // in mas/yr 
-  // double femusl  = getOptiond(argc,argv,"musl", 3, 0); // parameter for importance sampling
   double femusl = 0;
   double musbobs = getOptiond(argc,argv,"musb", 1, 0); // in mas/yr
   double musbe   = getOptiond(argc,argv,"musb", 2, 0); // in mas/yr
-  // double femusb  = getOptiond(argc,argv,"musb", 3, 0); // parameter for importance sampling
   double femusb = 0;
   double musNobs = getOptiond(argc,argv,"musN", 1, 0); // in mas/yr
   double musNe   = getOptiond(argc,argv,"musN", 2, 0); // in mas/yr
-  // double femusN  = getOptiond(argc,argv,"musN", 3, 0); // parameter for importance sampling
   double femusN = 0;
   double musEobs = getOptiond(argc,argv,"musE", 1, 0); // in mas/yr
   double musEe   = getOptiond(argc,argv,"musE", 2, 0); // in mas/yr
