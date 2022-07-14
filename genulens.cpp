@@ -816,7 +816,7 @@ int main(int argc,char **argv)
         // printf (" %.5f %.5e",fIs,rhoD_S[i][ibin]);
       }else{
         double tmpDswt = (gammaDs == 0.5) ? sqrt(D[ibin]/8000.0)  // sqrt = 2.0 (volume effect) - 1.5 (limiting mag effect), ideally LF(I) & AI should be used 
-                       : pow((D[ibin]/8000.0), fabs(gammaDs));
+                       : pow(((D[ibin]+10)/8000.0), fabs(gammaDs));
         if (gammaDs < 0) tmpDswt = 1 / tmpDswt;
         rhoD_S[i][ibin] = nMS * tmpDswt * 1e-03;
       }
