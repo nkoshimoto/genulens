@@ -1051,8 +1051,8 @@ int main(int argc,char **argv)
      double muSl   = (vxrel_s*sinl      + vyrel_s*cosl)*KS2MY/D_s;  // iru
      double muSb   = (vxrel_s*cosl*sinb - vyrel_s*sinl*sinb + vzrel_s*cosb)*KS2MY/D_s; // iru
      double murells[3] = {}, murelbs[3] = {}, murels[3] = {}; // 0: MS/WD, 1: NS, 2: BH
-     double phikick   = (REMNANT == 1 && onlyWD == 0) ? ran1()*2*PI : 0;
-     double thetakick = (REMNANT == 1 && onlyWD == 0) ? ran1()*PI : 0;
+     double thetakick = (REMNANT == 1 && onlyWD == 0) ? asin(1 - 2*ran1()) : 0;
+     double phikick   = (REMNANT == 1 && onlyWD == 0) ? ran1()*2*PI - PI : 0;
      int nREM = (REMNANT == 1 && onlyWD == 0) ? 3 : 1;
      for (int iREM = 0; iREM < nREM; iREM++){
        double vxadd = 0, vyadd = 0, vzadd = 0;
