@@ -1095,7 +1095,7 @@ int main(int argc,char **argv)
        iage_l *= 50;
        int itmp = (iage_l - agesB[0])/(agesB[1] - agesB[0]);
        Minidie = MinidieB[itmp];
-     }else if(i_s == 9){ // NSD
+     }else if(i_l == 9){ // NSD
        int iage_l = 100*(tau_l + 0.5);
        int itmp = (iage_l <= agesND[0]) ? 0
                 : (iage_l >= agesND[nageND-1]) ? nageND-1 
@@ -3213,7 +3213,7 @@ double calc_rho_n(double D, int idata, double *rho_n){  // return rho, n, and wt
  	//                rho_n[1] += n0MSSTB  * rhos[10];}
   // Bar
   rho_n[0] += rho0b * rhos[8] + rho0ND * rhos[9];
-  rho_n[1] += n0MSb * rhos[8] + n0ND   * rhos[9];
+  rho_n[1] += n0MSb * rhos[8] + n0MSND * rhos[9];
   f_disk = nD/rho_n[1];
   free(rhos);
   return (int) m_idisk + 0.1*f_disk;
