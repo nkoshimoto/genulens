@@ -4,7 +4,7 @@
  * Please replace them by yourself if you want because we are not allowed to include a NR function in a public package. 
  * Note that a negative seed value has to be used in the NR function in contrast to a positive seed value required for this version. 
  *
- * This is version 1.2 of genulens.
+ * This is version 1.2.1 of genulens.
  *
  * Version 1.2 update (Jun 14 - July 11 2022 by N.Koshimoto)
  *   1. NSD (nuclear stellar disk) component is added based on Sormani+22.
@@ -14,9 +14,15 @@
  *   5. calc_PA function is added and PA is now automatically calculated from (l, b)
  *   6. Importance sampling used when tE, thetaE, and/or piE is given, which makes most calculation ~10 times faster.
  *   
+ * Correct vkick bag on 2022/10/22
+ * 
+ * Version 1.2.1 (2023/2/18 - )
+ *   Add stellar halo based on Robin+03
+ *
  * */
 #include <math.h> 
 #include <stdio.h> 
+#include <unistd.h>
 #include <string.h> 
 #include <stdarg.h>
 #include <random>
@@ -65,7 +71,9 @@ double gasdev(){
 }
 
 // --- define global parameters ------
-static int ncomp = 10; // 7xthin + thick + bar, V, I, J, H, Ks 
+long seed;
+static int B14disk, B14vbar;
+static int ncomp = 11; // 7xthin + thick + bar + NSD + Halo, V, I, J, H, Ks 
 static double tSFR = 7.0;  // time scale of SFR, 7.0 Gyr
 static double rhot0;
 static double MiniWDmax= 9; // 
@@ -95,6 +103,15 @@ static double fND_MS    = 0; // MS mass / total mass in NSD
 static double m2nND_MS  = 0; // Msun/star in NSD
 static double m2nND_WD  = 0; // Msun/WD   in NSD
 static double nMS2nRGND = 0; // n_RG/n_MS for NSD
+
+// Stellar Halo (Spheroid from Robin+03)
+static int SH = 1;
+static double rho0SHMS= 9.32e-06; // Msun/pc^3 Table 2 and Sec 2.3 of Robin+03
+static double epsSH= 0.76; // Table 2 of Robin+03
+static double alphaSH= 2.44; // Table 2 of Robin+03
+static double acSH2   = 500*500; // pc^2
+static double rho0SH, n0MSSH, n0RGSH, n0SH;
+static double sigU_SH, sigV_SH, sigW_SH;
 
 // --- Parameters for Disk ---
 // Density values will be overwritten in store_IMF_nBs using given IMF
@@ -140,7 +157,7 @@ static double medtauds[8] = {0.075273, 0.586449, 1.516357, 2.516884, 4.068387, 6
  * Please change the following zenShu and/or RenShu value when you want to extend 
  * the line of sight outside of the default cylinder. */
 static int zstShu =   0, zenShu = 3600, dzShu = 200;
-static int RstShu = 500, RenShu = 9200, dRShu = 100; // use value @ RstShu for R < RstShu
+static int RstShu = 500, RenShu = 12200, dRShu = 100; // use value @ RstShu for R < RstShu
 
 //--- For Bulge kinematics ------
 static int model_vb, model_vbz;
@@ -167,6 +184,10 @@ void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
 
 int main(int argc,char **argv)
 {
+  //--- Get input directory ---
+  char curdir[200];
+  getcwd(curdir, 200);
+
   //--- read parameters ---
   int CheckD   = getOptiond(argc,argv,"CheckD", 1, 0);
   long seed    = getOptioni(argc,argv,"seed", 1, 12304357); // seed of random number
@@ -255,10 +276,27 @@ int main(int argc,char **argv)
   sigW0td   = getOptiond(argc,argv,"sigW0td" ,  1, 49.2);  // sigW for thick @Sunposi
 
   // Use one of named models in Koshimoto+21
+  B14disk   = getOptiond(argc,argv,"B14disk", 1, 0);
+  int B14bar    = getOptiond(argc,argv,"B14bar", 1, 0);
   int E_fg0 = getOptiond(argc,argv,"E_fg0", 1, 0);
   int G_fg0 = getOptiond(argc,argv,"G_fg0", 1, 0);
   int EXE_fg0 = getOptiond(argc,argv,"EXE_fg0", 1, 0);
   int GXG_fg0 = getOptiond(argc,argv,"GXG_fg0", 1, 0);
+  if (B14disk == 1){ // just approximated 
+    vxsun = -12.7, vysun = 218.0 + 24.0, vzsun = 7.25;
+    DISK = 1;
+  }
+  if (B14bar == 1){
+    M0_B = 1.0, M1_B = 0.7, M2_B = 0.08, M3_B = 0.01;
+    alpha1_B = -2.0, alpha2_B = -1.3, alpha3_B = -0.5;
+    alpha0_B = alpha1_B, alpha4_B = alpha3_B;
+    model = 6, addX = 0, B14vbar = 1;
+    R0= 8200, thetaD = 20, x0_1 = 1580.0, y0_1 = 620.0, z0_1 = 430.0, Rc = 2400.0, C1 = 2, C2 = 4, C3 = 1;
+    frho0b = 1.173; // Section 6.1 of Koshimoto & Bennett 2020
+    Omega_p = 50, sigx_vb = 114.0, sigy_vb = 103.8, sigz_vb = 96.4;
+    x0_vb  = y0_vb  = z0_vb  = 500000;
+    x0_vbz = y0_vbz = z0_vbz = 500000;
+  }
   if (E_fg0 == 1){ // E model
     model = 5, addX = 0;
     M0_B = 1.0, M1_B = 0.843651488650385, M2_B = 0.08, M3_B = 0.01;
@@ -348,6 +386,14 @@ int main(int argc,char **argv)
     Dlb2xyz(R0, lSgrA, bSgrA, R0, xyzSgrA);
   }
 
+  // Whether include Stellar halo or not
+  SH       = getOptiond(argc,argv,"SH",     1,  SH); // 0: wo stellar halo, 1: w/ stellar halo by Robin+03
+  rho0SHMS = getOptiond(argc,argv,"rho0SHMS",  1, 9.32e-06); // Table 2 of Robin+03
+  sigU_SH  = getOptiond(argc,argv,"sigU_SH",  1, 131); // Table 4 of Robin+03
+  sigV_SH  = getOptiond(argc,argv,"sigV_SH",  1, 106); // Table 4 of Robin+03
+  sigW_SH  = getOptiond(argc,argv,"sigW_SH",  1,  85); // Table 4 of Robin+03
+  if (SH == 0) rho0SHMS = 0;
+
   // Store Mass Function and calculate normalization factors for density distributions
   void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0);
   nm = 1000;
@@ -369,6 +415,7 @@ int main(int argc,char **argv)
   double AIrc    = getOptiond(argc,argv,"AIrc", 1, 0); // AI for RC
   double EVIrc   = getOptiond(argc,argv,"EVIrc", 1, 0); // E(V-I) for RC
   double DMrc    = getOptiond(argc,argv,"DMrc", 1, 0); //mean DM for RC, default is given later
+  double AKrc    = getOptiond(argc,argv,"AKrc", 1, 0); // AK for RC
   if (fabs(lSIMU) > 10 || fabs(bSIMU) > 7 || fabs(bSIMU) < 1.5){
     printf("# WARNING: genulens is designed for use in |l| < ~10 and ~1.5 < |b| < ~7 and (l,b)= (%.3f, %.3f) deg. is outside of the range.\n",lSIMU,bSIMU);
   }
@@ -475,8 +522,8 @@ int main(int argc,char **argv)
   printf("#         (R, z)sun= (%5.0f, %5.0f) pc\n",R0,zsun);
   printf("#   (vx, vy, vz)sun= (%5.1f, %5.1f, %4.1f) km/s\n",vxsun,vysun,vzsun);
   printf("#------------ Disk model: (DISK, hDISK, tSFR)= ( %d , %d , %.1f Gyr ) --------------\n",DISK, hDISK,tSFR);
-  printf("#            tau   Rd  zd zd45 sigU0 sigW0  RsigU  RsigW    rho0        n0     n0WD \n");
-  printf("#            Gyr   pc  pc   pc  km/s  km/s     pc     pc  Msun/pc^3  */pc^3   */pc^3\n");
+  printf("#            tau   Rd  zd zd45 sigU0 sigW0  RsigU  RsigW    rho0        n0     n0WD    Sigma0  \n");
+  printf("#            Gyr   pc  pc   pc  km/s  km/s     pc     pc  Msun/pc^3  */pc^3   */pc^3  Msun/pc^2\n");
   double MVVVd = 0;  // mass in the VVV box when DISK == 2
   double Mind = 0;  // mass of inner disk (< Rbreak) when DISK == 2
   for (int i = 0; i< 8; i++){
@@ -495,7 +542,8 @@ int main(int argc,char **argv)
     double hsigW = (i < 7) ? hsigWt : hsigWT;
     double sigW0 = (i < 7) ? sigW10d * pow((medtauds[i]+0.01)/10.01, betaW) : sigW0td;
     double sigU0 = (i < 7) ? sigU10d * pow((medtauds[i]+0.01)/10.01, betaU) : sigU0td;
-    printf ("#   Disk%d: %5.2f %4d %3.0f  %3d %5.2f %5.2f %6.0f %6.0f   %.2e %.2e %.2e\n",i+1,medtauds[i], rd, zd[i],zdtmp,sigU0,sigW0,hsigU,hsigW,rho0d[i],n0d[i],n0d[i]-n0MSd[i]);
+    double SigmaD = 2 * zd[i] * rho0d[i];
+    printf ("#   Disk%d: %5.2f %4d %3.0f  %3d %5.2f %5.2f %6.0f %6.0f   %.2e %.2e %.2e   %.2e\n",i+1,medtauds[i], rd, zd[i],zdtmp,sigU0,sigW0,hsigU,hsigW,rho0d[i],n0d[i],n0d[i]-n0MSd[i], SigmaD);
   }
 
   // Crude normalize bulge mass
@@ -567,7 +615,6 @@ int main(int argc,char **argv)
     void store_NSDmoments(char *infile);
     store_NSDmoments(fileND);
   }
-
   printf("#------------------ Bulge model: (alpha_bar, Mbar, Mind, MVVVb, MVVVd) = ( %.1f deg, %.2e Msun, %.2e Msun, %.2e Msun, %.2e Msun) ---------------------\n",thetaD,massentire,Mind,massVVVbox,MVVVd);
   printf("#   (M_MS, M_REM)ave= (%.6f %.6f) Msun/*, fM_REM= %.4f, Mass/RG= %5.1f Msun/RG \n",1/m2nb_MS,1/m2nb_WD,1-fb_MS,1/fb_MS/m2nb_MS/nMS2nRGb);
   printf("#   rho%d: M= %.2e Msun, rho0b= %5.2f Msun/pc^3, (x0, y0, z0, Rc)= (%4.0f, %4.0f, %3.0f, %4.0f) pc, (C1, C2,   C3)= (%.1f, %.1f, %.1f)\n",model,fm1*massentire,rho0b,x0_1,y0_1,z0_1,Rc,C1,C2,C3);
@@ -577,6 +624,8 @@ int main(int argc,char **argv)
   printf("#   sigR%d: (x0, y0, z0)= (%5.0f, %5.0f, %5.0f) pc, (C1, C2, C3)= (%.1f, %.1f, %.1f)\n",model_vb,x0_vb,y0_vb,z0_vb,C1_vb,C2_vb,C3_vb);
   printf("#   sigZ%d: (x0, y0, z0)= (%5.0f, %5.0f, %5.0f) pc, (C1, C2, C3)= (%.1f, %.1f, %.1f)\n",model_vbz,x0_vbz,y0_vbz,z0_vbz,C1_vbz,C2_vbz,C3_vbz);
   printf("#   ND= %d     (0: no NSD, 1: Portail+17's NSD, 2: Sormani+22-like NSD, 3: Use Sormani+22's DF's moments)\n", ND);
+  printf("#   SH= %d     (0: no stellar halo, 1: Robin+03's Spheroid)\n", SH);
+  // printf("#   n0MSSH= %.5e, n0SH= %.5e\n",n0MSSH, n0SH);
   
   // Calc PA (added on 2022/6/14)
   double PA, cosPA, sinPA;
@@ -607,6 +656,8 @@ int main(int argc,char **argv)
   int REMNANT     = getOptiond(argc,argv,"REMNANT",  1,  0);
   int onlyWD      = getOptiond(argc,argv,"onlyWD",  1,  0);
   if (onlyWD == 1) REMNANT = 0;
+  int CALCPRIORpiE   = getOptiond(argc,argv,"CALCPRIORpiE",   1,  0);
+  int CALCPRIORthE   = getOptiond(argc,argv,"CALCPRIORthE",   1,  0); // thetaE prior given tE or murel prior given tE
   double tEobs     = getOptiond(argc,argv,"tE", 1, 54.5); // in day
   double tEe       = getOptiond(argc,argv,"tE", 2, 99999999999.0); // in day
   double fetE = 0;
@@ -642,14 +693,24 @@ int main(int argc,char **argv)
   double femusN = 0;
   double musEobs = getOptiond(argc,argv,"musE", 1, 0); // in mas/yr
   double musEe   = getOptiond(argc,argv,"musE", 2, 0); // in mas/yr
-  // double femusE  = getOptiond(argc,argv,"musE", 3, 0); // 
   double femusE = 0;
+  double muhelNobs = getOptiond(argc,argv,"muhelN", 1, 0); // in mas/yr
+  double muhelNe   = getOptiond(argc,argv,"muhelN", 2, 0); // in mas/yr
+  double femuhelN  = 0; // 
+  double muhelEobs = getOptiond(argc,argv,"muhelE", 1, 0); // in mas/yr
+  double muhelEe   = getOptiond(argc,argv,"muhelE", 2, 0); // in mas/yr
+  double femuhelE  = 0; // 
   int    musRCG  = getOptiond(argc,argv,"musRCG", 1, 0); // 0: mus relative to Sun, 1: mus relative to RCG 
   double ILobs = getOptiond(argc,argv,"IL", 1, 14.00); // mag
   double ILe   = getOptiond(argc,argv,"IL", 2,  0.01); // mag
   // double feIL  = getOptiond(argc,argv,"IL", 3, 0); //
   double feIL = 0; 
   int    ILdet = getOptiond(argc,argv,"ILdet", 1, 2); // 0: det, 1: upper limit, 2: lower limit, default: 2
+  double KLobs = getOptiond(argc,argv,"KL", 1,  0); // mag
+  double KLe   = getOptiond(argc,argv,"KL", 2,  0); // mag
+  // double feKL  = getOptiond(argc,argv,"KL", 3, 0); //
+  double feKL = 0; 
+  int    KLdet = getOptiond(argc,argv,"KLdet", 1, 0); // 0: det, 1: upper limit, 2: lower limit, default: 2
   double u0obs = getOptiond(argc,argv,"u0", 1, 0); // affect only when BINARY == 1
   // char *pthEfile = getOptions(argc,argv, "pthetaE", 1, ""); // give P(thE) by file
   //
@@ -705,6 +766,7 @@ int main(int argc,char **argv)
   double Dmean  = (DMrc > 0) ? pow(10, 0.2*DMrc) * 10
                  : -9.99;
   double AI0  = (hscale > 0 && Dmean > 0) ? AIrc  / (1 - exp(-Dmean/hscale)) : 0; // 
+  double AK0  = (hscale > 0 && Dmean > 0) ? AKrc  / (1 - exp(-Dmean/hscale)) : 0; // 
   double EVI0 = (hscale > 0 && Dmean > 0) ? EVIrc / (1 - exp(-Dmean/hscale)) : 0; // 
   // if (AI0 == 0){ // not recommended, AIrc should be given if known
   //   AI0 = 0.64 * hscales[0] * 0.001 -0.33; // by linear fit to known AIs of Nataf+13
@@ -735,7 +797,11 @@ int main(int argc,char **argv)
      printf("#    (musl, musb) = (%.3f, %.3f) +- (%.3f, %.3f) Fe_add= (%6.1f, %6.1f)\n",muslobs,musbobs,musle,musbe,femusl,femusb);
   if (musNe > 0 && musEe > 0) 
      printf("#    (musN, musE) = (%.3f, %.3f) +- (%.3f, %.3f) Fe_add= (%6.1f, %6.1f)\n",musNobs,musEobs,musNe,musEe,femusN,femusE);
+  if (muhelNe > 0 && muhelEe > 0) 
+     printf("#    (muhelN, muhelE) = (%.3f, %.3f) +- (%.3f, %.3f) Fe_add= (%6.1f, %6.1f)\n",muhelNobs,muhelEobs,muhelNe,muhelEe,femuhelN,femuhelE);
   if (ILe > 0)    printf("#      IL = %.3f +- %.3f Fe_add= %6.1f det= %d (0: det, 1: upper limit, 2: lower limit)\n",ILobs,ILe,feIL,ILdet);
+  if (KLe > 0)    printf("#      KL = %.3f +- %.3f Fe_add= %6.1f det= %d (0: det, 1: upper limit, 2: lower limit)\n",KLobs,KLe,feKL,KLdet);
+  if (AK0   > 0)   printf("#     Consider (hdust, Dmean, AKrc,  AK0) = (%.0f, %.0f, %.2f, %.2f)\n",hdust,Dmean,AKrc,AK0);
   if (u0obs > 0)   printf("#  u0obs = %.3f\n",u0obs);
   if (AI0   > 0)   printf("#  Consider %.2f <  Is < %.2f, (hdust, Dmean,  AIrc,  AI0) = (%.0f, %.0f, %.2f, %.2f)\n",Isst,Isen,hdust,Dmean,AIrc,AI0);
   if (EVI0  > 0)   printf("#  Consider %.2f < VIs < %.2f, (hdust, Dmean, EVIrc, EVI0) = (%.0f, %.0f, %.2f, %.2f)\n",VIsst,VIsen,hdust,Dmean,EVIrc,EVI0);
@@ -763,10 +829,11 @@ int main(int argc,char **argv)
 
   //------- Store cumu_rho for each ith disk as a function of distance -----------
   void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb);  // return rho for each component 
-  double rhos[10] = {}, xyz[3] = {}, xyb[2] = {};
+  double rhos[11] = {}, xyz[3] = {}, xyb[2] = {};
   // Lens   : include REMNANT, mass basis 
   // Source : only stars, number basis 
-  int Dmax = 16000;
+  // int Dmax = 16000;
+  int Dmax = getOptiond(argc,argv,"Dmax",  1,  16000); // Does not work due to Shu's DF
   // int Dmax = 12000;
   int nbin = (ND > 0 && fabs(lSIMU) < 0.05 && fabs(bSIMU) < 0.05) ? 0.20*Dmax+0.5 
            : (ND > 0 && fabs(lSIMU) < 0.10 && fabs(bSIMU) < 0.10) ? 0.10*Dmax+0.5
@@ -791,6 +858,8 @@ int main(int argc,char **argv)
   double fIVI_detect(double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk);
   printf("#----- Mass density distribution along (l, b)= (%.3f, %.3f) w/ wtD_L= %.1f --------\n",lSIMU,bSIMU,wtD_L);
   int npri = (ND > 0) ? 40 : 10;
+  npri = getOptioni(argc,argv,"npri",  1,  npri); 
+  int printrhoS = getOptiond(argc,argv,"printrhoS",  1,  0);
   double nallS = 0;
   for (int ibin=0; ibin<=nbin; ibin++){
     D[ibin] = (double) ibin/nbin * Dmax;
@@ -802,8 +871,8 @@ int main(int argc,char **argv)
     double extVI = EVI0 * (1 - exp(-D[ibin]/hscale));
     // printf ("%5.0f %7.3f ",D[ibin],extI);
     for (int i=0;i<ncomp;i++){
-      double nMS = (i == 8) ? n0MSb*rhos[8] : (i == 9) ? n0MSND*rhos[9] : n0MSd[i]*rhos[i];
-      double rho = (i == 8) ? n0b  *rhos[8] : (i == 9) ? n0ND  *rhos[9] : n0d[i]  *rhos[i];
+      double nMS = (i == 8) ? n0MSb*rhos[8] : (i == 9) ? n0MSND*rhos[9] : (i == 10) ? n0MSSH*rhos[10] : n0MSd[i]*rhos[i];
+      double rho = (i == 8) ? n0b  *rhos[8] : (i == 9) ? n0ND  *rhos[9] : (i == 10) ? n0SH  *rhos[10] : n0d[i]  *rhos[i];
       if (AI0 > 0 && Isen - Isst > 0 && EVI0 > 0 && VIsen - VIsst > 0){
         double fIVIs = fIVI_detect(extI, Isst, Isen, extVI, VIsst, VIsen, i);
         rhoD_S[i][ibin] = nMS * fIVIs * 1e-06 * D[ibin] * D[ibin];
@@ -821,23 +890,32 @@ int main(int argc,char **argv)
         rhoD_S[i][ibin] = nMS * tmpDswt * 1e-03;
       }
       if (wtD_L != 0) rho *= pow((D[ibin] + 1000)/4500. , wtD_L);
-      rhoD_L[i][ibin] = rho;
+      rhoD_L[i][ibin] = (CheckD == 1) ? rho * 1e-06 * D[ibin] * D[ibin] : rho;
       // Cumulative. The min and max edges are not correctly treated. 
       // But practically OK especially considering a risk of ran < Cumu_min or ran > Cumu_max when strictly considered.
       cumu_rho_S[i][ibin]  = (ibin==0) ? 0 : cumu_rho_S[i][ibin-1] + 0.5*(rhoD_S[i][ibin-1] + rhoD_S[i][ibin])*dD;
       cumu_rho_L[i][ibin]  = (ibin==0) ? 0 : cumu_rho_L[i][ibin-1] + 0.5*(rhoD_L[i][ibin-1] + rhoD_L[i][ibin])*dD;
       cumu_rho_all_S[ibin] += cumu_rho_S[i][ibin];
       cumu_rho_all_L[ibin] += cumu_rho_L[i][ibin];
-      rhosum += rho;
-      if (ibin%npri==0){ 
-        printf (" %d: %.1e ",i,rhoD_L[i][ibin]);
-        printf ("( %.2e )",cumu_rho_L[i][ibin]);
+      rhosum += (printrhoS) ? rhoD_S[i][ibin] : rho;
+      if (ibin%npri==0){
+        if (printrhoS){
+          printf (" %d: %.1e ",i,rhoD_S[i][ibin]);
+          printf ("( %.2e )",cumu_rho_S[i][ibin]);
+        }else{
+          printf (" %d: %.1e ",i,rho);
+          printf ("( %.2e )",cumu_rho_L[i][ibin]);
+        }
       }
     }
     // printf ("\n");
-    if (ibin%npri==0){ 
-        printf (" All: %.1e ",rhosum);
+    if (ibin%npri==0){
+      printf (" All: %.1e ",rhosum);
+      if (printrhoS){
+        printf ("( %.2e )\n",cumu_rho_all_S[ibin]);
+      }else{
         printf ("( %.2e )\n",cumu_rho_all_L[ibin]);
+      }
     }
   }
   int **ibinptiles_S, **ibinptiles_L;
@@ -852,6 +930,7 @@ int main(int argc,char **argv)
     double norm_S = cumu_rho_S[i][nbin];
     double norm_L = cumu_rho_L[i][nbin];
     if (norm_S == 0 && i == 9) continue; // when NSD is not considered
+    if (norm_S == 0 && i == 10) continue; // when Stellar halo is not considered
     for (int ibin=0; ibin<=nbin;ibin++){
       double Pnorm_S = cumu_rho_S[i][ibin] / norm_S;
       int intp_S = Pnorm_S*20;
@@ -900,19 +979,21 @@ int main(int argc,char **argv)
         if (kst > 0) break;
       }
       double d_S = getcumu2xist(nbin+1, D, cumu_rho_S[j_S],rhoD_S[j_S],ran*cumu_rho_S[j_S][nbin],kst,0);
-      printf ("%d %6.0f %d %6.0f\n",j_S,d_S,j_L,d_L);
+      // printf ("%d %6.0f %d %6.0f\n",j_S,d_S,j_L,d_L);
       // pick velocities
       void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD); //
       double vxyz_L[3] = {};
       double tau_l = (j_L == 9) ? mageND + sageND*gasdev()
                    : (j_L == 8) ? mageB + sageB*gasdev() 
+                   : (j_L ==10) ? 14 
                    : medtauds[j_L];
       get_vxyz_ran(vxyz_L, j_L, tau_l, d_L, lDs[idata], bDs[idata]);
       double vx_l = vxyz_L[0];
       double vy_l = vxyz_L[1];
       double vz_l = vxyz_L[2];
+      double v_l = sqrt(vx_l*vx_l + vy_l*vy_l + vz_l*vz_l);
 
-      printf ("%d %6.0f %d %6.0f %7.2f %7.2f %7.2f\n",j_S,d_S,j_L,d_L, vx_l, vy_l, vz_l);
+      printf ("%d %6.0f %d %6.0f %.6f %7.2f %7.2f %7.2f %7.2f\n",j_S,d_S,j_L,d_L, sqrt(d_L/8000.0), vx_l, vy_l, vz_l, v_l);
     }
     exit(1);
   }
@@ -944,11 +1025,13 @@ int main(int argc,char **argv)
   double nBD = 0, nMS = 0, nWD = 0, nNS= 0, nBH =  0;
   int Nlike = 0;
   long NrejIS = 0, Ngen = 0;
-  double wtlike = 0, wtlike_tE =0;
+  double wtlike = 0, wtlike_tE =0, wtlike_except_piE = 0, wtlike_w_piEe = 0, wtlike_except_thE = 0, wtlike_w_thEe = 0;
   double SumGamma = 0, SumtE = 0; // for mean tE
   double logtEmin = -1, logtEmax = 2, NbintE = 300, NlogtEs[500] = {}; // for median tE
   if (VERBOSITY == 2) printf ("#        wtj           tE       thetaE          piEN          piEE   D_S         muSl         muSb iS iL fREM");
-  if (VERBOSITY == 3) printf ("#        wtj          M_L   D_L   D_S          t_E      theta_E         pi_E         pi_EN         pi_EE       mu_rel        mu_Sl        mu_Sb     I_L iS iL fREM");
+  if (VERBOSITY == 3) printf ("#        wtj          M_L   D_L   D_S          t_E      theta_E         pi_E         pi_EN         pi_EE       mu_rel        mu_Sl        mu_Sb     I_L     K_L iS iL fREM");
+  if (VERBOSITY == 4) printf ("#        wtj          M_L   D_L   D_S          t_E      theta_E         pi_E         pi_EN         pi_EE       mu_rel        mu_Sl        mu_Sb     I_L     K_L iS iL fREM   muhel_N      muhel_E        muhel");
+  if (VERBOSITY == 5) printf ("#        wtj          M_L   D_L   D_S          t_E      theta_E         pi_E         pi_EN         pi_EE       mu_rel        mu_Sl        mu_Sb     I_L     K_L iS iL fREM   muhel_N      muhel_E        muhel      R_E");
   if (VERBOSITY >= 2 && BINARY    == 1) printf ("     q21         M2         aL     aLpmin         u0 BL");
   if (VERBOSITY >= 2) printf ("\n");
   for (long j=0; j< NSIMU; j++){
@@ -977,6 +1060,7 @@ int main(int argc,char **argv)
      }
      double tau_s = (i_s == 9) ? mageND + sageND*gasdev()
                   : (i_s == 8) ? mageB + sageB*gasdev() 
+                  : (i_s ==10) ? 14 
                   : medtauds[i_s];
      ran = ran1();
      inttmp = ran*20;
@@ -1019,6 +1103,7 @@ int main(int argc,char **argv)
      }
      double tau_l = (i_l == 9) ? mageND + sageND*gasdev()
                   : (i_l == 8) ? mageB + sageB*gasdev()
+                  : (i_l == 10) ? 14
                   : medtauds[i_l];
      ran = ran1() * (cumu_rho_L[i_l][nbinDlmax] - cumu_rho_L[i_l][nbinDlmin]) + cumu_rho_L[i_l][nbinDlmin];
      inttmp = ran*20 / cumu_rho_L[i_l][nbin]; // make inttmp < 1
@@ -1030,6 +1115,8 @@ int main(int argc,char **argv)
      }
      double D_l = getcumu2xist(nbin+1, D, cumu_rho_L[i_l],rhoD_L[i_l],ran,kst,0);
      addGammaIS *=  (cumu_rho_all_L[nbinDlmax] - cumu_rho_all_L[nbinDlmin])/ cumu_rho_all_L[nbin];
+     // if (i_l == 10)
+     //   printf("ran= %.5e inttmp= %2d kst= %d D_l= %f\n",ran,inttmp, kst, D_l);
 
 
      // pick velocities
@@ -1095,6 +1182,8 @@ int main(int argc,char **argv)
        iage_l *= 50;
        int itmp = (iage_l - agesB[0])/(agesB[1] - agesB[0]);
        Minidie = MinidieB[itmp];
+     }else if(i_l == 10){ // Halo
+       Minidie = MinidieD[nageD-1]; // nageD-1: halo
      }else if(i_l == 9){ // NSD
        int iage_l = 100*(tau_l + 0.5);
        int itmp = (iage_l <= agesND[0]) ? 0
@@ -1376,10 +1465,15 @@ int main(int argc,char **argv)
      if (ilogtE < 0) ilogtE = 0;
      if (ilogtE > NbintE - 1) ilogtE = NbintE - 1;
      NlogtEs[ilogtE] += Gamma*addGammaIS;
+     // if (i_l == 10){
+     //   printf("j= %ld i_l: %d D_l= %f thetaE= %f murel= %f Gamma= %12.6e\n",j,i_l,D_l, thetaE, murel, Gamma);
+     // }
      if (Gamma < ran1() && SMALLGAMMA == 0){
        j--;
        continue;
      }
+     // if (i_l == 10)
+     //   printf("2 j= %ld i_l: %d D_l= %f thetaE= %f murel= %f Gamma= %12.6e\n",j,i_l,D_l, thetaE, murel, Gamma);
      double like_obs(double mod, double obs, double err, double fe, int det, int UNIFORM);
      double addGamma = 1;
      double wtj = (Gamma > 1 || SMALLGAMMA == 1) ? Gamma : 1;
@@ -1444,7 +1538,26 @@ int main(int argc,char **argv)
        like_mus = like_musN * like_musE;
      }
 
-     // Constraint from lens brigtness (currently only I)
+     // Constraint from muhel (measured in heliocentric)
+     int like_muhel = 1;
+     double muhelN, muhelE;
+     if ((muhelNe > 0 && muhelEe > 0) || VERBOSITY >= 4){
+       double murellhel =  murell + vEarthl*KS2MY*(D_s-D_l)/D_s/D_l; // geo -> hel
+       double murelbhel =  murelb + vEarthb*KS2MY*(D_s-D_l)/D_s/D_l; // geo -> hel
+       muhelN =  murelbhel*cosPA + murellhel*sinPA;
+       muhelE = -murelbhel*sinPA + murellhel*cosPA;
+     }
+     if(muhelNe > 0 && muhelEe > 0){
+       double Gamma_muhelN = like_obs(muhelN, muhelNobs, muhelNe, femuhelN, 0, UNIFORM);
+       int like_muhelN = (Gamma_muhelN > 0) ? 1 : 0;
+       if (Gamma_muhelN > 0) addGamma *= Gamma_muhelN;
+       double Gamma_muhelE = like_obs(muhelE, muhelEobs, muhelEe, femuhelE, 0, UNIFORM);
+       int like_muhelE = (Gamma_muhelE > 0) ? 1 : 0;
+       if (Gamma_muhelE > 0) addGamma *= Gamma_muhelE;
+       like_muhel = like_muhelN * like_muhelE;
+     }
+
+     // Constraint from lens brigtness (currently only I and K)
      double getx2y(int n, double *x, double *y, double xin);
      int like_IL = 1;
      double IL = 99;
@@ -1469,17 +1582,58 @@ int main(int argc,char **argv)
        }
      }
 
+     int like_KL = 1;
+     double KL = 99;
+     if (AK0 > 0 && fREM == 0){
+       double M1 = (swl < 20) ? M_l : M_l/(1 + q21);
+       KL = (M1 <= 0.010) ? 30.466   //  faintest K mag in input_files/MLemp.dat
+          : (M1 >= 1.440) ?  1.535   // brightest K mag in input_files/MLemp.dat
+          : getx2y(nMLemp, M_emps, Mag_emps[4], M1);  // 4: K
+       if (swl >= 20){
+         double M2 = q21*M_l/(1 + q21);
+         double KL2 = (M2 <= 0.010) ? 30.466   //  faintest K mag in input_files/MLemp.dat
+                    : (M2 >= 1.440) ?  1.535   // brightest K mag in input_files/MLemp.dat
+                    : getx2y(nMLemp, M_emps, Mag_emps[4], M2);  // 4: K
+         double F12 = pow(10, -0.4*KL) + pow(10, -0.4*KL2);
+         KL = -2.5 * log10(F12);
+       }
+       KL += 5 * log10(0.1*D_l) + AK0 * (1 - exp(-D_l/hscale)); // add DM and AK
+       if(KLe > 0){
+         double Gamma_KL = like_obs(KL, KLobs, KLe, feKL, KLdet, UNIFORM);
+         like_KL = (Gamma_KL > 0) ? 1 : 0;
+         if (Gamma_KL > 0) addGamma *= Gamma_KL;
+       }
+     }
+
      // Combine all constraints
      Gamma *= addGamma * addGammaIS;
      wtj   *= addGamma * addGammaIS;
-     int like = like_tE*like_thetaE*like_piE*like_mus*like_IL;
+     int like = like_tE*like_thetaE*like_piE*like_mus*like_muhel*like_IL*like_KL;
+     int like_expiE = like_tE*like_thetaE*like_mus*like_muhel*like_IL*like_KL;
+     int like_exthE = like_tE*like_piE*like_mus*like_muhel*like_IL*like_KL;
      // if (VERBOSITY == 1) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %2d %2d %d %d\n", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, i_s,i_l,fREM,like);
+     if (CALCPRIORpiE && piENe > 0 && piEEe > 0 && like_expiE == 1){
+       double chi2piEN = (piEN - piENobs)/piENe;
+       double chi2piEE = (piEE - piEEobs)/piEEe;
+       chi2piEN *= chi2piEN;
+       chi2piEE *= chi2piEE;
+       wtlike_except_piE += wtj; // bumbo
+       wtlike_w_piEe     += wtj * 0.5/PI/piENe/piEEe * exp(-0.5*(chi2piEN + chi2piEE)); // bunshi, sqrt(2*PI*sig^2)*sqrt(2*PI*sig^2)
+     } 
+     if (CALCPRIORthE && thetaEe > 0 && like_exthE == 1){
+       double chi2thE = (thetaE - thetaEobs)/thetaEe;
+       chi2thE *= chi2thE;
+       wtlike_except_thE += wtj; // bumbo
+       wtlike_w_thEe     += wtj * sqrt(0.5/PI)/thetaEe * exp(-0.5*chi2thE); // bunshi, sqrt(2*PI*sig^2)*sqrt(2*PI*sig^2)
+     }
      if (like_tE == 1) wtlike_tE += wtj;
      if (like    == 1) Nlike ++, wtlike    += wtj;
      else continue;
-     // if (VERBOSITY == 1) printf ("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.3f %1d %1d %5.2f %5.2f %d %.5e", wtj,tE,thetaE,piE,M_l,D_s, D_l,vx_s,vy_s,vz_s,vx_l,vy_l,vz_l,murel,i_s,i_l,tau_s,tau_l,fREM,Gamma);
+     if (VERBOSITY == 1) printf ("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f %7.3f %1d %1d %5.2f %5.2f %d %.5e", wtj,tE,thetaE,piE,M_l,D_s, D_l,vx_s,vy_s,vz_s,vx_l,vy_l,vz_l,murel,i_s,i_l,tau_s,tau_l,fREM,Gamma);
      if (VERBOSITY == 2) printf("%12.6e %12.6e %12.6e %13.6e %13.6e %5.0f %12.5e %12.5e %2d %2d %d", wtj, tE,thetaE,piEN,piEE,D_s,muSl,muSb,i_s,i_l,fREM);
-     if (VERBOSITY == 3) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %2d %2d %d", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, i_s,i_l,fREM);
+     if (VERBOSITY == 3) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %7.3f %2d %2d %d", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, KL, i_s,i_l,fREM);
+     if (VERBOSITY == 4) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %7.3f %2d %2d %d %12.5e %12.5e %12.6e", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, KL, i_s,i_l,fREM, muhelN, muhelE, sqrt(muhelN*muhelN+muhelE*muhelE));
+     if (VERBOSITY == 5) printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e %12.6e %12.5e %12.5e %7.3f %7.3f %2d %2d %d %12.5e %12.5e %12.6e %.6e", wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE, murel, muSl,muSb, IL, KL, i_s,i_l,fREM, muhelN, muhelE, sqrt(muhelN*muhelN+muhelE*muhelE),thetaE*D_l*1e-03);
      if (BINARY == 1 && VERBOSITY > 0)
         printf(" %.4e %.4e %.4e %.4e %.4e %2d",q21, M_l2, al, alpmin, u0S, swl);
      if (VERBOSITY > 0)
@@ -1524,7 +1678,11 @@ int main(int argc,char **argv)
   if (NrejIS > 0)
     printf ("# N_IS/Ngen= %ld / %ld = %f of events are rejected by importance sampling part\n",NrejIS,Ngen, (double) NrejIS/Ngen);
   printf ("# Nlike/N/Ngen= %d / %ld / %ld     wtlike/wtlike_tE= %.0f / %.0f = %f\n",Nlike,NSIMU,Ngen,wtlike,wtlike_tE,f_like_tE);
-  gsl_rng_free(r);
+  if (CALCPRIORthE)
+    printf ("# P_pri(thE)= wtlike_w_thEe/wtlike_except_thE= %.2f / %.2f = %.5e\n",wtlike_w_thEe,wtlike_except_thE,wtlike_w_thEe/wtlike_except_thE);
+  if (CALCPRIORpiE)
+    printf ("# P_pri(piEN,piEE)= wtlike_w_piEe/wtlike_except_piE= %.2f / %.2f = %.5e\n",wtlike_w_piEe,wtlike_except_piE,wtlike_w_piEe/wtlike_except_piE);
+  // gsl_rng_free(r);
   free (D);  
   free (cumu_rho_all_S);
   free (cumu_rho_all_L);
@@ -2041,7 +2199,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
   }
   // double rhot0 = 0.042; // Msun/pc^3 @ z=0, rhot0 + rhoT0 = 0.042, (Bovy17: 0.042 +- 0.002 incl.BD)
   double rhoT0 = rhot0 * 0.04; //  Msun/pc^3, 4% of thin disk (Bland-Hawthorn & Gerhard (2016), f_rho = 4% +- 2%)
-  for (int i=0;i<8;i++){
+  for (int i=0;i<9;i++){
     int rd = (i == 0) ? Rd[0] : (i < 7) ? Rd[1] : (i == 7) ? Rd[2] : 0;
     if (i < 7){
       double norm = rhot0/rho0thinMS;
@@ -2053,7 +2211,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
       n0d[i]   = n0MSd[i] + n0WD;
       n0RGd[i] = n0MSd[i]*nfracRG_D[i];
     //   printf ("%d rho0= %.2e + %.2e = %.2e, n0= %.2e + %.2e = %.2e, n0RG= %.2e\n",i,rhoMS,rhoWD,rho0d[i],n0MSd[i],n0WD,n0d[i],n0RGd[i]);
-    }else{  // Thick disk
+    }else if (i == 7){  // Thick disk
       double logMdie = log10(MinidieD[nageD - 2]);
       double logMRG1 = log10(MRGstD[nageD - 2]);
       double logMRG2 = log10(MRGenD[nageD - 2]);
@@ -2077,6 +2235,30 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
       n0d[i]   = n0MSd[i] + n0WD;
       n0RGd[i] = n0MSd[i]* PRG/P;
       // printf ("%d rho0= %.2e + %.2e = %.2e, n0= %.2e + %.2e = %.2e, n0RG= %.2e\n",i,rhoMS,rhoWD,rho0d[i],n0MSd[i],n0WD,n0d[i],n0RGd[i]);
+    }else{  // Stellar halo (added on 20241002)
+      double logMdie = log10(MinidieD[nageD - 1]);
+      double logMRG1 = log10(MRGstD[nageD - 1]);
+      double logMRG2 = log10(MRGenD[nageD - 1]);
+      double PM   = interp_x(nm+1, PMlogM_cum_norm, logMst, dlogM, logMdie);
+      double P    = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMdie);
+      double PRG1 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG1);
+      double PRG2 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG2);
+      double PRG = PRG2 - PRG1; 
+      double aveMloss = interp_x(nm+1, ageMloss, logMst, dlogM, logMdie);
+      double PMWD = (1 - PM) * aveMloss;
+      double PWD  = (1 - P);
+      double aveMMS = PM   * PMlogM_cum[nm] / P   / PlogM_cum[nm]; // MSun/star for main sequence
+      double aveMWD = PMWD * PMlogM_cum[nm] / PWD / PlogM_cum[nm]; // MSun/star for WD
+      double aveM   = (PM*PMlogM_cum[nm]+PMWD*PMlogM_cum[nm])/(P*PlogM_cum[nm]+PWD*PlogM_cum[nm]);
+      double norm = rho0SHMS/PM;
+      double rhoMS = rho0SHMS;
+      double rhoWD = norm * PMWD;
+      rho0SH = rhoMS + rhoWD;
+      n0MSSH = rhoMS/aveMMS;
+      double n0WD = rhoWD/aveMWD;
+      n0SH   = n0MSSH + n0WD;
+      n0RGSH = n0MSSH* PRG/P;
+      // printf ("%d rho0= %.2e + %.2e = %.2e, n0= %.2e + %.2e = %.2e, n0RG= %.2e\n",i,rhoMS,rhoWD,rho0SH,n0MSSH,n0WD,n0SH,n0RGSH);
     }
   }
   // for Bar 
@@ -2296,7 +2478,7 @@ void store_cumuP_Shu(char *infile) // calculate cumu prob dist of fg = Rg/R foll
   void get_PRRGmax2(double *pout, int R, int z, double fg1, double sigU0, double hsigU, int rd);
   for (int z = zstShu; z <= zenShu; z+=dzShu){
     int iz = (z - zstShu)/dzShu;
-    double facVcz = 1 + 0.0374*pow(0.001*fabs(z), 1.34); // Eq. (22) of Sharma et al. 2014, ApJ, 793, 51
+    double facVcz = 1 + 0.0374*pow(0.001*abs(z), 1.34); // Eq. (22) of Sharma et al. 2014, ApJ, 793, 51
     for (int R = RstShu; R <= RenShu; R+=dRShu){
       int iR = (R - RstShu)/dRShu;
       double vcR  = getx2y(nVcs, Rcs, Vcs, R);
@@ -2524,7 +2706,19 @@ void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double b
   double x = xyz[0], y = xyz[1], z = xyz[2];
   double R = sqrt(x*x + y*y);
   double vx = 0, vy = 0, vz = 0;
-  if (i < 8){
+  if (i < 8 && B14disk == 1){
+    double aveV = (i < 7) ? 218.0 : 170.0;
+    double sigU = (i < 7) ?  39.9 :  67.0;
+    double sigV = (i < 7) ?  27.9 :  51.0;
+    double sigW = (i < 7) ?  19.1 :  42.0;
+    do{
+      double vR   =    0 + gasdev()*sigU; // radial velocity
+      double vphi = aveV + gasdev()*sigV;
+      vx = -vphi * y/R + vR * x/R; // x/R = cosphi, y/R = sinphi
+      vy =  vphi * x/R + vR * y/R; // x/R = cosphi, y/R = sinphi
+      vz =    0 + gasdev()*sigW; // vertical velocity
+    }while (vx*vx + vy*vy + vz*vz > vescd*vescd);
+  }else if (i < 8){
     double sigW0 = (i < 7) ? sigW10d * pow((tau+0.01)/10.01, betaW) : sigW0td;
     double sigU0 = (i < 7) ? sigU10d * pow((tau+0.01)/10.01, betaU) : sigU0td;
     double hsigW = (i < 7) ? hsigWt : hsigWT;
@@ -2589,17 +2783,32 @@ void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double b
       vz =  facR * vR  + gasdev()*sigz_R; // random w/ correlation coeff
       // printf("%f %f %f %f %f %f %f %f %f %f\n",R,z,vphi,vR,vz,corRz,m_vphi,sigphi,sigR,sigz);
     }while (vx*vx + vy*vy + vz*vz > vescb*vescb);
+  }else if (i == 10){ // Stellar halo
+    double vR   = sigU_SH * gasdev();
+    double vphi = sigV_SH * gasdev();
+    vx = -vphi * y/R + vR * x/R; // x/R = cosphi, y/R = sinphi
+    vy =  vphi * x/R + vR * y/R; // x/R = cosphi, y/R = sinphi
+    vz =    0 + gasdev()*sigW_SH; // vertical velocity
   }else{ // bar & NSD (when ND <= 2)
     double vrot = 0.001 * Omega_p * R; // km/s/kpc -> km/s/pc
+    if (B14vbar == 1 && vrot > 90)  vrot = 90;
     double xb =  x * costheta + y * sintheta;
     double yb = -x * sintheta + y * costheta;
     double zb =  z;                          
     double sigvbs[3] = {}, sigx, sigy, sigz;
-    void calc_sigvb(double xb, double yb, double zb, double *sigvbs);
-    calc_sigvb(xb, yb, zb, sigvbs);
-    sigx = sqrt(sigvbs[0]*sigvbs[0] * costheta*costheta + sigvbs[1]*sigvbs[1] * sintheta*sintheta);
-    sigy = sqrt(sigvbs[0]*sigvbs[0] * sintheta*sintheta + sigvbs[1]*sigvbs[1] * costheta*costheta);
-    sigz = sigvbs[2];
+    if (B14vbar==1){
+      double Mvb_xrot =  -vrot * y/R;
+      double Mvb_yrot =   vrot * x/R;
+      sigx = sqrt(sigx_vb*sigx_vb - Mvb_xrot*Mvb_xrot);
+      sigy = sqrt(sigy_vb*sigy_vb - Mvb_yrot*Mvb_yrot);
+      sigz = sigz_vb;
+    }else{
+      void calc_sigvb(double xb, double yb, double zb, double *sigvbs);
+      calc_sigvb(xb, yb, zb, sigvbs);
+      sigx = sqrt(sigvbs[0]*sigvbs[0] * costheta*costheta + sigvbs[1]*sigvbs[1] * sintheta*sintheta);
+      sigy = sqrt(sigvbs[0]*sigvbs[0] * sintheta*sintheta + sigvbs[1]*sigvbs[1] * costheta*costheta);
+      sigz = sigvbs[2];
+    }
     double avevxb   = (yb > 0) ? -vx_str : vx_str;
     if (y0_str > 0){
       double tmpyn = fabs(yb/y0_str);
@@ -2648,7 +2857,7 @@ double getcumu2xist(int n, double *x, double *F, double *f, double Freq, int ist
           double b = f[i-1] - 2*a*x[i-1];
           double c = a*x[i-1]*x[i-1] - f[i-1]*x[i-1] + F[i-1] - Freq;
           double xreq = (a != 0) ? (-b + sqrt(b*b - 4*a*c)) * 0.5/a  // root of ax^2 +bx + c
-                                 : (x[i]-x[i-1])/(F[i]-F[i-1])*(Freq-F[i-1]) + F[i-1];
+                                 : (x[i]-x[i-1])/(F[i]-F[i-1])*(Freq-F[i-1]) + x[i-1];
           return xreq;
        }
     }
@@ -2659,7 +2868,7 @@ double getcumu2xist(int n, double *x, double *F, double *f, double Freq, int ist
           double b = f[i-1] - 2*a*x[i-1];
           double c = a*x[i-1]*x[i-1] - f[i-1]*x[i-1] + F[i-1] - Freq;
           double xreq = (a != 0) ? (-b + sqrt(b*b - 4*a*c)) * 0.5/a  // root of ax^2 +bx + c
-                                 : (x[i]-x[i-1])/(F[i]-F[i-1])*(Freq-F[i-1]) + F[i-1];
+                                 : (x[i]-x[i-1])/(F[i]-F[i-1])*(Freq-F[i-1]) + x[i-1];
           return xreq;
        }
     }
@@ -2726,7 +2935,8 @@ int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum
              (icomp == 6) ? "input_files/iso-thin7.dat" :
              (icomp == 7) ? "input_files/iso-thick2.dat"  :
              (icomp == 8) ? "input_files/iso-bar_age.dat" :
-                            "input_files/iso-NSD.dat";
+             (icomp == 9) ? "input_files/iso-NSD.dat" :
+                            "input_files/iso-halo.dat";
      if((fp=fopen(file1,"r"))==NULL){
         printf("can't open %s\n",file1);
         exit(1);
@@ -2740,7 +2950,8 @@ int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum
             (icomp == 6) ? 61 :
             (icomp == 7) ? 2  :
             (icomp == 8) ? 27 :
-                           6;
+            (icomp == 9) ? 6  :
+                           2;
      narry = (icomp == 0) ? 465 :
              (icomp == 1) ? 581 :
              (icomp == 2) ? 1885 :
@@ -2750,7 +2961,8 @@ int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum
              (icomp == 6) ? 296 :
              (icomp == 7) ? 197 :
              (icomp == 8) ? 766 :
-                            340;
+             (icomp == 9) ? 340 :
+                            190;
      double **Minis, **MIcs;
      int *nMinis;
      nMinis  = (int *)calloc(nage, sizeof(double *));
@@ -2771,6 +2983,7 @@ int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum
             (icomp == 6) ? 100 :
             (icomp == 7) ? 100 :
             (icomp == 8) ? 100 :
+            (icomp == 9) ? 100 :
                            100 ;
      while (fgets(line,1000,fp) !=NULL){
         int nwords = split((char*)" ", line, words);
@@ -2794,7 +3007,7 @@ int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum
        double wtSFR = (icomp == 9) ? exp(-0.5*pow((tau - mageND)/sageND, 2))   // 7 +- 1 of Gaussian
                     : (icomp == 8) ? exp(-0.5*pow((tau - mageB)/sageB, 2))   // 9 +- 1 of Gaussian
                     : (icomp <  7) ? exp(-gamma*(10-tau))  // thin
-                    : 2; // Thick
+                    : 2; // Thick or halo
        if (j == 0 || j == iage) wtSFR *= 0.5; // daikei sekibun
        if (j == 0 && icomp == 0) wtSFR *= 3; // add 0.00 Gyr - 0.05 Gyr
        double logMini = log10(Minis[j][0]); // should be ~0.09 Msun
@@ -2867,7 +3080,8 @@ void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen,
             (icomp == 6) ? "input_files/iso-thin7.dat" :
             (icomp == 7) ? "input_files/iso-thick2.dat"  :
             (icomp == 8) ? "input_files/iso-bar_age.dat" :
-                           "input_files/iso-NSD.dat";
+            (icomp == 9) ? "input_files/iso-NSD.dat" :
+                           "input_files/iso-halo.dat";
     if((fp=fopen(file1,"r"))==NULL){
        printf("can't open %s\n",file1);
        exit(1);
@@ -2881,7 +3095,8 @@ void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen,
            (icomp == 6) ? 61 :
            (icomp == 7) ? 2 : 
            (icomp == 8) ? 27 :
-                          6;
+           (icomp == 9) ? 6  :
+                          2;
     narry = (icomp == 0) ? 465 :
             (icomp == 1) ? 581 :
             (icomp == 2) ? 1885 :
@@ -2891,7 +3106,8 @@ void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen,
             (icomp == 6) ? 296 :
             (icomp == 7) ? 197 :
             (icomp == 8) ? 766 :
-                           340;
+            (icomp == 9) ? 340 :
+                           190;
     double **Minis, **VIcs, **MIcs, *ages;
     int *nMinis;
     nMinis  = (int *)calloc(nage, sizeof(int    *));
@@ -2928,7 +3144,7 @@ void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen,
       double wtSFR = (icomp == 9) ? exp(-0.5*pow((tau - mageND)/sageND, 2))   // 7 +- 1 of Gaussian
                    : (icomp == 8) ? exp(-0.5*pow((tau - mageB)/sageB, 2))   // 9 +- 1 of Gaussian
                    : (icomp <  7) ? exp(-gamma*(10-tau))  // thin
-                   : 2; // Thick
+                   : 2; // Thick or Halo
       if (j == 0 || j == iage) wtSFR *= 0.5; // daikei sekibun
       if (j == 0 && icomp == 0) wtSFR *= 3; // add 0.00 Gyr - 0.05 Gyr
       double logMini = log10(Minis[j][0]); // should be ~0.09 Msun
@@ -2994,7 +3210,7 @@ double calc_PRRg(int R, int z, double fg, double sigU0, double hsigU, int rd){
   double calc_SigRg(double Rg, double hsigU, int rd, double a0);
   double    calc_gc(double c);
   double Rg = R*fg;
-  double vc = getx2y(nVcs, Rcs, Vcs, Rg) / (1 + 0.0374*pow(0.001*fabs(z), 1.34));
+  double vc = getx2y(nVcs, Rcs, Vcs, Rg) / (1 + 0.0374*pow(0.001*abs(z), 1.34));
   double a0 = sigU0/vc * exp(R0/hsigU);
   double a  = sigU0/vc * exp(-(Rg - R0)/hsigU);
   double faca = calc_faca(Rg,hsigU,rd,a0);
@@ -3213,6 +3429,7 @@ double calc_rho_n(double D, int idata, double *rho_n){  // return rho, n, and wt
  	//                rho_n[1] += n0MSSTB  * rhos[10];}
   // Bar
   rho_n[0] += rho0b * rhos[8] + rho0ND * rhos[9];
+  // rho_n[1] += n0MSb * rhos[8] + n0ND   * rhos[9];
   rho_n[1] += n0MSb * rhos[8] + n0MSND * rhos[9];
   f_disk = nD/rho_n[1];
   free(rhos);
@@ -3274,6 +3491,14 @@ void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb){
   }
   xyb[0] = xb;
   xyb[1] = yb;
+
+  // Stellar Halo (Spheroid from Robin+03) added on 20241002
+  double zSH  = z/epsSH;
+  double aSH2 = R*R + zSH*zSH;
+  if (aSH2 < acSH2) aSH2 = acSH2; // a = ac = 500 pc
+  double aSHsun_inv = R0/sqrt(aSH2); // since rho0SHMS is the value at Solar position
+  rhos[10] = pow(aSHsun_inv, alphaSH); // a^-alpha = (1/a)^alpha
+  
 }
 //---------------
 double calc_rhoB(double xb, double yb, double zb)
