@@ -13,12 +13,16 @@
  *   4. CALCTAU option is added to calculate the optical depth and event rate. (event rate uses the tE mean value based on the simulation.)
  *   5. calc_PA function is added and PA is now automatically calculated from (l, b)
  *   6. Importance sampling used when tE, thetaE, and/or piE is given, which makes most calculation ~10 times faster.
- *   
+ *     
  * Correct vkick bag on 2022/10/22
  * 
  * Version 1.2.1 (2023/2/18 - )
  *   Add stellar halo based on Robin+03
- *
+ * 
+ * 2025/3/20
+ *   Add inflation of scale height by BH kick 
+ *   The same function was first installed for the analysis by Koshimoto, Kawanaka and Tsuna (2024), ApJ, 973, 5.
+ *   The inflation is only for disk component, and not for bulge or other components. 
  * */
 #include <math.h> 
 #include <stdio.h> 
@@ -503,6 +507,33 @@ int main(int argc,char **argv)
   y0d[1] = (DISK == 1) ? exp(-R0/Rd[1] - pow(((double)Rh/R0),nh))  :  exp(-R0/Rd[1]);
   y0d[2] = (DISK == 1) ? exp(-R0/Rd[2] - pow(((double)Rh/R0),nh))  :  exp(-R0/Rd[2]);
 
+  /*------------ For BH kick analysis --------------------*/
+  //---- Set kick velocity  -----
+  int    MXDkick = getOptiond(argc,argv,"MXDkick",  1,    0); //  Give v_kick in maxwell distribution
+  double vkickBH = getOptiond(argc,argv,"vkickBH",  1,  100); //  Table 2 of Lam et al. 2020
+  double vkickNS = getOptiond(argc,argv,"vkickNS",  1,  350); //  Table 2 of Lam et al. 2020
+ 
+  //------ Parameters to change scale height for BH (only for disk as of 2022/10/21)
+  //  hd(R,vkick) = hd0 * exp[R/Rhd] * (vkick/[50km/s])^beta_v
+  //  hd(R,vkick) = hd0 * exp[R/Rhd] * (vavg/[50km/s])^beta_v <- should be used?
+  //  Values from ../BHkick/anal_kick_velo_20221027.ipynb based on Tsuna+2018
+  int    BHhd  = getOptiond(argc,argv,"BHhd",  1,    0); // flag to change BH scale height for disk
+  int    BHhb  = getOptiond(argc,argv,"BHhb",  1,    0); // flag to change BH scale height for bar (just naively)
+  int fixRhdBH = getOptioni(argc,argv,"fixRhdBH",  1,    0); // flag to change BH scale height for bar (just naively)
+  double RhdBH0 = getOptiond(argc,argv,"RhdBH0",  1, 9660); // scale length [pc] of hd(R)
+  double betaBH = getOptiond(argc,argv,"betaBH",  1, 0.820); // power of vkick dependence.
+  /*------------------------------------------------------*/
+
+  //------ Parameters to change surface density (added on 2022/11/23, see anal_kick_velo_20221123.ipynb)
+  //  Sigma(R, vkick) = Sigma(R, 50km/s) * (a2*R^2 + a1*R + a0)
+  //  a2, a1, a0 are determined for vkick = 100, 200, 400 km/s in anal_kick_velo_20221123.ipynb
+  int  UseSigBH = getOptiond(argc,argv,"UseSigBH",  1,    0); // Use Sigma dependency on vkick
+  double a2toSig25BHs[5] = {0, 0.00279,  0.00985,  0.02054,  0.01901}; // coeff of R^2 of Sig_v / Sig_25
+  double a1toSig25BHs[5] = {0,-0.02023, -0.07548, -0.16585, -0.15082}; // coeff of R^1 of Sig_v / Sig_25
+  double a0toSig25BHs[5] = {1, 1.01342,  1.05382,  1.05898,  0.69889}; // coeff of R^0 of Sig_v / Sig_25
+
+  int  printBHfac = getOptiond(argc,argv,"printBHfac",  1,    0); // print fBH 
+
   // Print input parameters as header 
   printf("#   Output of \"./genulens ");
   for (int i=1;i<argc;i++) {
@@ -545,6 +576,14 @@ int main(int argc,char **argv)
     double SigmaD = 2 * zd[i] * rho0d[i];
     printf ("#   Disk%d: %5.2f %4d %3.0f  %3d %5.2f %5.2f %6.0f %6.0f   %.2e %.2e %.2e   %.2e\n",i+1,medtauds[i], rd, zd[i],zdtmp,sigU0,sigW0,hsigU,hsigW,rho0d[i],n0d[i],n0d[i]-n0MSd[i], SigmaD);
   }
+  printf("#------------ Disk BH scale height --------------\n");
+  printf("#            BHhd      = %d (0: hdBH = hdstar, 1: hd(R,vkick) = hd0*exp[R/Rhd]*(vkick/[50km/s])^beta_v)\n", BHhd);
+  if (BHhd == 1){
+    printf ("#   (Rhd, beta_v) =  (%6.1f pc, %6.4f) \n", RhdBH0, betaBH);
+  }
+  printf ("#        UseSigBH      = %d (0: Sigma(R) same against vkick, 1: Sigma(R) depends on vkick\n", UseSigBH);
+  printf ("#         MXDkick      = %d (0: vkick constant, 1: vkick given by Maxwell distribution)\n", MXDkick);
+  printf ("#   (vkickNS, vkickBH) =  (%6.1f , %6.1f) km/s\n", vkickNS, vkickBH);
 
   // Crude normalize bulge mass
   double crude_integrate(double xmax, double ymax, double zmax, int nbun);
@@ -649,6 +688,7 @@ int main(int argc,char **argv)
   double gammaDs  = getOptiond(argc,argv,"gammaDs",  1, 0.5);
   double wtD_L    = getOptiond(argc,argv,"wtD_L",    1, 0);  // parameter for importance sampling 
   double wtM_L    = getOptiond(argc,argv,"wtM_L",    1, 0);  // parameter for importance sampling
+  int NoGAMMAIS   = getOptiond(argc,argv,"NoGAMMAIS",     1,  0);
   int SMALLGAMMA  = getOptiond(argc,argv,"SMALLGAMMA",   1,  0);
   int VERBOSITY   = getOptiond(argc,argv,"VERBOSITY",  1, 0);
   int UNIFORM     = getOptiond(argc,argv,"UNIFORM",   1,  0);
@@ -829,7 +869,7 @@ int main(int argc,char **argv)
 
   //------- Store cumu_rho for each ith disk as a function of distance -----------
   void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb);  // return rho for each component 
-  double rhos[11] = {}, xyz[3] = {}, xyb[2] = {};
+  double rhos[11] = {}, xyz[3] = {}, xyb[2] = {}, sigvbs[3] = {};
   // Lens   : include REMNANT, mass basis 
   // Source : only stars, number basis 
   // int Dmax = 16000;
@@ -840,15 +880,17 @@ int main(int argc,char **argv)
            : (ND > 0) ? 0.04*Dmax+0.5 
            : 0.01*Dmax+0.5;
   double dD = (double) Dmax/nbin;
-  double *D, **rhoD_S, **rhoD_L, **cumu_rho_S, **cumu_rho_L, *cumu_rho_all_S, *cumu_rho_all_L;
+  double *D, **rhoD_S, **rhoD_L, **cumu_rho_S, **cumu_rho_L, *cumu_rho_all_S, *cumu_rho_all_L, **fBH;
   D               = (double *)calloc(nbin+1, sizeof(double *));
   cumu_rho_all_S  = (double *)calloc(nbin+1, sizeof(double *));
   cumu_rho_all_L  = (double *)calloc(nbin+1, sizeof(double *));
+  fBH         = (double **)malloc(sizeof(double *) * ncomp);  // store rho_BH/rho_*
   rhoD_S      = (double **)malloc(sizeof(double *) * ncomp);
   rhoD_L      = (double **)malloc(sizeof(double *) * ncomp);
   cumu_rho_S  = (double **)malloc(sizeof(double *) * ncomp);
   cumu_rho_L  = (double **)malloc(sizeof(double *) * ncomp);
   for (int i=0; i<ncomp; i++){
+    fBH[i]        = (double *)calloc(nbin+1, sizeof(double *));
     rhoD_S[i]     = (double *)calloc(nbin+1, sizeof(double *));
     rhoD_L[i]     = (double *)calloc(nbin+1, sizeof(double *));
     cumu_rho_S[i] = (double *)calloc(nbin+1, sizeof(double *));
@@ -858,6 +900,8 @@ int main(int argc,char **argv)
   double fIVI_detect(double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk);
   printf("#----- Mass density distribution along (l, b)= (%.3f, %.3f) w/ wtD_L= %.1f --------\n",lSIMU,bSIMU,wtD_L);
   int npri = (ND > 0) ? 40 : 10;
+  if (printBHfac)
+    npri = 100000;
   npri = getOptioni(argc,argv,"npri",  1,  npri); 
   int printrhoS = getOptiond(argc,argv,"printrhoS",  1,  0);
   double nallS = 0;
@@ -865,12 +909,71 @@ int main(int argc,char **argv)
     D[ibin] = (double) ibin/nbin * Dmax;
     calc_rho_each(D[ibin], idata, rhos, xyz, xyb);
     double R = sqrt(xyz[0]*xyz[0] + xyz[1]*xyz[1]);
-    if (ibin%npri==0) printf ("# %5.0f %5.0f %5.0f ",D[ibin],R,xyz[2]);
+    double z = xyz[2]; 
+    if (ibin%npri==0) printf ("# %5.0f %5.0f %5.0f ",D[ibin],R,z);
     double rhosum = 0;
     double extI  =  AI0 * (1 - exp(-D[ibin]/hscale)) + 5 * log10(0.1*(D[ibin] + 0.1));
     double extVI = EVI0 * (1 - exp(-D[ibin]/hscale));
     // printf ("%5.0f %7.3f ",D[ibin],extI);
     for (int i=0;i<ncomp;i++){
+      double fBHtmp = 1;
+      if (UseSigBH == 1 && i < 9 && vkickBH > 25){
+        // Change BH surface density following Eq. (10) of Koshimoto+24
+        if (vkickBH != 25 && vkickBH != 50 && vkickBH != 100 && vkickBH != 200 && vkickBH != 400){
+          printf("# WARNING : vkickBH = 25, 50, 100, 200, or 400 is preferable for UseSigBH == 1\n");
+        }
+        int ivkick = (int) floor(log(vkickBH/25)/log(2) + 0.5);
+        double corSigFac = a2toSig25BHs[ivkick]*R*R*1e-06 + a1toSig25BHs[ivkick]*R*1e-03 + a0toSig25BHs[ivkick];
+        fBHtmp *= corSigFac;
+      }
+      int ien = (BHhb == 1) ? 9 : 8;
+      if (BHhd == 1 && i < ien){ // only for Disk when BHhb == 0, else also for Bar (crude attempt though)
+        // Change BH scale height (disk: Eq. 5 of Koshimoto+24, bar: Eq. 11 of Koshimoto+24)
+        double sigW0 = (i < 7) ? sigW10d * pow((medtauds[i]+0.01)/10.01, betaW) : sigW0td;
+        double hsigW = (i < 7) ? hsigWt : hsigWT;
+        if (BHhb == 1 && i == 8){
+           void calc_sigvb(double xb, double yb, double zb, double *sigvbs);
+           calc_sigvb(xyb[0], xyb[1], z,  sigvbs);
+        }
+        double sigW  = (i == 8) ? sigvbs[2] : sigW0*exp(-(R - R0)/hsigW);
+        double sigW2 = sigW*sigW;
+        double sigzkick2 = vkickBH*vkickBH*PI/8; // v_avg = 2 sigma_1D sqrt(2/pi)
+        double sigzadd = sqrt(sigW2 + sigzkick2);
+        double fvBH = pow((sigzadd/sigW), betaBH);
+        double RhdBH = (fixRhdBH == 1) ? RhdBH0 : RhdBH0 * (1 + sigW2/sigzkick2); // Eq.(6) of the paper
+        double fzdBH = exp((R-R0)/RhdBH) * fvBH;
+        double rhoMS = 0, rhoBH = 0;
+        double zd0  = (i < 8) ? zd[i] : 235.344943180979;  // use z0_1 of E model for bar.
+        double zdBH = (i < 8) ? zd0 * fzdBH : zd0 * fvBH;  // doesn't consider the exp((R-R0)/RhdBH) term for bar 
+        if (i == 8){ // bar, calc rhoB for E_fg0 model, when BHhb == 1
+          double x0E = 668.323640191308, y0E = 277.674592258175; 
+          double C1E = 1.40903573470129, C2E = 3.3497118832179;
+          double xn = fabs(xyb[0]/x0E), yn = fabs(xyb[1]/y0E);
+          double Rs = pow((pow(xn, C1E) + pow(yn, C1E)), 1/C1E);
+          double zn, rs;
+          zn = fabs(z/zd0);
+          rs = pow(pow(Rs, C2E)  + pow(zn, C2E), 1/C2E);
+          rhoMS = exp(-rs);
+          /* Calc SigZMS here if done? */
+          zn = fabs(z/zdBH);
+          rs = pow(pow(Rs, C2E)  + pow(zn, C2E), 1/C2E);
+          rhoBH = exp(-rs) / fvBH; // divided by fvBH to reduce rho0 (cuz Sigma is still conserved at this stage)
+          /* Calc SigZBH here if done? */
+        }else{
+          rhoMS = (i < 7) ? 4.0/(exp(2*z/zd0)+exp(-2*z/zd0)+2)
+                          : exp(-fabs(z)/zd0);
+          rhoBH = (i < 7) ? 4.0/(exp(2*z/zdBH)+exp(-2*z/zdBH)+2)
+                          : exp(-fabs(z)/zdBH);
+          rhoBH /= fzdBH; // divided by fzdBH to reduce rho0 (cuz Sigma is still conserved at this stage)
+        }
+        if (printBHfac)
+          printf("%d %5.0f %4.0f %5.2f %6.2f %6.2f %.6f %6.1f %6.1f %.4e %.4e %.6f %.3f",i, D[ibin], R, z, sigW, sigzadd, fvBH, zd0, zdBH, rhoMS, rhoBH, rhoBH / rhoMS, fBHtmp);
+        fBHtmp *= rhoBH / rhoMS;
+      }
+      fBH[i][ibin] = fBHtmp;  // later multiplied by addwtj
+      if (i < 8 && printBHfac){
+        printf(" %.6f\n",fBH[i][ibin]);
+      }
       double nMS = (i == 8) ? n0MSb*rhos[8] : (i == 9) ? n0MSND*rhos[9] : (i == 10) ? n0MSSH*rhos[10] : n0MSd[i]*rhos[i];
       double rho = (i == 8) ? n0b  *rhos[8] : (i == 9) ? n0ND  *rhos[9] : (i == 10) ? n0SH  *rhos[10] : n0d[i]  *rhos[i];
       if (AI0 > 0 && Isen - Isst > 0 && EVI0 > 0 && VIsen - VIsst > 0){
@@ -918,6 +1021,8 @@ int main(int argc,char **argv)
       }
     }
   }
+  if (printBHfac)
+    exit(1);
   int **ibinptiles_S, **ibinptiles_L;
   ibinptiles_S  = (int **)malloc(sizeof(int *) * ncomp);
   ibinptiles_L  = (int **)malloc(sizeof(int *) * ncomp);
@@ -1144,10 +1249,17 @@ int main(int argc,char **argv)
      for (int iREM = 0; iREM < nREM; iREM++){
        double vxadd = 0, vyadd = 0, vzadd = 0;
        if (iREM > 0){ // iREM == 1 or 2
-         double vkick = (iREM == 1) ? 350 : 100;  // Table 2 of Lam et al. 2020
-         vxadd =  vkick * cos(thetakick) * cos(phikick);
-         vyadd =  vkick * cos(thetakick) * sin(phikick);
-         vzadd =  vkick * sin(thetakick);
+         double vkick = (iREM == 1) ? vkickNS : vkickBH;  // Table 2 of Lam et al. 2020
+         if (MXDkick == 1){ // maxwell distribution
+           double sigv1D = vkick * 0.5 * sqrt(0.5*PI); // ~0.6266 vkick
+           vxadd = sigv1D * gasdev();
+           vyadd = sigv1D * gasdev();
+           vzadd = sigv1D * gasdev();
+         }else{ // fixed vkick = vavg
+           vxadd =  vkick * cos(thetakick) * cos(phikick);
+           vyadd =  vkick * cos(thetakick) * sin(phikick);
+           vzadd =  vkick * sin(thetakick);
+         }
        }
        double vxrel_l = vx_l + vxadd - vxsun;
        double vyrel_l = vy_l + vyadd - vysun;
@@ -1455,8 +1567,21 @@ int main(int argc,char **argv)
      double piEN = piE * ( murelb*cosPA + murell*sinPA)/murel;
      double piEE = piE * (-murelb*sinPA + murell*cosPA)/murel;
      double Gamma = 1.6e-08 * D_l*D_l*thetaE*murel; // 1.6e-08 makes Gamma to be < ~1
-     // double Gamma = 8e-09 * D_l*D_l*thetaE*murel; // 8e-09 makes Gamma to be < ~1
+     if (NoGAMMAIS == 1){
+        Gamma  = 8e-09 * D_l*D_l*thetaE*murel; // 8e-09 makes Gamma to be < ~1 when addGammaIS multiplied
+        Gamma *= addGammaIS;
+        addGammaIS = 1;
+     }
      // printf("Ml= %.6f, D_l= %.2f Gamma= %.5e piE= %.5f thetaE= %.5f tE= %.3f\n",M_l, D_l,Gamma,piE,thetaE,tE);
+
+     // correction of Gamma for BH
+     int ien = (BHhb == 1) ? 9 : 8;
+     if (BHhd == 1 && i_l < ien && fREM == 3){
+        double fcorBH = interp_x(nbin+1, fBH[i_l], 0, dD, D_l);
+        Gamma *= fcorBH;
+        // printf("%d %.0f %.6f %.3f %.5e\n",i_l,D_l,fcorBH, murel, Gamma);
+     }
+
      // for mean tE
      SumGamma += Gamma*addGammaIS;
      SumtE    += Gamma*addGammaIS*tE;
