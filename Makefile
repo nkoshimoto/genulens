@@ -7,15 +7,14 @@
 #   $ gsl-config --cflags (<- for INCLUDE)
 # If the command gsl-config does not work in the terminal, it probably means that the GSL lib is not installed, or unknown to the OS.
 #
-CC = clang++
+CC = g++
+#CC = clang++
 #CC = g++-mp-9
 CFLAGS  = -g -O3
 # CFLAGS  = -g
 LIBS = -lm -lgsl -lgslcblas
-# INCLUDE = -I/opt/local/include
-# LINK = -L/opt/local/lib
-INCLUDE = -I/opt/homebrew/Cellar/gsl/2.8/include
-LINK = -L/opt/homebrew/Cellar/gsl/2.8/lib
+INCLUDE = -I/rogue1_8/nunota/local/gsl/include
+LINK = -L/rogue1_8/nunota/local/gsl/lib -Wl,-rpath,/rogue1_8/nunota/local/gsl/lib
 
 # typing 'make' will invoke the first target entry in the file 
 # (in this case the default target entry)
