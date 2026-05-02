@@ -1,0 +1,48 @@
+#include "genulens/io/input_data.hpp"
+#include "genulens/model/kinematics.hpp"
+#include "genulens/rng.hpp"
+#include "genulens/simulation/likelihood.hpp"
+#include "genulens/simulation/simulator.hpp"
+
+#include <cmath>
+#include <iostream>
+#include <stdexcept>
+
+namespace {
+
+void require(bool condition, const char *message)
+{
+    if (!condition) throw std::runtime_error(message);
+}
+
+} // namespace
+
+int main()
+{
+    genulens::RandomEngine rng1(1234);
+    genulens::RandomEngine rng2(1234);
+    require(rng1.uniform() == rng2.uniform(), "RandomEngine seed reproducibility failed");
+
+    const auto xyz = genulens::model::galactic_to_cartesian(0.0, {1.0, -3.9});
+    require(std::abs(xyz.x - 8160.0) < 1e-9, "coordinate conversion at Sun failed");
+
+    genulens::Event event;
+    event.tE = 10.0;
+    genulens::GaussianLikelihood like(10.0, 1.0);
+    require(std::abs(like(event) - 1.0) < 1e-12, "Gaussian likelihood peak failed");
+
+    genulens::InputDataRepository repo;
+    require(repo.resolve("Minidie.dat").filename() == "Minidie.dat", "input file resolution failed");
+
+    genulens::GenulensConfig cfg;
+    cfg.n_simu = 5;
+    const auto result = genulens::simulate(cfg, [](const genulens::Event &e) {
+        return e.tE > 0.0 ? 1.0 : 0.0;
+    });
+    require(result.events.size() == 5, "simulator result size failed");
+    require(result.column_count() == 10, "result column count failed");
+
+    std::cout << "core unit tests passed\n";
+    return 0;
+}
+

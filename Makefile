@@ -1,48 +1,34 @@
-# This is an example of Makefile.
-# You might be able to use this Makefile without any edition.
-# If the default form does not work, the C++ compiler specified in the CC line or the GSL paths specified in the INCLUDE and LINK lines are probably inappropriate.
-# Please replace them with what you have.
-# The paths for GSL can be found by 
-#   $ gsl-config --libs   (<- for LINK)
-#   $ gsl-config --cflags (<- for INCLUDE)
-# If the command gsl-config does not work in the terminal, it probably means that the GSL lib is not installed, or unknown to the OS.
-#
-CC = clang++
-#CC = g++-mp-9
-CFLAGS  = -g -O3
-# CFLAGS  = -g
-LIBS = -lm -lgsl -lgslcblas
-INCLUDE = -I/opt/local/include
-LINK = -L/opt/local/lib
+BUILD_DIR ?= build
+CMAKE     ?= cmake
+CTEST     ?= ctest
 
-# typing 'make' will invoke the first target entry in the file 
-# (in this case the default target entry)
-# you can name this target entry anything, but "default" or "all"
-# are the most commonly used names by convention
-#
-default: genulens
+.PHONY: all genulens pre_gapmoe python test clean configure
 
-# To create the executable file genulens we need the object files
-# genulens.o and option.o:
-#
-genulens: genulens.o option.o
-	$(CC) $(CFLAGS) -o genulens genulens.o option.o $(LINK) $(LIBS)
+all: genulens
 
-# To create the object file option.o, we need the source
-# files option.cpp and option.h:
-#
-option.o:  option.cpp option.h
-	$(CC) $(CFLAGS) -c option.cpp
+configure:
+	$(CMAKE) -S . -B $(BUILD_DIR)
 
-# To create the object file genulens.o, we need the source file
-# genulens.cpp:
-#
-genulens.o:  genulens.cpp
-	$(CC) $(CFLAGS) -c genulens.cpp $(INCLUDE)
+genulens: configure
+	$(CMAKE) --build $(BUILD_DIR) --target genulens
+	cp $(BUILD_DIR)/genulens ./genulens
 
-# To start over from scratch, type 'make clean'.  This
-# removes the executable file, as well as old .o object
-# files and *~ backup files:
-#
-clean: 
-	$(RM) count *.o *~
+pre_gapmoe: configure
+	$(CMAKE) --build $(BUILD_DIR) --target calc_rho_profile calc_mass_dist calc_murel_dist
+	mkdir -p pre_gapmoe
+	cp $(BUILD_DIR)/pre_gapmoe/calc_rho_profile pre_gapmoe/calc_rho_profile
+	cp $(BUILD_DIR)/pre_gapmoe/calc_mass_dist pre_gapmoe/calc_mass_dist
+	cp $(BUILD_DIR)/pre_gapmoe/calc_murel_dist pre_gapmoe/calc_murel_dist
+
+python: configure
+	$(CMAKE) --build $(BUILD_DIR) --target genulens_python
+
+test: genulens pre_gapmoe
+	$(CMAKE) --build $(BUILD_DIR) --target test_core
+	$(CMAKE) --build $(BUILD_DIR) --target genulens_python || true
+	$(CTEST) --test-dir $(BUILD_DIR) --output-on-failure
+
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -f genulens *.o *~
+	rm -f pre_gapmoe/*.o pre_gapmoe/calc_rho_profile pre_gapmoe/calc_mass_dist pre_gapmoe/calc_murel_dist

@@ -64,23 +64,14 @@ which clang++ (or g++)
 ```
 If your terminal returns a full path for it, then you have the compiler.
 
-You might also need to change the paths for GSL specified in Makefile.  
-There are two lines to specify paths for GSL in the file;
-> INCLUDE = -I/opt/local/include  
-> LINK = -L/opt/local/lib
+The Makefile now delegates to CMake and detects GSL automatically where possible.
+If GSL is installed in a non-standard prefix, set `GSL_ROOT` before building:
 
-Please replace the path in INCLUDE with the path returned by
 ```
-gsl-config --cflags
-```
-and replace the path in LINK with the path returned by
-```
-gsl-config --libs
+GSL_ROOT=/path/to/gsl make
 ```
 
-
-
-After making sure that you specify your C++ compiler and the paths for GSL in Makefile, you can compile the program by
+You can compile the program by
 ```
 make
 ```
@@ -97,6 +88,18 @@ and ends with
 
 you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because the calculation uses random numbers.
 Please make sure that the input\_files/ directory is in the same directory as where you run `genulens`.
+
+Additional build targets are available:
+
+```
+make pre_gapmoe
+make python
+make test
+make clean
+```
+
+The Python extension can also be built through `pip install .` in environments
+with scikit-build-core and pybind11.
 
 
 ## Usage

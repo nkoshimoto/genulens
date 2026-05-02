@@ -5,7 +5,13 @@ sample?.dat
 *Untitled*
 .DS_Store
 genulens
+!src/genulens/
+!src/genulens/**
 pre_gapmoe/calc_rho_profile
 pre_gapmoe/calc_mass_dist
 pre_gapmoe/calc_murel_dist
 .ipynb_checkpoints/
+__pycache__/
+*.pyc
+build/
+backup/
