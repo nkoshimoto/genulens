@@ -8,6 +8,7 @@
  * Key options:
  *   l <deg>        Galactic longitude (default 1.0)
  *   b <deg>        Galactic latitude  (default -3.9)
+ *   Dmin <pc>      Minimum distance   (default Dstep)
  *   Dmax <pc>      Maximum distance   (default 16000)
  *   Dstep <pc>     Distance step      (default 100)
  *   VERBOSITY <n>  0: minimal header, 1: full header (default 0)
@@ -39,6 +40,7 @@ static void print_usage(const char *prog)
     printf("Key options:\n");
     printf("  l <deg>        Galactic longitude (default 1.0)\n");
     printf("  b <deg>        Galactic latitude  (default -3.9)\n");
+    printf("  Dmin <pc>      Minimum distance   (default Dstep)\n");
     printf("  Dmax <pc>      Maximum distance   (default 16000)\n");
     printf("  Dstep <pc>     Distance step      (default 100)\n");
     printf("  VERBOSITY <n>  Verbosity level    (default 0)\n");
@@ -59,6 +61,7 @@ static void print_usage(const char *prog)
     printf("  D[pc]  nMS[0..10]  nMS_tot  n[0..10]  n_tot");
     printf("  [rhoD_S[0..10]  rhoD_S_tot]\n\n");
     printf("Component indices: 0-6 thin disk, 7 thick disk, 8 bar, 9 NSD, 10 halo.\n");
+    printf("Resolution is deterministic and controlled by Dstep; AUTOERR is not used.\n");
 }
 
 static int get_numeric_option(int argc, char **argv, const char *name, int argno, double *value)
@@ -376,8 +379,21 @@ int main(int argc, char **argv)
     double bSIMU   = getOptiond(argc,argv,"b",         1, -3.9);
     double Dmax    = getOptiond(argc,argv,"Dmax",      1, 16000);
     double Dstep   = getOptiond(argc,argv,"Dstep",     1, 100);
+    double Dmin    = getOptiond(argc,argv,"Dmin",      1, Dstep);
     int    VERBOSE = getOptiond(argc,argv,"VERBOSITY", 1, 0);
     int    SOURCE  = getOptioni(argc,argv,"SOURCE",    1, 0);
+    if (Dstep <= 0.0) {
+        fprintf(stderr, "Dstep must be > 0; got %.6g\n", Dstep);
+        return 1;
+    }
+    if (Dmin <= 0.0) {
+        fprintf(stderr, "Dmin must be > 0; got %.6g\n", Dmin);
+        return 1;
+    }
+    if (Dmax < Dmin) {
+        fprintf(stderr, "Dmax must be >= Dmin; got Dmax=%.6g Dmin=%.6g\n", Dmax, Dmin);
+        return 1;
+    }
 
     double Isst  = getOptiond(argc, argv, "Isrange",  1, 14.0);
     double Isen  = getOptiond(argc, argv, "Isrange",  2, 21.0);
@@ -461,7 +477,7 @@ int main(int argc, char **argv)
     // ---- Header ----
     printf("# calc_rho_profile\n");
     printf("# (l, b) = (%.4f, %.4f) deg\n", lSIMU, bSIMU);
-    printf("# Dmax = %.0f pc, Dstep = %.0f pc\n", Dmax, Dstep);
+    printf("# Dmin = %.0f pc, Dmax = %.0f pc, Dstep = %.0f pc\n", Dmin, Dmax, Dstep);
     printf("# DISK=%d  hDISK=%d  model=%d  addX=%d  ND=%d  SH=%d\n",
            DISK, hDISK, model, addX, ND, SH);
     if (SOURCE) {
@@ -512,7 +528,7 @@ int main(int argc, char **argv)
     double *rhos = (double*)calloc(ncomp, sizeof(double));
     double  xyz[3] = {}, xyb[2] = {};
 
-    for (double D = Dstep; D <= Dmax + 0.5*Dstep; D += Dstep) {
+    for (double D = Dmin; D <= Dmax + 0.5*Dstep; D += Dstep) {
         calc_rho_each(D, 0, rhos, xyz, xyb);
 
         double nMS_tot = 0, n_tot = 0;

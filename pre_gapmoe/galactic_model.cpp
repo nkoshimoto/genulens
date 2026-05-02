@@ -983,7 +983,11 @@ void init_galactic_model(int argc, char **argv, int need_kinematics)
     y0d[2] = (DISK==1) ? exp(-R0/Rd[2] - pow((double)Rh/R0, nh)) : exp(-R0/Rd[2]);
 
     // --- IMF and normalization factors ---
-    nm = 1000;
+    nm = getOptioni(argc, argv, "Nmass", 1, 1000);
+    if (nm < 10) {
+        fprintf(stderr, "Nmass must be >= 10; got %d\n", nm);
+        exit(1);
+    }
     g_logMass        = (double*)calloc(nm+1, sizeof(double));
     g_PlogM          = (double*)calloc(nm+1, sizeof(double));
     g_PlogM_cum_norm = (double*)calloc(nm+1, sizeof(double));

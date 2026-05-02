@@ -2,8 +2,11 @@ CXX         ?= g++
 GSL_CONFIG  ?= gsl-config
 GSL_CFLAGS  ?= $(shell $(GSL_CONFIG) --cflags)
 GSL_LIBS    ?= $(shell $(GSL_CONFIG) --libs)
+GSL_PREFIX  ?= $(shell $(GSL_CONFIG) --prefix)
+GSL_RPATH   ?= $(GSL_PREFIX)/lib
 CXXFLAGS    ?= -O3 -std=c++11
 CPPFLAGS    += -I. $(GSL_CFLAGS)
+LDFLAGS     += -Wl,-rpath,$(GSL_RPATH)
 LDLIBS      += $(GSL_LIBS)
 
 SHARED_OBJ = galactic_model.o galactic_kinematics.o option.o

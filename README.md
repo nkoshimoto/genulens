@@ -121,17 +121,12 @@ on your `PATH`, build them with
 make -C pre_gapmoe
 ```
 
-If GSL is installed in a non-standard location, pass the GSL flags explicitly:
+If GSL is installed in a non-standard location, point `GSL_CONFIG` to the
+`gsl-config` binary for that installation:
 
 ```
-make -C pre_gapmoe \
-  GSL_CFLAGS="-I/path/to/gsl/include" \
-  GSL_LIBS="-L/path/to/gsl/lib -lgsl -lgslcblas -lm"
+make -C pre_gapmoe GSL_CONFIG=/path/to/gsl/bin/gsl-config
 ```
-
-For a non-standard shared-library path, also set `LD_LIBRARY_PATH` when running
-the tools, or add an rpath through `LDFLAGS`, for example
-`LDFLAGS="-Wl,-rpath,/path/to/gsl/lib"`.
 
 The build creates three executables:
 
@@ -159,7 +154,7 @@ Example:
 
 ```
 ./pre_gapmoe/calc_rho_profile \
-  l 1.0 b -3.9 Dmax 16000 Dstep 100 \
+  l 1.0 b -3.9 Dmin 100 Dmax 16000 Dstep 100 \
   AIrc 1.5 EVIrc 1.2 Isrange 14 21
 ```
 
@@ -167,6 +162,10 @@ Important source-selection options include `AIrc` or `IsAIrc`, `EVIrc`, `DMrc`,
 `Isrange`, `Is`, `Iserr`, `VIsrange`, `VIs`, `VIserr`, `hdust`, and `gammaDs`.
 When source selection is active, the output appends `rhoD_S[0..10]` and
 `rhoD_S_tot` columns.
+
+This program is deterministic; there is no Monte Carlo histogram precision to
+converge.  The line-of-sight resolution is controlled by `Dstep`, and `Dmin`
+defaults to `Dstep`.
 
 ### `calc_mass_dist`
 
@@ -176,10 +175,12 @@ component.
 Example:
 
 ```
-./pre_gapmoe/calc_mass_dist
+./pre_gapmoe/calc_mass_dist Nmass 1000
 ```
 
 The output columns are `logM[Msun]`, `dN/dlogM[0..10]`, and `dN/dlogM_tot`.
+This program is also deterministic.  The mass-grid resolution is controlled by
+`Nmass`, the number of log-mass intervals used for the IMF table.
 
 ### `calc_murel_dist`
 

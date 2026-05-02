@@ -8,6 +8,7 @@
  *
  * Key options:
  *   VERBOSITY <n>  0: PDMF table (default), 1: also print per-component summary
+ *   Nmass <n>      Number of IMF log-mass intervals (default 1000)
  *   (plus all galaxy model options: model, DISK, addX, rhot0, alpha1..alpha4, ...)
  *
  * Output columns (tab-separated):
@@ -35,10 +36,13 @@ static void print_usage(const char *prog)
     printf("Output the present-day mass function per Galactic component.\n\n");
     printf("Key options:\n");
     printf("  VERBOSITY <n>  0: PDMF table, 1: add per-component summary (default 0)\n");
+    printf("  Nmass <n>      Number of IMF log-mass intervals (default 1000)\n");
     printf("  -h, --help     Show this help and exit\n\n");
     printf("Useful galaxy model options include:\n");
     printf("  model <n>  DISK <n>  addX <n>  NSD <n>  SH <n>\n");
     printf("  M0/M1/M2/M3/Ml/Mu <Msun>  alpha1..alpha4 <slope>\n\n");
+    printf("Resolution:\n");
+    printf("  This tool is deterministic. It does not need AUTOERR; mass-grid accuracy is set by Nmass.\n\n");
     printf("Output columns:\n");
     printf("  logM[Msun]  dN/dlogM[0..10]  dN/dlogM_tot\n\n");
     printf("Component indices: 0-6 thin disk, 7 thick disk, 8 bar, 9 NSD, 10 halo.\n");
