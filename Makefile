@@ -12,10 +12,8 @@ CC = clang++
 CFLAGS  = -g -O3
 # CFLAGS  = -g
 LIBS = -lm -lgsl -lgslcblas
-# INCLUDE = -I/opt/local/include
-# LINK = -L/opt/local/lib
-INCLUDE = -I/opt/homebrew/Cellar/gsl/2.8/include
-LINK = -L/opt/homebrew/Cellar/gsl/2.8/lib
+INCLUDE = -I/opt/local/include
+LINK = -L/opt/local/lib
 
 # typing 'make' will invoke the first target entry in the file 
 # (in this case the default target entry)

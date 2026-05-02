@@ -104,3 +104,133 @@ See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).
 [genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb) is also available and you can follow some practical event analysis using `genulens`.  
 
 
+## GAPMOE preprocessing helpers
+
+This repository also includes a small set of standalone preprocessing tools in
+`pre_gapmoe/`.  They are C++ rewrites of the older GAPMOE helper programs and
+share the Galactic model implementation used by `genulens`.  The tools are
+intended for generating tabulated inputs such as line-of-sight density profiles,
+present-day mass functions, and relative proper-motion distributions.
+
+### Building the helper tools
+
+The helper tools require GSL and a C++11 compiler.  If `gsl-config` is available
+on your `PATH`, build them with
+
+```
+make -C pre_gapmoe
+```
+
+If GSL is installed in a non-standard location, point `GSL_CONFIG` to the
+`gsl-config` binary for that installation:
+
+```
+make -C pre_gapmoe GSL_CONFIG=/path/to/gsl/bin/gsl-config
+```
+
+The build creates three executables:
+
+```
+pre_gapmoe/calc_rho_profile
+pre_gapmoe/calc_mass_dist
+pre_gapmoe/calc_murel_dist
+```
+
+Each program supports `--help`:
+
+```
+./pre_gapmoe/calc_rho_profile --help
+./pre_gapmoe/calc_mass_dist --help
+./pre_gapmoe/calc_murel_dist --help
+```
+
+### `calc_rho_profile`
+
+`calc_rho_profile` outputs number-density profiles along a line of sight.
+It can also apply source-selection weights using extinction, reddening, red-clump
+distance modulus, and apparent source magnitude/color cuts.
+
+Example:
+
+```
+./pre_gapmoe/calc_rho_profile \
+  l 1.0 b -3.9 Dmin 100 Dmax 16000 Dstep 100 \
+  AIrc 1.5 EVIrc 1.2 Isrange 14 21
+```
+
+Important source-selection options include `AIrc` or `IsAIrc`, `EVIrc`, `DMrc`,
+`Isrange`, `Is`, `Iserr`, `VIsrange`, `VIs`, `VIserr`, `hdust`, and `gammaDs`.
+When source selection is active, the output appends `rhoD_S[0..10]` and
+`rhoD_S_tot` columns.
+
+This program is deterministic; there is no Monte Carlo histogram precision to
+converge.  The line-of-sight resolution is controlled by `Dstep`, and `Dmin`
+defaults to `Dstep`.
+
+### `calc_mass_dist`
+
+`calc_mass_dist` outputs the present-day mass function for each Galactic
+component.
+
+Example:
+
+```
+./pre_gapmoe/calc_mass_dist Nmass 1000
+```
+
+The output columns are `logM[Msun]`, `dN/dlogM[0..10]`, and `dN/dlogM_tot`.
+This program is also deterministic.  The mass-grid resolution is controlled by
+`Nmass`, the number of log-mass intervals used for the IMF table.
+
+### `calc_murel_dist`
+
+`calc_murel_dist` outputs the relative proper-motion distribution either on a
+`Dl x Ds` grid or for a single `(Dl, Ds)` pair.  It always reports both the
+proper-motion amplitude `murel` and the direction angle `phi`.
+
+By default, automatic precision control is enabled:
+
+```
+AUTOERR 1
+ERR_TARGET 0.03
+ERR_CHECK 100000
+Nsimu 10000000
+```
+
+`Nsimu` is treated as the maximum number of accepted Monte Carlo draws.  The run
+stops early only when both the `murel` and `phi` histograms satisfy the requested
+relative Poisson precision.  Precision diagnostics are printed in comment lines,
+including `mu_overflow_frac`, which reports the fraction of draws outside the
+configured `murel` histogram range.
+
+Examples:
+
+```
+./pre_gapmoe/calc_murel_dist
+
+./pre_gapmoe/calc_murel_dist GRID 0 Dl 4000 Ds 8000
+
+./pre_gapmoe/calc_murel_dist \
+  AUTOERR 1 ERR_TARGET 0.03 ERR_CHECK 100000 \
+  mumax 1000 dmu 0.5
+```
+
+The default `mumax` is `300 mas/yr`, which is sufficient for many sight lines.
+Very nearby lens bins can have larger relative proper motions; in those cases,
+increase `mumax` until `mu_overflow_frac` is acceptably small.
+
+In grid mode the main output columns are
+
+```
+DS[pc]  DL[pc]  murel[mas/yr]  phi[rad]  dP/dmurel  dP/dphi
+```
+
+With `AUTOERR 1`, the following diagnostic columns are appended:
+
+```
+mu_count  mu_relerr  phi_count  phi_relerr  Ndraw
+```
+
+`phi` is defined as `atan2(mu_E, mu_N)` after rotating the Galactic
+proper-motion components into north/east coordinates, matching the convention
+used by the legacy `murel_sampling.c` helper.
