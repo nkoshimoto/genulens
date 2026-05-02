@@ -275,15 +275,20 @@ int main(int argc, char **argv)
                 get_vxyz_ran(vxyz_L, i_l, tau_median[i_l], DL_c, lSIMU, bSIMU);
                 get_vxyz_ran(vxyz_S, i_s, tau_median[i_s], DS_c, lSIMU, bSIMU);
 
-                double dvx = vxyz_L[0] - vxyz_S[0];
-                double dvy = vxyz_L[1] - vxyz_S[1];
-                double dvz = vxyz_L[2] - vxyz_S[2];
+                double vxrel_L = vxyz_L[0] - vxsun;
+                double vyrel_L = vxyz_L[1] - vysun;
+                double vzrel_L = vxyz_L[2] - vzsun;
+                double vxrel_S = vxyz_S[0] - vxsun;
+                double vyrel_S = vxyz_S[1] - vysun;
+                double vzrel_S = vxyz_S[2] - vzsun;
 
-                double vel_l = (-sinl)*dvx + cosl*dvy;
-                double vel_b = (-sinb*cosl)*dvx + (-sinb*sinl)*dvy + cosb*dvz;
+                double muLl = (vxrel_L*sinl      + vyrel_L*cosl) * KS2MY / DL_c;
+                double muLb = (vxrel_L*cosl*sinb - vyrel_L*sinl*sinb + vzrel_L*cosb) * KS2MY / DL_c;
+                double muSl = (vxrel_S*sinl      + vyrel_S*cosl) * KS2MY / DS_c;
+                double muSb = (vxrel_S*cosl*sinb - vyrel_S*sinl*sinb + vzrel_S*cosb) * KS2MY / DS_c;
 
-                double mul = vel_l * KS2MY / DL_c;
-                double mub = vel_b * KS2MY / DL_c;
+                double mul = muLl - muSl;
+                double mub = muLb - muSb;
                 double murel = sqrt(mul*mul + mub*mub);
                 double muN = mub * cosPA + mul * sinPA;
                 double muE = -mub * sinPA + mul * cosPA;
@@ -424,15 +429,20 @@ int main(int argc, char **argv)
             get_vxyz_ran(vxyz_L, i_l, tau_l, Dl, lSIMU, bSIMU);
             get_vxyz_ran(vxyz_S, i_s, tau_s, Ds, lSIMU, bSIMU);
 
-            double dvx = vxyz_L[0] - vxyz_S[0];
-            double dvy = vxyz_L[1] - vxyz_S[1];
-            double dvz = vxyz_L[2] - vxyz_S[2];
+            double vxrel_L = vxyz_L[0] - vxsun;
+            double vyrel_L = vxyz_L[1] - vysun;
+            double vzrel_L = vxyz_L[2] - vzsun;
+            double vxrel_S = vxyz_S[0] - vxsun;
+            double vyrel_S = vxyz_S[1] - vysun;
+            double vzrel_S = vxyz_S[2] - vzsun;
 
-            double vel_l = (-sinl)*dvx + cosl*dvy;
-            double vel_b = (-sinb*cosl)*dvx + (-sinb*sinl)*dvy + cosb*dvz;
+            double muLl = (vxrel_L*sinl      + vyrel_L*cosl) * KS2MY / Dl;
+            double muLb = (vxrel_L*cosl*sinb - vyrel_L*sinl*sinb + vzrel_L*cosb) * KS2MY / Dl;
+            double muSl = (vxrel_S*sinl      + vyrel_S*cosl) * KS2MY / Ds;
+            double muSb = (vxrel_S*cosl*sinb - vyrel_S*sinl*sinb + vzrel_S*cosb) * KS2MY / Ds;
 
-            double mul = vel_l * KS2MY / Dl;
-            double mub = vel_b * KS2MY / Dl;
+            double mul = muLl - muSl;
+            double mub = muLb - muSb;
             double murel = sqrt(mul*mul + mub*mub);
             double muN = mub * cosPA + mul * sinPA;
             double muE = -mub * sinPA + mul * cosPA;
