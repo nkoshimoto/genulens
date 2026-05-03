@@ -41,7 +41,7 @@
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
-#include "genulens/simulation/scientific_engine.hpp"
+#include "genulens/simulation/genulens_sampler.hpp"
 #include "genulens/simulation/observation_likelihood.hpp"
 
 #define fopen(path, mode) genulens::open_input_file((path), (mode))
@@ -73,7 +73,7 @@ namespace gmodel = genulens::model;
 
 namespace genulens {
 
-static genulens::ScientificState *active_state = nullptr;
+static genulens::GenulensRunContext *active_state = nullptr;
 
 double ran1(){
     return active_state->runtime.rng->uniform();
@@ -261,9 +261,9 @@ double interp_xy(int nx, int ny, double **F, double xst, double yst, double dx, 
 void   interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double dx, double dy, double xreq, double yreq);
 void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
 
-int ScientificEngine::run(int argc,char **argv)
+int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
 {
-  active_state = &state_;
+  active_state = &context;
   //--- Get input directory ---
   char curdir[200];
   getcwd(curdir, 200);

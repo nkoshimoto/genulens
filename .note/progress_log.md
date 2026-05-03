@@ -171,4 +171,15 @@
 - Added smoke coverage for the alias.
 - `make test`: passed.
 - Manual Python check passed for `simulate()` with Python callable likelihood and `ruc()`.
+
+## 2026-05-03 12:05 JST - Engine Naming and Init/Sampler Pipeline
+
+- Removed the `ScientificEngine` naming from the active C++ API and source layout.
+- Renamed the run state to `GenulensRunContext`.
+- Added `GenulensInitializer`, currently responsible for creating the run context.
+- Added `GenulensSampler`, currently responsible for executing the existing CLI sampling path against a run context.
+- Changed `./genulens` and `apps/genulens_main.cpp` to call `run_genulens_cli()`, which now composes initializer + sampler.
+- Renamed `ScientificSimulationBackend` to `GenulensSimulationBackend`.
+- Confirmed no remaining active references to `ScientificEngine`, `ScientificState`, `scientific_engine`, `scientific_cli`, or `scientific_backend`.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

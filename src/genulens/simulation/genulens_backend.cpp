@@ -1,6 +1,6 @@
-#include "genulens/simulation/scientific_backend.hpp"
+#include "genulens/simulation/genulens_backend.hpp"
 
-#include "genulens/simulation/scientific_cli.hpp"
+#include "genulens/simulation/genulens_cli.hpp"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -96,7 +96,7 @@ private:
 
 } // namespace
 
-std::vector<std::string> ScientificSimulationBackend::build_event_args(const GenulensConfig &config) const
+std::vector<std::string> GenulensSimulationBackend::build_event_args(const GenulensConfig &config) const
 {
     const auto &imf = config.model.imf;
     std::vector<std::string> args = {
@@ -135,7 +135,7 @@ std::vector<std::string> ScientificSimulationBackend::build_event_args(const Gen
     return args;
 }
 
-std::string ScientificSimulationBackend::run_cli_capture(const std::vector<std::string> &args) const
+std::string GenulensSimulationBackend::run_cli_capture(const std::vector<std::string> &args) const
 {
     std::vector<char *> argv;
     argv.reserve(args.size());
@@ -144,7 +144,7 @@ std::string ScientificSimulationBackend::run_cli_capture(const std::vector<std::
     }
 
     StdoutCapture capture;
-    const int code = run_scientific_cli(static_cast<int>(argv.size()), argv.data());
+    const int code = run_genulens_cli(static_cast<int>(argv.size()), argv.data());
     const auto output = capture.finish();
     if (code != 0) {
         throw std::runtime_error("genulens scientific backend returned non-zero status");
@@ -152,7 +152,7 @@ std::string ScientificSimulationBackend::run_cli_capture(const std::vector<std::
     return output;
 }
 
-SimulationResult ScientificSimulationBackend::parse_verbosity3_events(const std::string &output, LikelihoodFunction likelihood) const
+SimulationResult GenulensSimulationBackend::parse_verbosity3_events(const std::string &output, LikelihoodFunction likelihood) const
 {
     SimulationResult result;
     std::istringstream lines(output);
@@ -197,7 +197,7 @@ SimulationResult ScientificSimulationBackend::parse_verbosity3_events(const std:
     return result;
 }
 
-SimulationResult ScientificSimulationBackend::simulate(const GenulensConfig &config, LikelihoodFunction likelihood) const
+SimulationResult GenulensSimulationBackend::simulate(const GenulensConfig &config, LikelihoodFunction likelihood) const
 {
     return parse_verbosity3_events(run_cli_capture(build_event_args(config)), std::move(likelihood));
 }

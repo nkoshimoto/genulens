@@ -1,6 +1,6 @@
 #include "genulens/simulation/simulator.hpp"
 
-#include "genulens/simulation/scientific_backend.hpp"
+#include "genulens/simulation/genulens_backend.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@ SimulationResult EventSimulator::simulate(LikelihoodFunction likelihood)
     if (!likelihood) {
         likelihood = default_likelihood(config_.observed_tE, config_.observed_tE_error);
     }
-    return ScientificSimulationBackend().simulate(config_, std::move(likelihood));
+    return GenulensSimulationBackend().simulate(config_, std::move(likelihood));
 }
 
 SimulationResult simulate(const GenulensConfig &config, LikelihoodFunction likelihood)

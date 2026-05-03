@@ -207,7 +207,7 @@ struct NSDMomentsState {
     int nRND = 0;
 };
 
-struct ScientificState {
+struct GenulensRunContext {
     ScientificRuntimeState runtime;
     StellarPopulationState stellar;
     DensityState density;
@@ -222,4 +222,3 @@ struct ScientificState {
 };
 
 } // namespace genulens
-
