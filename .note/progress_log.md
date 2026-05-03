@@ -182,4 +182,13 @@
 - Renamed `ScientificSimulationBackend` to `GenulensSimulationBackend`.
 - Confirmed no remaining active references to `ScientificEngine`, `ScientificState`, `scientific_engine`, `scientific_cli`, or `scientific_backend`.
 - `make test`: passed.
+
+## 2026-05-03 12:25 JST - Event-Loop Submodel Extraction
+
+- Added `model::RemnantMassModel` for the Lam/Raithel initial-final mass and remnant-type calculation.
+- Replaced `Mini2Mrem()` with a thin delegate to `RemnantMassModel`.
+- Added `model::BinaryLensSampler` for the Koshimoto+20 projected binary separation sampling.
+- Replaced `getaproj()` with a thin delegate to `BinaryLensSampler`.
+- Added unit coverage for deterministic WD remnant mass and binary separation sanity.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

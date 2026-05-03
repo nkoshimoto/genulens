@@ -2482,63 +2482,9 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
 
 //----------------
 void Mini2Mrem (double *pout, double Mini, int mean) {  // mean = 1: give mean, 0: give random
-  /* Return remnant mass for a given initial mass following the initial-final mass relation by Lam et al. 2020, ApJ, 889, 31 */
-  double Mrem, fREM; 
-  // Below is from Table 1 of Lam et al. 2020, ApJ, 889, 31
-  double PNS = (Mini < MiniWDmax) ? 0  // 100% WD
-             : (Mini < 15.0) ? 1  // 100% NS
-             : (Mini < 17.8) ? 0.679
-             : (Mini < 18.5) ? 0.833
-             : (Mini < 21.7) ? 0.500
-             : (Mini < 25.2) ? 0  // 100% BH
-             : (Mini < 27.5) ? 0.652 
-             : (Mini < 60.0) ? 0  // 100% BH
-             : 0.4;
-  // IFMRs for NS and BH are from Appendix C of Lam et al. 2020, ApJ, 889, 31 or from Raithel+18
-  if (Mini < MiniWDmax){
-     Mrem = 0.109 * Mini + 0.394; // IFMR from Kalirai+08
-     fREM = 1; // WD
-  }else{ 
-     // NS (Eqs.(11)-(16) of Raithel+18)
-     double MNS;
-     do {
-       MNS = (Mini < 13.0) ? 2.24 + 0.508 *(Mini - 14.75) 
-                                  + 0.125 *(Mini - 14.75)*(Mini - 14.75) 
-                                  + 0.011 *(Mini - 14.75)*(Mini - 14.75)*(Mini - 14.75)
-           : (Mini < 15.0) ?  0.123 + 0.112 * Mini
-           : (Mini < 17.8) ?  0.996 + 0.0384* Mini
-           : (Mini < 18.5) ? -0.020 + 0.10  * Mini
-           : (Mini < 21.7 && mean == 0) ? 1.60 + 0.158*gasdev()
-           : (Mini < 21.7 && mean == 1) ? 1.60 
-           : (Mini < 27.5) ?  3232.29 - 409.429*(Mini - 2.619) 
-                                      + 17.2867*(Mini - 2.619)*(Mini - 2.619) 
-                                      - 0.24315*(Mini - 2.619)*(Mini - 2.619)*(Mini - 2.619)
-           : (mean == 0) ? 1.78 + 0.02*gasdev()
-           : 1.78;
-           // print "Mini=Mini, MNS = MNS\n";
-     }while(PNS > 0 && (MNS < MNSMIN || MNS > MNSMAX));
-     // BH
-     double Mcore = (Mini < 42.21) ? -2.049 + 0.4140 * Mini
-                 : 5.697 + 7.8598 * 1e+8 * pow(Mini, -4.858);
-     double Mall = 15.52 - 0.3294*(Mini - 25.97) 
-                       - 0.02121*(Mini - 25.97)*(Mini - 25.97) 
-                      + 0.003120*(Mini - 25.97)*(Mini - 25.97)*(Mini - 25.97);
-     double fej = (Mini < 42.21) ? 0.9 : 1.0;
-     double MBH = fej*Mcore + (1-fej)*Mall;
-     // print "Mini=Mini, MBH = MBH\n";
-
-     // Mean or Rand
-     if (mean == 1){
-       Mrem = PNS*MNS + (1-PNS)*MBH;
-       fREM = PNS*2 + (1-PNS)*3;
-     }else{
-       double ran = ran1();
-       Mrem = (ran < PNS) ? MNS : MBH;
-       fREM = (ran < PNS) ?    2 :    3;
-     }
-  }
-  pout[0] = Mrem;
-  pout[1] = fREM;
+  const auto remnant = gmodel::RemnantMassModel(MiniWDmax).evolve(Mini, mean == 1, *active_state->runtime.rng);
+  pout[0] = remnant.mass_msun;
+  pout[1] = remnant.remnant_type;
 }
 //----------------
 double fLF_detect(double extI, double Imin, double Imax, int idisk){
@@ -2959,21 +2905,9 @@ void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double b
 }
 //---------------
 void getaproj(double *pout, double M1, double M2, int coeff)  { // pick up aproj  
-   double Mprim = (M2>M1) ? M2 : M1;
-   double meanloga  = 0.57 + 1.02 * Mprim; // Table 2 of Koshimoto+20, AJ, 159, 268
-   if (meanloga > MAXMEANLOGA) meanloga = MAXMEANLOGA; // avoid too small meanmaloga 
-   if (meanloga < MINMEANLOGA) meanloga = MINMEANLOGA; // avoid too small meanmaloga 
-   double sigmaloga = 1.61 + 1.15 * log(Mprim)/log(10); // Table 2 of Koshimoto+20, AJ, 159, 268
-   if (sigmaloga > MAXSIGLOGA) sigmaloga = MAXSIGLOGA; // avoid too small sigmaloga 
-   if (sigmaloga < MINSIGLOGA) sigmaloga = MINSIGLOGA; // avoid too small sigmaloga 
-   double ran = coeff * fabs(gasdev());
-   double loga = meanloga + ran * sigmaloga;
-   // logaproj = loga - 0.133; // 0.133 = <log(a/aproj)>
-   double a = pow(10.0, loga);
-   ran = ran1();
-   double aproj = sqrt(1 - ran*ran) * a; //probability of rproj/a from Gould&Loeb 1992
-   pout[0] = loga;
-   pout[1] = aproj;
+   const auto separation = gmodel::BinaryLensSampler().sample_projected_separation(M1, M2, coeff, *active_state->runtime.rng);
+   pout[0] = separation.log_separation_au;
+   pout[1] = separation.projected_separation_au;
 }
 
 double getcumu2xist(int n, double *x, double *F, double *f, double Freq, int ist, int inv){ 

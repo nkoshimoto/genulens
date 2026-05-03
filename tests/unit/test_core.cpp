@@ -46,6 +46,13 @@ int main()
     require(grid.log_mass.size() == 101, "IMF grid size changed");
     require(std::abs(grid.cumulative_number_norm.front()) < 1e-15, "IMF cumulative start changed");
     require(std::abs(grid.cumulative_number_norm.back() - 1.0) < 1e-12, "IMF cumulative normalization changed");
+    genulens::RandomEngine remnant_rng(10);
+    const auto wd = genulens::model::RemnantMassModel(9.0).evolve(1.0, true, remnant_rng);
+    require(std::abs(wd.mass_msun - 0.503) < 1e-12, "WD remnant mass relation changed");
+    genulens::RandomEngine binary_rng(10);
+    const auto separation = genulens::model::BinaryLensSampler().sample_projected_separation(0.5, 0.2, 1, binary_rng);
+    require(std::isfinite(separation.log_separation_au), "binary log separation failed");
+    require(separation.projected_separation_au > 0.0, "binary projected separation failed");
 
     genulens::Event event;
     event.tE = 10.0;

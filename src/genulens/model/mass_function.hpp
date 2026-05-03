@@ -1,6 +1,7 @@
 #pragma once
 
 #include "genulens/model/parameters.hpp"
+#include "genulens/rng.hpp"
 
 #include <vector>
 
@@ -19,6 +20,16 @@ struct MassFunctionGrid {
     double log_mass_step = 0.0;
 };
 
+struct RemnantMass {
+    double mass_msun = 0.0;
+    double remnant_type = 0.0;
+};
+
+struct ProjectedSeparation {
+    double log_separation_au = 0.0;
+    double projected_separation_au = 0.0;
+};
+
 class BrokenPowerLawIMF {
 public:
     explicit BrokenPowerLawIMF(IMFParameters parameters);
@@ -28,6 +39,24 @@ public:
 
 private:
     IMFParameters parameters_;
+};
+
+class RemnantMassModel {
+public:
+    explicit RemnantMassModel(double white_dwarf_initial_mass_max = 9.0);
+
+    RemnantMass evolve(double initial_mass_msun, bool mean, genulens::RandomEngine &rng) const;
+
+private:
+    double white_dwarf_initial_mass_max_ = 9.0;
+};
+
+class BinaryLensSampler {
+public:
+    ProjectedSeparation sample_projected_separation(double primary_mass_msun,
+                                                     double secondary_mass_msun,
+                                                     int coefficient,
+                                                     genulens::RandomEngine &rng) const;
 };
 
 double broken_power_law_imf(double mass_msun, const IMFParameters &params);
