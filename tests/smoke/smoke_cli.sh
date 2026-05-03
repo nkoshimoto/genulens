@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 ./genulens --help >/tmp/genulens-help.out
-grep -q 'Output of "./genulens --help"' /tmp/genulens-help.out
+grep -q '^Usage: ./genulens ' /tmp/genulens-help.out
 
 ./pre_gapmoe/calc_rho_profile --help >/tmp/calc-rho-help.out
 grep -q 'Usage:' /tmp/calc-rho-help.out
