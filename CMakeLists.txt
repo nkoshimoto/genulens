@@ -59,10 +59,10 @@ add_library(genulens_core
     src/genulens/model/kinematics.cpp
     src/genulens/model/mass_function.cpp
     src/genulens/model/extinction.cpp
-    src/genulens/simulation/genulens_initializer.cpp
-    src/genulens/simulation/genulens_sampler.cpp
-    src/genulens/simulation/genulens_cli.cpp
-    src/genulens/simulation/genulens_backend.cpp
+    src/genulens/simulation/initialize.cpp
+    src/genulens/simulation/sampler.cpp
+    src/genulens/simulation/cli.cpp
+    src/genulens/simulation/backend.cpp
     src/genulens/simulation/simulator.cpp
     src/genulens/simulation/likelihood.cpp
     src/genulens/simulation/observation_likelihood.cpp

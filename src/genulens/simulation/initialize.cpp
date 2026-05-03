@@ -1,15 +1,15 @@
-#include "genulens/simulation/genulens_initializer.hpp"
+#include "genulens/simulation/initialize.hpp"
 
 #include "genulens/cli/option.h"
 
 namespace genulens {
 
-GenulensRunContext GenulensInitializer::create_context() const
+RunContext Initializer::create_context() const
 {
     return {};
 }
 
-void GenulensInitializer::read_sampling_options(GenulensRunContext &context, int argc, char **argv,
+void Initializer::read_sampling_options(RunContext &context, int argc, char **argv,
                                                 double cos_pa, double sin_pa) const
 {
     auto &options = context.sampling;

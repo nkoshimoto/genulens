@@ -226,7 +226,7 @@ struct NSDMomentsState {
     int nRND = 0;
 };
 
-struct GenulensRunContext {
+struct RunContext {
     ScientificRuntimeState runtime;
     StellarPopulationState stellar;
     DensityState density;

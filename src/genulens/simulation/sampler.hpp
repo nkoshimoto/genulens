@@ -4,9 +4,9 @@
 
 namespace genulens {
 
-class GenulensSampler {
+class Sampler {
 public:
-    int run_cli(GenulensRunContext &context, int argc, char **argv);
+    int run_cli(RunContext &context, int argc, char **argv);
 };
 
 } // namespace genulens

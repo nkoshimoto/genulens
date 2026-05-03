@@ -42,8 +42,8 @@
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
-#include "genulens/simulation/genulens_initializer.hpp"
-#include "genulens/simulation/genulens_sampler.hpp"
+#include "genulens/simulation/initialize.hpp"
+#include "genulens/simulation/sampler.hpp"
 #include "genulens/simulation/observation_likelihood.hpp"
 
 #define fopen(path, mode) genulens::open_input_file((path), (mode))
@@ -106,7 +106,7 @@ struct MonteCarloStats {
 
 namespace genulens {
 
-static genulens::GenulensRunContext *active_state = nullptr;
+static genulens::RunContext *active_state = nullptr;
 
 double ran1(){
     return active_state->runtime.rng->uniform();
@@ -294,7 +294,7 @@ double interp_xy(int nx, int ny, double **F, double xst, double yst, double dx, 
 void   interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double dx, double dy, double xreq, double yreq);
 void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
 
-int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
+int Sampler::run_cli(RunContext &context, int argc,char **argv)
 {
   active_state = &context;
   //--- Get input directory ---
@@ -780,7 +780,7 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
   
   // Read Input parameters for simulation
   auto &sampling_options = active_state->sampling;
-  GenulensInitializer().read_sampling_options(context, argc, argv, cosPA, sinPA);
+  Initializer().read_sampling_options(context, argc, argv, cosPA, sinPA);
 #define NSIMU sampling_options.n_simu
 #define NlikeMIN sampling_options.n_like_min
   // double PA         = getOptiond(argc,argv,"PA", 1, 59.56); // postition angle l to E value. 59.56 is for (l,b) = (0.94, -1.48), needed to calculate piEn and piEe

@@ -4,10 +4,10 @@
 
 namespace genulens {
 
-class GenulensInitializer {
+class Initializer {
 public:
-    GenulensRunContext create_context() const;
-    void read_sampling_options(GenulensRunContext &context, int argc, char **argv,
+    RunContext create_context() const;
+    void read_sampling_options(RunContext &context, int argc, char **argv,
                                double cos_pa, double sin_pa) const;
 };
 

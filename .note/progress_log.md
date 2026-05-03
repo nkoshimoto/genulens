@@ -212,4 +212,21 @@
 - Moved dust-scale normalization for `AI0`, `AK0`, and `EVI0` into the extinction object.
 - Replaced repeated distance-extinction expressions in the density-grid preparation and lens I/K brightness calculations with `ExponentialDustExtinction` calls.
 - `make test`: passed.
+
+## 2026-05-03 13:30 JST - Initialize/Sampler Naming Cleanup
+
+- User requested removing the `genulens_` filename prefix and using plain initialization/sampling units.
+- Renamed active simulation files:
+  - `genulens_initializer.*` -> `initialize.*`
+  - `genulens_sampler.*` -> `sampler.*`
+  - `genulens_cli.*` -> `cli.*`
+  - `genulens_backend.*` -> `backend.*`
+- Renamed internal active classes:
+  - `GenulensInitializer` -> `Initializer`
+  - `GenulensSampler` -> `Sampler`
+  - `GenulensSimulationBackend` -> `SimulationBackend`
+  - `GenulensRunContext` -> `RunContext`
+- Renamed the CLI entry function to `run_cli()`.
+- Confirmed no active references remain to the removed `genulens_*` simulation filenames or `Genulens*` internal simulation class names.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.
