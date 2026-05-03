@@ -52,6 +52,7 @@ add_library(genulens_core
     src/genulens/cli/option.cpp
     src/genulens/model/parameters.cpp
     src/genulens/math/interpolation.cpp
+    src/genulens/model/coordinates.cpp
     src/genulens/model/galactic_model.cpp
     src/genulens/model/density.cpp
     src/genulens/model/kinematics.cpp

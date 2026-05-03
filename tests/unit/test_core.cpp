@@ -1,4 +1,5 @@
 #include "genulens/io/input_data.hpp"
+#include "genulens/model/coordinates.hpp"
 #include "genulens/model/kinematics.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/likelihood.hpp"
@@ -27,6 +28,8 @@ int main()
 
     const auto xyz = genulens::model::galactic_to_cartesian(0.0, {1.0, -3.9});
     require(std::abs(xyz.x - 8160.0) < 1e-9, "coordinate conversion at Sun failed");
+    const auto pa = genulens::model::CoordinateTransformer::position_angle(1.0, -3.9);
+    require(std::isfinite(pa.degrees), "position angle calculation failed");
 
     genulens::Event event;
     event.tE = 10.0;

@@ -138,4 +138,12 @@
   - inverse-CDF lookup with linearly interpolated density.
 - Left thin compatibility wrappers in `scientific_engine.cpp` so the scientific path remains stable while the rest of the engine is split.
 - `make test`: passed.
+
+## 2026-05-03 11:05 JST - Coordinate Transformation Extraction
+
+- Added `model::CoordinateTransformer` and `model::PositionAngle`.
+- Moved the substantive line-of-sight Cartesian conversion and position-angle calculations out of `scientific_engine.cpp`.
+- Left compatibility functions `Dlb2xyz()` and `calc_PA()` in the scientific engine as thin delegates to the coordinate object.
+- Added a unit smoke assertion that position-angle calculation returns finite output.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

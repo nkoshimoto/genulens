@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include "genulens/io/input_data.hpp"
 #include "genulens/math/interpolation.hpp"
+#include "genulens/model/coordinates.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/scientific_engine.hpp"
@@ -1946,40 +1947,10 @@ int ScientificEngine::run(int argc,char **argv)
 
 //----------------
 void calc_PA(double gl, double gb, double *PA, double *cosPA, double *sinPA){
-  // Calculate position angle. Added on 2022/6/14 copied from mu_Hlb2mu_Gne.pl
-  double lNP = 122.9320; // galactic l of equatorial north pole, http://ned.ipac.caltech.edu/forms/calculator.html
-  double bNP =  27.1284; // galactic b of equatorial north pole, http://ned.ipac.caltech.edu/forms/calculator.html
-  double cosl   = cos(gl/180. * PI);
-  double sinl   = sin(gl/180. * PI);
-  double cosb   = cos(gb/180. * PI);
-  double sinb   = sin(gb/180. * PI);
-  double coslNP = cos(lNP/180. * PI);
-  double sinlNP = sin(lNP/180. * PI);
-  double cosbNP = cos(bNP/180. * PI);
-  double sinbNP = sin(bNP/180. * PI);
-  double nvector[3] = {cosb*cosl,cosb*sinl,sinb}; // unit vector along line of sight 
-  double galNP[3]   = {0,0,1};                    // unit vector toward galactic north pole
-  double eqNP[3] = {cosbNP*coslNP,cosbNP*sinlNP,sinbNP}; // unit vector toward equatorial north pole
-
-  // Make Unit Vectors along (b, l) and along (N, E) on the target sky
-  double dot(double *a, double *b);
-  void cross(double *c, double *a, double *b);
-  void norm_vec(double *a);
-  double elvector[3] = {}, ebvector[3] = {}, eEvector[3] = {}, eNvector[3] = {};
-  cross(elvector, galNP, nvector); // p x n
-  norm_vec(elvector); // normalize
-  cross(ebvector, nvector, elvector); // eb = n x el
-
-  cross(eEvector, eqNP, nvector); // p x n
-  norm_vec(eEvector); // normalize
-  cross(eNvector, nvector, eEvector); // eN = n x eE
-
-  // Calc -PA (negative position angle, from l to E or from b to N. A positive PA should be defined from N to b, maybe
-  double crosstmp[3] = {};
-  *cosPA = dot(elvector,eEvector);
-  cross(crosstmp, elvector, eEvector);
-  *sinPA = - dot(nvector, crosstmp);
-  *PA = 180*atan2(*sinPA, *cosPA)/PI; // atan2(Y,X) -PA, radian, l to E
+  const auto pa = gmodel::CoordinateTransformer::position_angle(gl, gb);
+  *PA = pa.degrees;
+  *cosPA = pa.cos_pa;
+  *sinPA = pa.sin_pa;
 }
 
 //----------------
@@ -3711,16 +3682,11 @@ void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz)
 /*  Give (x,y,z) for a given D, lD, bD  */
 /*------------------------------------------------------------*/
 {
-  double cosbsun = cos(zsun/Rsun), sinbsun = sin(zsun/Rsun);
-  double cosb = cos(bD/180.0*PI), sinb = sin(bD/180.0*PI), 
-         cosl = cos(lD/180.0*PI), sinl = sin(lD/180.0*PI);
-  double xtmp = Rsun - D * cosb * cosl;
-  double ytmp = D * cosb * sinl;       
-  double ztmp = D * sinb;              
-  // xyz[0] = -ztmp * sinbsun + xtmp * cosbsun;
-  xyz[0] =  xtmp - xyzSgrA[0]; 
-  xyz[1] =  ytmp - xyzSgrA[1];                            
-  xyz[2] =  ztmp * cosbsun + xtmp * sinbsun - xyzSgrA[2]; 
+  const std::array<double, 3> offset = {xyzSgrA[0], xyzSgrA[1], xyzSgrA[2]};
+  const auto value = gmodel::CoordinateTransformer(offset).distance_l_b_to_xyz(D, lD, bD, Rsun);
+  xyz[0] = value[0];
+  xyz[1] = value[1];
+  xyz[2] = value[2];
 }
 
 
