@@ -1,4 +1,5 @@
 #include "genulens/io/input_data.hpp"
+#include "genulens/math/quadrature.hpp"
 #include "genulens/model/coordinates.hpp"
 #include "genulens/model/kinematics.hpp"
 #include "genulens/rng.hpp"
@@ -30,6 +31,13 @@ int main()
     require(std::abs(xyz.x - 8160.0) < 1e-9, "coordinate conversion at Sun failed");
     const auto pa = genulens::model::CoordinateTransformer::position_angle(1.0, -3.9);
     require(std::isfinite(pa.degrees), "position angle calculation failed");
+
+    double locations[64] = {};
+    double weights[64] = {};
+    const int nmin = genulens::math::NewtonCotes::coefficients(4, locations, weights);
+    require(nmin == 7, "Newton-Cotes order normalization failed");
+    require(std::abs(locations[1] - 0.25) < 1e-12, "Newton-Cotes locations changed");
+    require(std::abs(weights[0] - 70.0 / 360.0) < 1e-12, "Newton-Cotes weights changed");
 
     genulens::Event event;
     event.tE = 10.0;

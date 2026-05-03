@@ -146,4 +146,11 @@
 - Left compatibility functions `Dlb2xyz()` and `calc_PA()` in the scientific engine as thin delegates to the coordinate object.
 - Added a unit smoke assertion that position-angle calculation returns finite output.
 - `make test`: passed.
+
+## 2026-05-03 11:15 JST - Quadrature Extraction
+
+- Added `math::NewtonCotes` for the Newton-Cotes integration locations and weights used by density and optical-depth integrations.
+- Replaced the old `get_p_integral()` body with a thin delegate to `math::NewtonCotes::coefficients()`.
+- Added unit checks for the order-4 coefficients to pin the table values.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.
