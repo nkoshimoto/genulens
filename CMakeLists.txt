@@ -60,6 +60,11 @@ add_library(genulens_core
     src/genulens/model/extinction.cpp
     src/genulens/simulation/initialize.cpp
     src/genulens/simulation/sampler.cpp
+    src/genulens/simulation/observation_runtime.cpp
+    src/genulens/simulation/stellar_population_runtime.cpp
+    src/genulens/simulation/kinematics_runtime.cpp
+    src/genulens/simulation/density_runtime.cpp
+    src/genulens/simulation/math_runtime.cpp
     src/genulens/simulation/cli.cpp
     src/genulens/simulation/backend.cpp
     src/genulens/simulation/simulator.cpp

@@ -265,3 +265,10 @@
 - Moved the `initialize_rng()` call to the CLI composition layer so `Sampler` no longer performs RNG setup itself.
 - `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.
+
+## 2026-05-03 14:49:36 JST
+- Refactored sampler responsibilities further: moved runtime physics functions into observation, stellar population, kinematics, density, and math translation units.
+- Added PopulationRuntime to own IMF/LF/empirical mass-luminosity table allocation and cleanup.
+- Added KinematicRuntimeTables to own Shu DF table allocation and cleanup.
+- Verification: make test passed (unit_core, smoke_cli, regression_cli, python_binding).
+- Remaining: sampler.cpp still owns line-of-sight density grid construction, event-loop orchestration, and output summary; next extraction should target density grid and event loop context.
