@@ -235,5 +235,6 @@
 - Moved seed parsing and `RandomEngine` construction out of `Sampler::run_cli()`.
 - Added `Initializer::initialize_rng()`.
 - `Sampler` now consumes an initialized RNG from `RunContext`.
+- Moved the `initialize_rng()` call to the CLI composition layer so `Sampler` no longer performs RNG setup itself.
 - `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.
