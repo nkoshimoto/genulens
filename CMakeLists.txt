@@ -48,7 +48,6 @@ endif()
 add_library(genulens_core
     src/genulens/types.cpp
     src/genulens/rng.cpp
-    src/genulens/options.cpp
     src/genulens/cli/option.cpp
     src/genulens/model/parameters.cpp
     src/genulens/math/interpolation.cpp
@@ -66,20 +65,13 @@ add_library(genulens_core
     src/genulens/simulation/simulator.cpp
     src/genulens/simulation/likelihood.cpp
     src/genulens/simulation/observation_likelihood.cpp
-    src/genulens/io/input_data.cpp
-    src/genulens/io/output.cpp
-    src/genulens/tools/rho_profile.cpp
-    src/genulens/tools/mass_dist.cpp
-    src/genulens/tools/murel_dist.cpp)
+    src/genulens/io/input_data.cpp)
 target_include_directories(genulens_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(genulens_core PUBLIC GSL::gsl GSL::gslcblas m)
 target_compile_definitions(genulens_core PRIVATE GENULENS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_executable(genulens genulens.cpp)
 target_link_libraries(genulens PRIVATE genulens_core)
-
-add_executable(genulens_core_cli apps/genulens_main.cpp)
-target_link_libraries(genulens_core_cli PRIVATE genulens_core)
 
 add_executable(calc_rho_profile
     src/genulens/tools/pre_gapmoe/calc_rho_profile.cpp

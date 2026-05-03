@@ -20,6 +20,4 @@ struct GenulensConfig {
     std::vector<std::string> raw_cli_args;
 };
 
-GenulensConfig config_from_cli(int argc, char **argv);
-
 } // namespace genulens

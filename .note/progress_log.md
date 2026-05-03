@@ -183,6 +183,24 @@
 - Confirmed no remaining active references to `ScientificEngine`, `ScientificState`, `scientific_engine`, `scientific_cli`, or `scientific_backend`.
 - `make test`: passed.
 
+## 2026-05-03 12:20 JST - Dead File Cleanup
+
+- Removed duplicate and unused CLI entrypoints:
+  - `apps/genulens_main.cpp`
+  - `apps/pre_gapmoe/calc_rho_profile_main.cpp`
+  - `apps/pre_gapmoe/calc_mass_dist_main.cpp`
+  - `apps/pre_gapmoe/calc_murel_dist_main.cpp`
+- Removed the unreferenced TSV output helper:
+  - `src/genulens/io/output.cpp`
+  - `src/genulens/io/output.hpp`
+- Removed unused tool-layer helper APIs that were not connected to the build outputs:
+  - `src/genulens/tools/rho_profile.*`
+  - `src/genulens/tools/mass_dist.*`
+  - `src/genulens/tools/murel_dist.*`
+- Removed the unused `config_from_cli()` helper implementation and its declaration, while keeping `GenulensConfig`.
+- Removed the unused `genulens_core_cli` target from CMake and pruned deleted sources from `genulens_core`.
+- `make test`: passed.
+
 ## 2026-05-03 12:25 JST - Event-Loop Submodel Extraction
 
 - Added `model::RemnantMassModel` for the Lam/Raithel initial-final mass and remnant-type calculation.
