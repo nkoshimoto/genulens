@@ -201,6 +201,15 @@
 - Removed the unused `genulens_core_cli` target from CMake and pruned deleted sources from `genulens_core`.
 - `make test`: passed.
 
+## 2026-05-03 12:45 JST - Move Model Option Initialization Out of Sampler
+
+- Confirmed the user's concern: `sampler.cpp` still contained a large migrated `genulens.cpp` body.
+- Added `InitialMassFunctionOptions` and `SpatialOptions` to `RunContext`.
+- Moved IMF option parsing, Galactic density model option parsing, named model presets, bar/disk kinematic option parsing, Sgr A* centering, and stellar-halo option parsing into `Initializer`.
+- `Sampler::run_cli()` now calls `Initializer::read_model_options()` and `Initializer::finalize_spatial_model()` instead of owning that option parsing directly.
+- Left table-building and Monte Carlo sampling in `sampler.cpp`; those are the next extraction targets.
+- `make test`: passed.
+
 ## 2026-05-03 12:25 JST - Event-Loop Submodel Extraction
 
 - Added `model::RemnantMassModel` for the Lam/Raithel initial-final mass and remnant-type calculation.

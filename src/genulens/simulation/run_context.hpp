@@ -30,6 +30,26 @@ struct SamplingOptions {
     int calc_prior_thetaE = 0;
 };
 
+struct InitialMassFunctionOptions {
+    double m0 = 1.0;
+    double m1 = 0.859770466578045;
+    double m2 = 0.08;
+    double m3 = 0.01;
+    double ml = 0.001;
+    double mu = 120.0;
+    double alpha0 = -2.32279457078378;
+    double alpha1 = -2.32279457078378;
+    double alpha2 = -1.13449983242887;
+    double alpha3 = -0.175862190587576;
+    double alpha4 = -0.175862190587576;
+};
+
+struct SpatialOptions {
+    int center_on_sgr_a = 1;
+    double l_sgr_a = -0.056;
+    double b_sgr_a = -0.046;
+};
+
 struct StellarPopulationState {
     double tSFR = 7.0;
     double MiniWDmax = 9.0;
@@ -239,6 +259,8 @@ struct RunContext {
     int B14vbar = 0;
     std::array<double, 3> xyzSgrA{};
     SamplingOptions sampling;
+    InitialMassFunctionOptions imf_options;
+    SpatialOptions spatial;
 };
 
 } // namespace genulens

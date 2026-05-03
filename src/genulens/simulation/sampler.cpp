@@ -303,205 +303,19 @@ int Sampler::run_cli(RunContext &context, int argc,char **argv)
 
   //--- read parameters ---
   int CheckD   = getOptiond(argc,argv,"CheckD", 1, 0);
-  //--- Set params for Galactic model (default: E+E_X model in Koshimoto+2021) ---
-  const auto &default_imf = gmodel::default_model_parameters().imf;
-  double M0_B      = getOptiond(argc,argv,"M0", 1, default_imf.m0);
-  double M1_B      = getOptiond(argc,argv,"M1", 1, default_imf.m1);
-  double M2_B      = getOptiond(argc,argv,"M2", 1, default_imf.m2);
-  double M3_B      = getOptiond(argc,argv,"M3", 1, default_imf.m3);
-  double Ml        = getOptiond(argc,argv,"Ml", 1, default_imf.ml); // default : w/o planetary mass
-  double Mu        = getOptiond(argc,argv,"Mu", 1, default_imf.mu); // need to be fixed!!!. Affect normalizing bulge coeffs
-  double alpha1_B  = getOptiond(argc,argv,"alpha1", 1, default_imf.alpha1);
-  double alpha2_B  = getOptiond(argc,argv,"alpha2", 1, default_imf.alpha2);
-  double alpha3_B  = getOptiond(argc,argv,"alpha3", 1, default_imf.alpha3);
-  double alpha0_B  = getOptiond(argc,argv,"alpha0", 1, default_imf.alpha0);
-  double alpha4_B  = getOptiond(argc,argv,"alpha4", 1, default_imf.alpha4);
-  DISK     = getOptiond(argc,argv,"DISK",   1,    2); // 0: wo disk, 1: w/ disk+hole, 2: w/ disk like P17
-  rhot0    = getOptiond(argc,argv,"rhot0",   1,   0.042); // local thin disk density, Msun/pc^3 (Bovy17: 0.042 +- 0.002 incl.BD)
-  hDISK     = getOptiond(argc,argv,"hDISK",  1,    0); // 0: const scale height, 1: linear scale height
-  addX      = getOptiond(argc,argv,"addX",   1,    5); // 0: no X-shape,  >=5: use model==addX as X-shape 
-  model     = getOptiond(argc,argv,"model",  1,    5); // 
-  R0     = getOptiond(argc,argv,"R0",     1,   8160); // 
-  thetaD = getOptiond(argc,argv,"thetaD", 1,     27); // 
-  frho0b = getOptiond(argc,argv,"frho0b", 1,  0.839014514507754); // 
-  Rc     = getOptiond(argc,argv,"Rc", 1,  2631.78535429573); //
-  zb_c   = getOptiond(argc,argv,"zb_c", 1,  1e+6); //
-  if (model >= 4 && model <= 8){
-    x0_1     = getOptiond(argc,argv,"x0", 1,  930.623146993329); // 
-    y0_1     = getOptiond(argc,argv,"y0", 1,  370.784386649364); // 
-    z0_1     = getOptiond(argc,argv,"z0", 1,  239.547516030578); // 
-    C1     = getOptiond(argc,argv,"C1", 1,  1.20011972384328); // 
-    C2     = getOptiond(argc,argv,"C2", 1,  4.09326795684828); // 
-    C3     = getOptiond(argc,argv,"C3", 1,  1.0000); // 
-  }
-  if (addX >= 5){
-    x0_X = getOptiond(argc,argv,"x0_X", 1,  278.027059842233); // 
-    y0_X = getOptiond(argc,argv,"y0_X", 1,  176.318528789193); // 
-    z0_X = getOptiond(argc,argv,"z0_X", 1,  286.791941602401); // 
-    C1_X = getOptiond(argc,argv,"C1_X", 1,  1.3087131258784); // 
-    C2_X = getOptiond(argc,argv,"C2_X", 1,  2.21745322869032); // 
-    b_zX = getOptiond(argc,argv,"b_zX", 1,  1.37774815817195); // b_zX, slope of "X" of X-shape
-    fX   = getOptiond(argc,argv,"fX",   1,  1.43975636704683); // fraction of X-shape
-    Rc_X = getOptiond(argc,argv,"Rc_X",  1,  1301.63829617294); // 
-  }
-  b_zY   = getOptiond(argc,argv,"b_zY", 1, 0); //
-
-  // ----- Kinematic parameters ------
-  // for bar kinematic
-  Omega_p  = getOptiond(argc,argv,"Omega_p",  1, 47.4105844018699);
-  model_vb = getOptiond(argc,argv,"model_vb", 1,    5); // 
-  x0_vb    = getOptiond(argc,argv,"x0_vb"  ,  1, 858.106595717275);
-  y0_vb    = getOptiond(argc,argv,"y0_vb"  ,  1, 3217.04987721548);
-  z0_vb    = getOptiond(argc,argv,"z0_vb"  ,  1, 950.690583433628);
-  C1_vb    = getOptiond(argc,argv,"C1_vb"  ,  1, 4.25236641149869);
-  C2_vb    = getOptiond(argc,argv,"C2_vb"  ,  1, 1.02531652066343);
-  C3_vb    = getOptiond(argc,argv,"C3_vb"  ,  1, 1);
-  sigx_vb  = getOptiond(argc,argv,"sigx_vb",  1, 151.854794853683);
-  sigy_vb  = getOptiond(argc,argv,"sigy_vb",  1, 78.0278905748233);
-  sigz_vb  = getOptiond(argc,argv,"sigz_vb",  1, 81.9641955092164);
-  sigx_vb0 = getOptiond(argc,argv,"sigx_vb0",  1,  63.9939241108675);
-  sigy_vb0 = getOptiond(argc,argv,"sigy_vb0",  1,  75.8180486866697);
-  sigz_vb0 = getOptiond(argc,argv,"sigz_vb0",  1,  71.2336430487113);
-  vx_str   = getOptiond(argc,argv,"vx_str" ,  1,    43.0364707040617);
-  y0_str   = getOptiond(argc,argv,"y0_str" ,  1,    406.558313420815);
-  model_vbz = getOptiond(argc,argv,"model_vbz",  1,    5); // 
-  x0_vbz    = getOptiond(argc,argv,"x0_vbz"  ,  1, 558.430182718529);
-  y0_vbz    = getOptiond(argc,argv,"y0_vbz"  ,  1, 2003.21703656302);
-  z0_vbz    = getOptiond(argc,argv,"z0_vbz"  ,  1, 3823.20855045157);
-  C1_vbz    = getOptiond(argc,argv,"C1_vbz"  ,  1, 3.71001266000693);
-  C2_vbz    = getOptiond(argc,argv,"C2_vbz"  ,  1, 1.07455173734341);
-  C3_vbz    = getOptiond(argc,argv,"C3_vbz"  ,  1, 1);
-
-  // for disk kinematic (default: all-z + flat z_d^{thin} model in Koshimoto+21)
-  hsigUt    = getOptiond(argc,argv,"hsigUt"  ,  1,  14300);// scale len of velo disp R (sigU) for thin
-  hsigWt    = getOptiond(argc,argv,"hsigWt"  ,  1,   5900);// scale len of velo disp Z (sigW) for thin
-  hsigUT    = getOptiond(argc,argv,"hsigUT"  ,  1, 180000);// scale len of velo disp R (sigU) for thick
-  hsigWT    = getOptiond(argc,argv,"hsigWT"  ,  1, 9400);  // scale len of velo disp Z (sigW) for thick
-  betaU     = getOptiond(argc,argv,"betaU"   ,  1, 0.32);  //  slope of age-sigU for thin
-  betaW     = getOptiond(argc,argv,"betaW"   ,  1, 0.77);  //  slope of age-sigW for thin
-  sigU10d   = getOptiond(argc,argv,"sigU10d" ,  1, 42.0);  // sigU for 10Gyr thin @Sunposi 
-  sigW10d   = getOptiond(argc,argv,"sigW10d" ,  1, 24.4);  // sigW for 10Gyr thin @Sunposi
-  sigU0td   = getOptiond(argc,argv,"sigU0td" ,  1, 75.0);  // sigU for thick @Sunposi
-  sigW0td   = getOptiond(argc,argv,"sigW0td" ,  1, 49.2);  // sigW for thick @Sunposi
-
-  // Use one of named models in Koshimoto+21
-  B14disk   = getOptiond(argc,argv,"B14disk", 1, 0);
-  int B14bar    = getOptiond(argc,argv,"B14bar", 1, 0);
-  int E_fg0 = getOptiond(argc,argv,"E_fg0", 1, 0);
-  int G_fg0 = getOptiond(argc,argv,"G_fg0", 1, 0);
-  int EXE_fg0 = getOptiond(argc,argv,"EXE_fg0", 1, 0);
-  int GXG_fg0 = getOptiond(argc,argv,"GXG_fg0", 1, 0);
-  if (B14disk == 1){ // just approximated 
-    vxsun = -12.7, vysun = 218.0 + 24.0, vzsun = 7.25;
-    DISK = 1;
-  }
-  if (B14bar == 1){
-    M0_B = 1.0, M1_B = 0.7, M2_B = 0.08, M3_B = 0.01;
-    alpha1_B = -2.0, alpha2_B = -1.3, alpha3_B = -0.5;
-    alpha0_B = alpha1_B, alpha4_B = alpha3_B;
-    model = 6, addX = 0, B14vbar = 1;
-    R0= 8200, thetaD = 20, x0_1 = 1580.0, y0_1 = 620.0, z0_1 = 430.0, Rc = 2400.0, C1 = 2, C2 = 4, C3 = 1;
-    frho0b = 1.173; // Section 6.1 of Koshimoto & Bennett 2020
-    Omega_p = 50, sigx_vb = 114.0, sigy_vb = 103.8, sigz_vb = 96.4;
-    x0_vb  = y0_vb  = z0_vb  = 500000;
-    x0_vbz = y0_vbz = z0_vbz = 500000;
-  }
-  if (E_fg0 == 1){ // E model
-    model = 5, addX = 0;
-    M0_B = 1.0, M1_B = 0.843651488650385, M2_B = 0.08, M3_B = 0.01;
-    alpha1_B = -2.30708461042964, alpha2_B = -1.09811414023325, alpha3_B = -0.176687444667866;
-    alpha0_B = alpha1_B, alpha4_B = alpha3_B;
-    R0= 8160, thetaD = 27, 
-    frho0b = 0.847695765083198, Rc = 2804.94024639663;
-    x0_1 = 668.323640191308, y0_1 = 277.674592258175, z0_1 = 235.344943180979, 
-    C1 = 1.40903573470129, C2 = 3.3497118832179, C3 = 1;
-    model_vb = 5, model_vbz = 5;
-    Omega_p = 49.5149910609312, vx_str = 48.7482280102778, y0_str = 392.515724264323,
-    sigx_vb  = 156.055410564041, sigy_vb  = 83.8197043324931, sigz_vb  = 86.3564038759999,
-    sigx_vb0 = 63.8292191277825, sigy_vb0 = 74.9469462226124, sigz_vb0 = 72.3085487545662,
-    x0_vb  = 823.387929122523, y0_vb  = 9288.51482678556, z0_vb  = 864.479916419292,
-    C1_vb  = 3.82820123451928, C2_vb  = 1.00573720627546,
-    x0_vbz = 511.063328964278, y0_vbz = 2896.01606378595, z0_vbz = 2189.7664883434,
-    C1_vbz = 3.04214421342047, C2_vbz = 1.00609904766722;
-  }
-  if (G_fg0 == 1){ // G model
-    model = 6, addX = 0;
-    M0_B = 1.0, M1_B = 0.896557393600988, M2_B = 0.08, M3_B = 0.01;
-    alpha1_B = -2.39628188518525, alpha2_B = -1.18451896148506, alpha3_B = 0.168672130848533;
-    alpha0_B = alpha1_B, alpha4_B = alpha3_B;
-    R0= 8160, thetaD = 27, 
-    frho0b = 0.777347874844233, Rc = 4838.85613149588;
-    x0_1 = 1025.42128394916, y0_1 = 457.419718281149, z0_1 = 396.048253079423, 
-    C1 = 2.00928445577057, C2 = 3.9678518191928, C3 = 1;
-    model_vb = 5, model_vbz = 5;
-    Omega_p = 40.5174879673548, vx_str = 11.9026090372449, y0_str = 20.1384817812277,
-    sigx_vb  = 136.435675357212, sigy_vb  = 109.313291840218, sigz_vb  = 101.291432907346,
-    sigx_vb0 = 76.0453005937702, sigy_vb0 = 67.9783132842431, sigz_vb0 = 74.7117386554542,
-    x0_vb  = 1031.18302251324, y0_vb  = 2145.45565210108, z0_vb  = 727.233943973984,
-    C1_vb  = 4.9302429910108, C2_vb  = 1.04038121792228,
-    x0_vbz = 517.854475368706, y0_vbz = 1436.21008855387, z0_vbz = 1095.79181359292,
-    C1_vbz = 2.3091601785779, C2_vbz = 1.03832670354301;
-  }
-  if (EXE_fg0 == 1){ // E+E_X model
-    model = 5, addX = 5;
-    M0_B = 1.0, M1_B = 0.859770466578045, M2_B = 0.08, M3_B = 0.01;
-    alpha1_B = -2.32279457078378, alpha2_B = -1.13449983242887, alpha3_B = -0.175862190587576;
-    alpha0_B = alpha1_B, alpha4_B = alpha3_B;
-    R0= 8160, thetaD = 27, 
-    frho0b = 0.839014514507754, Rc = 2631.78535429573;
-    x0_1 = 930.623146993329, y0_1 = 370.784386649364, z0_1 = 239.547516030578, 
-    C1 = 1.20011972384328, C2 = 4.09326795684828, C3 = 1;
-    model_vb = 5, model_vbz = 5;
-    Omega_p = 47.4105844018699, vx_str = 43.0364707040617, y0_str = 406.558313420815,
-    sigx_vb  = 151.854794853683, sigy_vb  = 78.0278905748233, sigz_vb  = 81.9641955092164,
-    sigx_vb0 = 63.9939241108675, sigy_vb0 = 75.8180486866697, sigz_vb0 = 71.2336430487113,
-    x0_vb  = 858.106595717275, y0_vb  = 3217.04987721548, z0_vb  = 950.690583433628,
-    C1_vb  = 4.25236641149869, C2_vb  = 1.02531652066343,
-    x0_vbz = 558.430182718529, y0_vbz = 2003.21703656302, z0_vbz = 3823.20855045157,
-    C1_vbz = 3.71001266000693, C2_vbz = 1.07455173734341;
-    x0_X = 278.027059842233, y0_X = 176.318528789193, z0_X = 286.791941602401,
-    C1_X = 1.3087131258784, C2_X = 2.21745322869032, 
-    b_zX = 1.37774815817195, fX = 1.43975636704683, Rc_X = 1301.63829617294;
-  }
-  if (GXG_fg0 == 1){ // G+G_X model
-    model = 6, addX = 6;
-    M0_B = 1.0, M1_B = 0.901747918318042, M2_B = 0.08, M3_B = 0.01;
-    alpha1_B = -2.32055781291126, alpha2_B = -1.16146692073597, alpha3_B = -0.222751835826612;
-    alpha0_B = alpha1_B, alpha4_B = alpha3_B;
-    R0= 8160, thetaD = 27, 
-    frho0b = 0.861982105059042, Rc = 2834.43172768484;
-    x0_1 = 1564.78976595399, y0_1 = 721.729645984158, z0_1 = 494.669973292979, 
-    C1 = 1.20141097225, C2 = 3.09254667088709, C3 = 1;
-    model_vb = 5, model_vbz = 5;
-    Omega_p = 45.9061365175252, vx_str = 28.250608437116, y0_str = 11.4387290790323,
-    sigx_vb  = 154.984185643613, sigy_vb  = 78.4783157632334, sigz_vb  = 83.2424209150283,
-    sigx_vb0 = 63.3834790223473, sigy_vb0 = 75.1951371572303, sigz_vb0 = 69.6076680158332,
-    x0_vb  = 939.470002303028, y0_vb  = 4228.61947632437, z0_vb  = 883.716365308057,
-    C1_vb  = 4.59067123072475, C2_vb  = 1.00961963171066,
-    x0_vbz = 699.073733500672, y0_vbz = 1729.91970395558, z0_vbz = 2028.24030134845,
-    C1_vbz = 4.84589813971794, C2_vbz = 1.01718557457505;
-    x0_X = 755.975821023038, y0_X = 312.17136920671, z0_X = 399.287597819655,
-    C1_X = 1.21131134854495, C2_X = 1.30388556329566,
-    b_zX = 1.37711800325276, fX = 2.99985800759016, Rc_X = 5174.00544959931;
-  }
-
-  costheta = cos(thetaD/180.0*PI) , sintheta = sin(thetaD/180.0*PI);
-
-  // To put Sgr A* on the GC
-  int CenSgrA = getOptioni(argc,argv, "CenSgrA", 1, 1);
-  double lSgrA = -0.056; // Bland-Hawthorn & Gerhard 2016
-  double bSgrA = -0.046;
-  if (CenSgrA == 1){
-    Dlb2xyz(R0, lSgrA, bSgrA, R0, xyzSgrA);
-  }
-
-  // Whether include Stellar halo or not
-  SH       = getOptiond(argc,argv,"SH",     1,  SH); // 0: wo stellar halo, 1: w/ stellar halo by Robin+03
-  rho0SHMS = getOptiond(argc,argv,"rho0SHMS",  1, 9.32e-06); // Table 2 of Robin+03
-  sigU_SH  = getOptiond(argc,argv,"sigU_SH",  1, 131); // Table 4 of Robin+03
-  sigV_SH  = getOptiond(argc,argv,"sigV_SH",  1, 106); // Table 4 of Robin+03
-  sigW_SH  = getOptiond(argc,argv,"sigW_SH",  1,  85); // Table 4 of Robin+03
-  if (SH == 0) rho0SHMS = 0;
+  Initializer().read_model_options(context, argc, argv);
+  double M0_B = context.imf_options.m0;
+  double M1_B = context.imf_options.m1;
+  double M2_B = context.imf_options.m2;
+  double M3_B = context.imf_options.m3;
+  double Ml = context.imf_options.ml;
+  double Mu = context.imf_options.mu;
+  double alpha0_B = context.imf_options.alpha0;
+  double alpha1_B = context.imf_options.alpha1;
+  double alpha2_B = context.imf_options.alpha2;
+  double alpha3_B = context.imf_options.alpha3;
+  double alpha4_B = context.imf_options.alpha4;
+  Initializer().finalize_spatial_model(context, argc, argv);
 
   // Store Mass Function and calculate normalization factors for density distributions
   void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0);
@@ -919,7 +733,8 @@ int Sampler::run_cli(RunContext &context, int argc,char **argv)
   //   SMALLGAMMA = 1;
   // }
   printf("#-------------- Input parameters ---------------\n");
-  printf("#    CenSgrA= %d     (0: GC at (l,b)=(0,0), 1: GC at (l,b)= (%.3f, %.3f))\n", CenSgrA, lSgrA, bSgrA);
+  printf("#    CenSgrA= %d     (0: GC at (l,b)=(0,0), 1: GC at (l,b)= (%.3f, %.3f))\n",
+         context.spatial.center_on_sgr_a, context.spatial.l_sgr_a, context.spatial.b_sgr_a);
   printf("#    UNIFORM= %d     (0: L= N(obs, err), 1: L= U(obs-err, obs+err))\n", UNIFORM);
   printf("#    REMNANT= %d     (0: no remnant, 1: with remnant)\n", REMNANT);
   printf("#     onlyWD= %d     (1: w/ remnant but only WD)\n", onlyWD);
