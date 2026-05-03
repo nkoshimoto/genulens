@@ -205,4 +205,11 @@
 - Moved parsing of simulation controls (`Nsimu`, `NlikeMIN`, Earth velocity, importance-sampling weights, verbosity, binary/remnant flags, and prior flags) into `GenulensInitializer::read_sampling_options()`.
 - `GenulensSampler` now consumes those prepared options from context.
 - `make test`: passed.
+
+## 2026-05-03 13:10 JST - Extinction Object Extraction
+
+- Added `model::ExponentialDustExtinction`.
+- Moved dust-scale normalization for `AI0`, `AK0`, and `EVI0` into the extinction object.
+- Replaced repeated distance-extinction expressions in the density-grid preparation and lens I/K brightness calculations with `ExponentialDustExtinction` calls.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

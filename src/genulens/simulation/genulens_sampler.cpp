@@ -38,6 +38,7 @@
 #include "genulens/math/interpolation.hpp"
 #include "genulens/math/quadrature.hpp"
 #include "genulens/model/coordinates.hpp"
+#include "genulens/model/extinction.hpp"
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
@@ -906,9 +907,10 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
   double hscale = hdust/(fabs(sinb) + 0.0001);  // 164 pc = dust scale height from Nataf+13
   double Dmean  = (DMrc > 0) ? pow(10, 0.2*DMrc) * 10
                  : -9.99;
-  double AI0  = (hscale > 0 && Dmean > 0) ? AIrc  / (1 - exp(-Dmean/hscale)) : 0; // 
-  double AK0  = (hscale > 0 && Dmean > 0) ? AKrc  / (1 - exp(-Dmean/hscale)) : 0; // 
-  double EVI0 = (hscale > 0 && Dmean > 0) ? EVIrc / (1 - exp(-Dmean/hscale)) : 0; // 
+  gmodel::ExponentialDustExtinction extinction(hscale, Dmean, AIrc, AKrc, EVIrc);
+  double AI0 = extinction.ai0();
+  double AK0 = extinction.ak0();
+  double EVI0 = extinction.evi0();
   // if (AI0 == 0){ // not recommended, AIrc should be given if known
   //   AI0 = 0.64 * hscales[0] * 0.001 -0.33; // by linear fit to known AIs of Nataf+13
   //   if (AI0 > 7) AI0 = 7;
@@ -1013,8 +1015,9 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
     double z = xyz[2]; 
     if (ibin%npri==0) printf ("# %5.0f %5.0f %5.0f ",D[ibin],R,z);
     double rhosum = 0;
-    double extI  =  AI0 * (1 - exp(-D[ibin]/hscale)) + 5 * log10(0.1*(D[ibin] + 0.1));
-    double extVI = EVI0 * (1 - exp(-D[ibin]/hscale));
+    const auto dust = extinction.at_distance(D[ibin]);
+    double extI  =  dust.i_band + extinction.distance_modulus_term(D[ibin] + 0.1);
+    double extVI = dust.color_vi;
     // printf ("%5.0f %7.3f ",D[ibin],extI);
     for (int i=0;i<ncomp;i++){
       double fBHtmp = 1;
@@ -1818,7 +1821,7 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
          double F12 = pow(10, -0.4*IL) + pow(10, -0.4*IL2);
          IL = -2.5 * log10(F12);
        }
-       IL += 5 * log10(0.1*D_l) + AI0 * (1 - exp(-D_l/hscale)); // add DM and AI
+       IL += extinction.distance_modulus_term(D_l) + extinction.at_distance(D_l).i_band; // add DM and AI
        if(ILe > 0){  // This is true when default to cut too bright lens
          double Gamma_IL = like_obs(IL, ILobs, ILe, feIL, ILdet, UNIFORM);
          like_IL = (Gamma_IL > 0) ? 1 : 0;
@@ -1841,7 +1844,7 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
          double F12 = pow(10, -0.4*KL) + pow(10, -0.4*KL2);
          KL = -2.5 * log10(F12);
        }
-       KL += 5 * log10(0.1*D_l) + AK0 * (1 - exp(-D_l/hscale)); // add DM and AK
+       KL += extinction.distance_modulus_term(D_l) + extinction.at_distance(D_l).k_band; // add DM and AK
        if(KLe > 0){
          double Gamma_KL = like_obs(KL, KLobs, KLe, feKL, KLdet, UNIFORM);
          like_KL = (Gamma_KL > 0) ? 1 : 0;
