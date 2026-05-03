@@ -106,7 +106,7 @@ void interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double 
 #define EPS 1.2e-7
 #define RNMX (1.0 - EPS)
 #define       PI 3.1415926535897932385
-#define NDATAMAX 8000000000 // take ~6hours?
+#define NDATAMAX 8000000000LL // take ~6hours?
 #define    KAPPA 8.1439 // 
 #define STR2MIN2 8.461595e-08  // min^2 in str = deg^2 in str / 3600
 #define   PI4GC2 6.013565416421e-13  // 4piG/c^2 * 1 Msun/pc = pi * kappa * mas * as
