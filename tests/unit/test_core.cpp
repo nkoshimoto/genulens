@@ -5,6 +5,7 @@
 #include "genulens/simulation/simulator.hpp"
 
 #include <cmath>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 
@@ -33,6 +34,20 @@ int main()
 
     genulens::InputDataRepository repo;
     require(repo.resolve("Minidie.dat").filename() == "Minidie.dat", "input file resolution failed");
+    require(repo.resolve("input_files/Minidie.dat").filename() == "Minidie.dat", "prefixed input file resolution failed");
+
+    const auto cwd = std::filesystem::current_path();
+    std::filesystem::current_path(std::filesystem::temp_directory_path());
+    try {
+        require(genulens::resolve_input_file("Minidie.dat").filename() == "Minidie.dat",
+                "input file resolution from another cwd failed");
+        require(genulens::open_input_file("input_files/Minidie.dat", "r") != nullptr,
+                "input fopen compatibility from another cwd failed");
+    } catch (...) {
+        std::filesystem::current_path(cwd);
+        throw;
+    }
+    std::filesystem::current_path(cwd);
 
     genulens::GenulensConfig cfg;
     cfg.n_simu = 5;
@@ -45,4 +60,3 @@ int main()
     std::cout << "core unit tests passed\n";
     return 0;
 }
-

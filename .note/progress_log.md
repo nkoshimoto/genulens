@@ -84,3 +84,15 @@
 - `make test`: passed after the genulens-first backend change.
 - Manual check passed: `./genulens l 0.5 b 0.2 Nsimu 10 seed 1234`.
 - Manual Python check passed: `genulens.Config(...)`, `genulens.simulate(cfg)`, `to_numpy()`, and Python callable likelihood.
+
+## 2026-05-03 09:48 JST - Robust Input File Resolution
+
+- Confirmed the migrated scientific backend still had direct `input_files/...` `fopen()` calls.
+- Added C++ input file compatibility helpers:
+  - direct path first,
+  - current working directory `input_files/`,
+  - `GENULENS_INPUT_DIR`,
+  - build/source-tree `input_files/`,
+  - installed shared data locations.
+- Wired the legacy genulens backend and moved pre-gapmoe sources through `genulens::open_input_file()`.
+- Added unit/smoke coverage for resolving files from a different current working directory.

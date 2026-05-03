@@ -23,6 +23,9 @@
 
 #include "galactic_model.h"
 #include "option.h"
+#include "genulens/io/input_data.hpp"
+
+#define fopen(path, mode) genulens::open_input_file((path), (mode))
 
 static int has_help_option(int argc, char **argv)
 {

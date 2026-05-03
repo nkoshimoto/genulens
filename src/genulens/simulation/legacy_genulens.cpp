@@ -34,6 +34,9 @@
 #include <stdlib.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include "genulens/io/input_data.hpp"
+
+#define fopen(path, mode) genulens::open_input_file((path), (mode))
 
 #define EPS 1.2e-7
 #define RNMX (1.0 - EPS)

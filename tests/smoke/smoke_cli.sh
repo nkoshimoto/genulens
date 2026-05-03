@@ -16,5 +16,9 @@ grep -q 'Usage:' /tmp/calc-mass-help.out
 ./pre_gapmoe/calc_murel_dist --help >/tmp/calc-murel-help.out
 grep -q 'Usage:' /tmp/calc-murel-help.out
 
-echo "smoke CLI tests passed"
+tmpdir="$(mktemp -d)"
+"$ROOT_DIR/genulens" l 0.5 b 0.2 Nsimu 3 seed 1234 >"$tmpdir/genulens-from-other-cwd.out"
+grep -q '# Nlike/N/Ngen=' "$tmpdir/genulens-from-other-cwd.out"
+rm -rf "$tmpdir"
 
+echo "smoke CLI tests passed"

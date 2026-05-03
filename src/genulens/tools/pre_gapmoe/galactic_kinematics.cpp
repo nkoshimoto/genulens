@@ -7,6 +7,9 @@
  */
 
 #include "galactic_model.h"
+#include "genulens/io/input_data.hpp"
+
+#define fopen(path, mode) genulens::open_input_file((path), (mode))
 #include "option.h"
 
 #define vescd 550.0   // escape velocity disk  [km/s]
