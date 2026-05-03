@@ -11,6 +11,18 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(genulens, m)
 {
+    auto run_simulation = [](const genulens::GenulensConfig &cfg, py::object likelihood) {
+        genulens::LikelihoodFunction fn;
+        if (!likelihood.is_none()) {
+            fn = [likelihood](const genulens::Event &event) {
+                py::gil_scoped_acquire gil;
+                return likelihood(event).cast<double>();
+            };
+        }
+        py::gil_scoped_release release;
+        return genulens::simulate(cfg, fn);
+    };
+
     py::class_<genulens::GenulensConfig>(m, "Config")
         .def(py::init<>())
         .def(py::init([](double l, double b, long n_simu, unsigned long seed) {
@@ -78,15 +90,15 @@ PYBIND11_MODULE(genulens, m)
             return array;
         });
 
-    m.def("simulate", [](const genulens::GenulensConfig &cfg, py::object likelihood) {
-        genulens::LikelihoodFunction fn;
-        if (!likelihood.is_none()) {
-            fn = [likelihood](const genulens::Event &event) {
-                py::gil_scoped_acquire gil;
-                return likelihood(event).cast<double>();
-            };
-        }
-        py::gil_scoped_release release;
-        return genulens::simulate(cfg, fn);
-    }, py::arg("cfg"), py::arg("likelihood") = py::none());
+    m.def("simulate", run_simulation, py::arg("cfg"), py::arg("likelihood") = py::none());
+
+    m.def("ruc", [run_simulation](double l, double b, long n_simu, unsigned long seed, py::object likelihood) {
+        genulens::GenulensConfig cfg;
+        cfg.l = l;
+        cfg.b = b;
+        cfg.n_simu = n_simu;
+        cfg.seed = seed;
+        return run_simulation(cfg, likelihood);
+    }, py::arg("l") = 1.0, py::arg("b") = -3.9, py::arg("n_simu") = 100000,
+       py::arg("seed") = 12304357UL, py::arg("likelihood") = py::none());
 }

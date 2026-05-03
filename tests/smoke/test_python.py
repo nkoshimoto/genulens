@@ -21,3 +21,8 @@ def test_python_callable_likelihood():
 
     result = genulens.simulate(cfg, likelihood=my_like)
     assert result.to_numpy().shape[0] == 10
+
+
+def test_python_ruc_alias():
+    result = genulens.ruc(l=0.0, b=0.0, n_simu=3, seed=1)
+    assert result.to_numpy().shape[0] == 3

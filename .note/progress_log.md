@@ -163,4 +163,12 @@
 - Second `make test` failed because vector-backed cumulative mass arrays needed `.data()` when passed to existing interpolation wrappers.
 - Fixed both issues.
 - `make test`: passed.
+
+## 2026-05-03 11:45 JST - Python `ruc` Alias
+
+- Manual Python check found `genulens.simulate()` worked, but `genulens.ruc(...)` was missing.
+- Added `genulens.ruc(l=..., b=..., n_simu=..., seed=..., likelihood=...)` as a convenience API that builds `Config` and calls the same simulation path.
+- Added smoke coverage for the alias.
+- `make test`: passed.
+- Manual Python check passed for `simulate()` with Python callable likelihood and `ruc()`.
 - Added unit/smoke coverage for resolving files from a different current working directory.
