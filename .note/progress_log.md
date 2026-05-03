@@ -272,3 +272,7 @@
 - Added KinematicRuntimeTables to own Shu DF table allocation and cleanup.
 - Verification: make test passed (unit_core, smoke_cli, regression_cli, python_binding).
 - Remaining: sampler.cpp still owns line-of-sight density grid construction, event-loop orchestration, and output summary; next extraction should target density grid and event loop context.
+
+## 2026-05-03 14:50:47 JST
+- Added NsdMomentRuntime to own Sormani NSD moment table allocation/loading/cleanup.
+- Verification: make test passed after NSD runtime extraction.

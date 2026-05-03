@@ -59,6 +59,11 @@ struct KinematicRuntimeTables {
   void release_all();
 };
 
+struct NsdMomentRuntime {
+  void initialize_if_enabled();
+  void release_if_enabled();
+};
+
 void calc_PA(double gl, double gb, double *PA, double *cosPA, double *sinPA);
 void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen);
 void store_NSDmoments(char *infile);

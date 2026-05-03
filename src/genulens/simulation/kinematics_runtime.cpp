@@ -66,6 +66,48 @@ void KinematicRuntimeTables::release_all() {
   free(n_fgsShu);
 }
 
+void NsdMomentRuntime::initialize_if_enabled() {
+  nzND = (zenND - zstND) / dzND + 1.5;
+  nRND = (RenND - RstND) / dRND + 1.5;
+  if (ND != 3) {
+    return;
+  }
+  logrhoNDs = (double**)malloc(sizeof(double *) * nzND);
+  vphiNDs = (double**)malloc(sizeof(double *) * nzND);
+  corRzNDs = (double**)malloc(sizeof(double *) * nzND);
+  logsigvNDs = (double***)malloc(sizeof(double *) * nzND);
+  for (int i = 0; i < nzND; i++) {
+    logrhoNDs[i] = (double*)calloc(nRND, sizeof(double *));
+    vphiNDs[i] = (double*)calloc(nRND, sizeof(double *));
+    corRzNDs[i] = (double*)calloc(nRND, sizeof(double *));
+    logsigvNDs[i] = (double**)malloc(sizeof(double *) * nRND);
+    for (int j = 0; j < nRND; j++) {
+      logsigvNDs[i][j] = (double*)calloc(3, sizeof(double *));
+    }
+  }
+  char *fileND = (char*)"input_files/NSD_moments.dat";
+  store_NSDmoments(fileND);
+}
+
+void NsdMomentRuntime::release_if_enabled() {
+  if (ND != 3) {
+    return;
+  }
+  for (int i = 0; i < nzND; i++) {
+    for (int j = 0; j < nRND; j++) {
+      free(logsigvNDs[i][j]);
+    }
+    free(logrhoNDs[i]);
+    free(vphiNDs[i]);
+    free(corRzNDs[i]);
+    free(logsigvNDs[i]);
+  }
+  free(logrhoNDs);
+  free(vphiNDs);
+  free(corRzNDs);
+  free(logsigvNDs);
+}
+
 void store_cumuP_Shu(char *infile) // calculate cumu prob dist of fg = Rg/R following Shu DF
 {
   // read circular velocity

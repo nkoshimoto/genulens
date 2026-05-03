@@ -480,26 +480,8 @@ int Sampler::run_cli(RunContext &context, int argc,char **argv)
     n0RGND = n0MSND * nMS2nRGND; // number density of ND RG stars (for mu calculation)
     n0ND   = n0MSND + rho0ND * (1 - fND_MS) * m2nND_WD; // number density of ND MS+WD stars
   }
-  nzND = (zenND - zstND)/dzND + 1.5;
-  nRND = (RenND - RstND)/dRND + 1.5;
-  if (ND == 3){ // More Sormani+21-like NSD, Use input_files/NSD_moments.dat 
-    logrhoNDs   = (double**)malloc(sizeof(double *) * nzND);
-    vphiNDs     = (double**)malloc(sizeof(double *) * nzND);
-    corRzNDs    = (double**)malloc(sizeof(double *) * nzND);
-    logsigvNDs  = (double***)malloc(sizeof(double *) * nzND);
-    for (int i=0; i<nzND; i++){
-      logrhoNDs[i] = (double*)calloc(nRND, sizeof(double *));
-      vphiNDs[i]   = (double*)calloc(nRND, sizeof(double *));
-      corRzNDs[i]  = (double*)calloc(nRND, sizeof(double *));
-      logsigvNDs[i] = (double**)malloc(sizeof(double *) * nRND);
-      for (int j=0; j<nRND; j++){
-        logsigvNDs[i][j] = (double*)calloc(3, sizeof(double *)); // 3= phi, R, z
-      }
-    }
-    char *fileND = (char*)"input_files/NSD_moments.dat";
-    void store_NSDmoments(char *infile);
-    store_NSDmoments(fileND);
-  }
+  NsdMomentRuntime nsd_moments;
+  nsd_moments.initialize_if_enabled();
   printf("#------------------ Bulge model: (alpha_bar, Mbar, Mind, MVVVb, MVVVd) = ( %.1f deg, %.2e Msun, %.2e Msun, %.2e Msun, %.2e Msun) ---------------------\n",thetaD,massentire,Mind,massVVVbox,MVVVd);
   printf("#   (M_MS, M_REM)ave= (%.6f %.6f) Msun/*, fM_REM= %.4f, Mass/RG= %5.1f Msun/RG \n",1/m2nb_MS,1/m2nb_WD,1-fb_MS,1/fb_MS/m2nb_MS/nMS2nRGb);
   printf("#   rho%d: M= %.2e Msun, rho0b= %5.2f Msun/pc^3, (x0, y0, z0, Rc)= (%4.0f, %4.0f, %3.0f, %4.0f) pc, (C1, C2,   C3)= (%.1f, %.1f, %.1f)\n",model,fm1*massentire,rho0b,x0_1,y0_1,z0_1,Rc,C1,C2,C3);
@@ -1670,21 +1652,7 @@ int Sampler::run_cli(RunContext &context, int argc,char **argv)
   free (cumu_rho_L);
   free (ibinptiles_S);
   free (ibinptiles_L);
-  if (ND == 3){
-    for (int i=0; i<nzND; i++){
-      for (int j=0; j<nRND; j++){
-        free(logsigvNDs[i][j]);
-      }
-      free(logrhoNDs[i]);
-      free(vphiNDs[i]);
-      free(corRzNDs[i]);
-      free(logsigvNDs[i]);
-    }
-    free(logrhoNDs);
-    free(vphiNDs);
-    free(corRzNDs);
-    free(logsigvNDs);
-  }
+  nsd_moments.release_if_enabled();
   population.release_all();
   free(lDs);
   free(bDs);
