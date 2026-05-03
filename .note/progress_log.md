@@ -102,4 +102,13 @@
 - Renamed the core simulation entry points to `scientific_engine`, `scientific_cli`, and `ScientificSimulationBackend`.
 - Added `model::IMFParameters` and `model::ModelParameters` so IMF break masses and slopes are centralized.
 - Exposed model/IMF parameters through `GenulensConfig` and pybind.
+
+## 2026-05-03 10:20 JST - First Real Object Extraction
+
+- User clarified that the previous backend wrapper was still not true objectification.
+- Started extracting actual scientific-engine responsibilities:
+  - replaced direct global GSL RNG access with `RandomEngine`;
+  - added `ObservationLikelihood` and `ObservationConstraint`;
+  - routed the scientific engine's `like_obs()` through the likelihood object.
+- This is the first incremental cut; remaining global model, density, luminosity-function, and kinematic state still need to be moved into owned objects.
 - Added unit/smoke coverage for resolving files from a different current working directory.

@@ -30,12 +30,13 @@
 #include <string.h> 
 #include <stdarg.h>
 #include <random>
+#include <memory>
 #include "genulens/cli/option.h"
 #include <stdlib.h>
-#include <gsl/gsl_rng.h>
-#include <gsl/gsl_randist.h>
 #include "genulens/io/input_data.hpp"
 #include "genulens/model/parameters.hpp"
+#include "genulens/rng.hpp"
+#include "genulens/simulation/observation_likelihood.hpp"
 
 #define fopen(path, mode) genulens::open_input_file((path), (mode))
 
@@ -63,19 +64,14 @@
 #define MINMEANLOGA 0.6 // 
 
 
-/* Generate a random number between 0 and 1 (excluded) from a uniform distribution. */
-const gsl_rng_type * T;
-gsl_rng * r;
+static std::unique_ptr<genulens::RandomEngine> active_rng;
+
 double ran1(){
-    double u = gsl_rng_uniform(r);
-    // if (u > RNMX) ran1();
-    return u;
+    return active_rng->uniform();
 }
 
-/* Generate a random number from a Gaussian distribution of mean 0, and std 
-   deviation 1.0. */
 double gasdev(){
-    return gsl_ran_ugaussian(r);
+    return active_rng->gaussian();
 }
 
 // --- define global parameters ------
@@ -199,10 +195,8 @@ int genulens_scientific_main(int argc,char **argv)
   //--- read parameters ---
   int CheckD   = getOptiond(argc,argv,"CheckD", 1, 0);
   long seed    = getOptioni(argc,argv,"seed", 1, 12304357); // seed of random number
-  gsl_rng_env_setup();
-  T = gsl_rng_default;
-  r = gsl_rng_alloc (T);
-  gsl_rng_set(r, seed); 
+  genulens::RandomEngine rng(static_cast<unsigned long>(seed));
+  active_rng = std::make_unique<genulens::RandomEngine>(std::move(rng));
   //--- Set params for Galactic model (default: E+E_X model in Koshimoto+2021) ---
   const auto &default_imf = genulens::model::default_model_parameters().imf;
   double M0_B      = getOptiond(argc,argv,"M0", 1, default_imf.m0);
@@ -2148,28 +2142,13 @@ void store_NSDmoments(char *infile) // Read input_files/NSD_moments.dat
 }
 //----------------
 double like_obs(double mod, double obs, double err, double fe, int det, int UNIFORM){
-  // return 0 when rejected, return 1 when accepted/not used, return 0 < f < 1 when fe > 0
-  double Gamma_obs = 1;
-  int sw = (det == 0) ? 1  // detection
-         : (det == 1 && mod > obs) ? 1  // upper limit 
-         : (det == 2 && mod < obs) ? 1  // lower limit 
-         : 0;
-  if(err >0 && sw == 1){
-    if (UNIFORM == 1){
-      Gamma_obs = (mod > obs-err && mod < obs+err) ? 1 : 0;
-    }else{
-      double chi, Plike, Plike0;
-      chi = (mod - obs)/err;
-      if (fe > 0){
-        Plike0 = exp(-chi*chi*0.5);
-        chi /= fe;
-      }
-      Plike = exp(-chi*chi*0.5);
-      Gamma_obs = (Plike > ran1()) ? 1 : 0;
-      if (fe > 0) Gamma_obs *= Plike0/Plike; // still 0 when not accepted
-    }
-  }
-  return Gamma_obs;
+  genulens::ObservationConstraint constraint;
+  constraint.observed = obs;
+  constraint.error = err;
+  constraint.error_inflation = fe;
+  constraint.detection_mode = static_cast<genulens::DetectionMode>(det);
+  constraint.uniform = (UNIFORM == 1);
+  return genulens::ObservationLikelihood(constraint).accept_weight(mod, *active_rng);
 }
 
 //----------------

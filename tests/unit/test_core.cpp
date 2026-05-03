@@ -2,6 +2,7 @@
 #include "genulens/model/kinematics.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/likelihood.hpp"
+#include "genulens/simulation/observation_likelihood.hpp"
 #include "genulens/simulation/simulator.hpp"
 
 #include <cmath>
@@ -31,6 +32,14 @@ int main()
     event.tE = 10.0;
     genulens::GaussianLikelihood like(10.0, 1.0);
     require(std::abs(like(event) - 1.0) < 1e-12, "Gaussian likelihood peak failed");
+
+    genulens::RandomEngine like_rng(42);
+    genulens::ObservationConstraint constraint;
+    constraint.observed = 10.0;
+    constraint.error = 1.0;
+    constraint.uniform = true;
+    require(genulens::ObservationLikelihood(constraint).accept_weight(10.5, like_rng) == 1.0,
+            "uniform observation likelihood accept failed");
 
     genulens::InputDataRepository repo;
     require(repo.resolve("Minidie.dat").filename() == "Minidie.dat", "input file resolution failed");

@@ -61,6 +61,7 @@ add_library(genulens_core
     src/genulens/simulation/scientific_backend.cpp
     src/genulens/simulation/simulator.cpp
     src/genulens/simulation/likelihood.cpp
+    src/genulens/simulation/observation_likelihood.cpp
     src/genulens/io/input_data.cpp
     src/genulens/io/output.cpp
     src/genulens/tools/rho_profile.cpp
