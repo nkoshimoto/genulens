@@ -73,3 +73,14 @@
 - Added `.note/breaking_changes.md`; no intentional breaking changes.
 - Added `.note/final_report.md` with test results and known limitations.
 
+## 2026-05-03 09:35 JST - Genulens-first Refactor Direction
+
+- User clarified that the priority is not pre-gapmoe compatibility first; the priority is proper `genulens` modularization and pybind exposure of the real simulation logic.
+- Moved the legacy scientific `genulens.cpp` implementation into `src/genulens/simulation/legacy_genulens.cpp`.
+- Added thin root `genulens.cpp` wrapper that calls `genulens::run_legacy_cli()`.
+- Added `LegacySimulationBackend`, which invokes the legacy scientific simulation with `VERBOSITY=3`, captures output, parses real event rows into `SimulationResult`, and applies C++/Python likelihood callables to event weights.
+- Updated CMake so `genulens_core` owns the legacy scientific backend and Python calls the same backend path.
+- Moved pre-gapmoe implementation sources under `src/genulens/tools/pre_gapmoe/`; this is a mechanical relocation, not yet a semantic rewrite.
+- `make test`: passed after the genulens-first backend change.
+- Manual check passed: `./genulens l 0.5 b 0.2 Nsimu 10 seed 1234`.
+- Manual Python check passed: `genulens.Config(...)`, `genulens.simulate(cfg)`, `to_numpy()`, and Python callable likelihood.

@@ -21,12 +21,18 @@
   - `regression_cli`
   - `python_binding`
 
+## Current Architecture
+
+- `./genulens` is now a thin wrapper.
+- The production scientific `genulens` implementation lives under `src/genulens/simulation/legacy_genulens.cpp` and is invoked through `genulens::run_legacy_cli()`.
+- `EventSimulator` uses `LegacySimulationBackend`, which runs the scientific backend with event-level verbosity, parses the generated physical events into `SimulationResult`, and applies C++/Python likelihood callables.
+- The Python binding calls the same `EventSimulator` path as C++.
+- The pre-gapmoe implementation sources have been moved under `src/genulens/tools/pre_gapmoe/` and are built from there.
+
 ## Known Limitations
 
-- The new `src/genulens` core currently provides a reusable API boundary and testable implementations, but the full scientific Monte Carlo logic from `genulens.cpp` has not yet been completely decomposed into the core.
-- The production `./genulens` binary still compiles from the existing `genulens.cpp` to preserve CLI/output compatibility.
-- The production `pre_gapmoe` binaries still compile from the existing `pre_gapmoe/*.cpp` sources through CMake. The new `src/genulens/tools/*` helpers are present as the target abstraction layer but are not yet the sole implementation for those tools.
-- Full removal of duplicated scientific logic remains the next refactor step and should be done with narrower, function-by-function behavioral tests.
+- The scientific engine is now callable from the shared core and Python, but some of its internal state is still retained in the migrated legacy implementation file. Further cleanup can split that file into the existing `model/`, `io/`, and `simulation/` modules without changing the public CLI/Python surface.
+- Python custom likelihood is applied to parsed generated events as an additional weight. It does not yet alter the legacy importance-sampling proposal distribution before event generation.
 
 ## Python Example
 
@@ -48,4 +54,3 @@ custom = genulens.simulate(cfg, likelihood=my_like)
 - Confirm that the staged CMake fallback GSL search paths are acceptable for the target deployment environments.
 - Decide the next extraction order for the large `genulens.cpp` global state.
 - Review whether the temporary approximate implementations in `src/genulens/model/*` should be replaced first by direct moves from `pre_gapmoe/galactic_model.cpp` or by wrapping that code behind a stateful adapter.
-
