@@ -153,4 +153,14 @@
 - Replaced the old `get_p_integral()` body with a thin delegate to `math::NewtonCotes::coefficients()`.
 - Added unit checks for the order-4 coefficients to pin the table values.
 - `make test`: passed.
+
+## 2026-05-03 11:30 JST - IMF Grid Extraction
+
+- Added `model::BrokenPowerLawIMF` and `model::MassFunctionGrid`.
+- Moved broken-power-law IMF grid construction, cumulative number normalization, cumulative mass normalization, and percentile-index initialization out of `store_IMF_nBs()`.
+- Kept population normalization and remnant-mass accounting in `store_IMF_nBs()` for now; it still depends on age tables and density normalization state.
+- First `make test` failed because `mass_function.hpp` forward-declared `IMFParameters` while storing it by value.
+- Second `make test` failed because vector-backed cumulative mass arrays needed `.data()` when passed to existing interpolation wrappers.
+- Fixed both issues.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

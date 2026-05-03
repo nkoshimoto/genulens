@@ -2,6 +2,8 @@
 #include "genulens/math/quadrature.hpp"
 #include "genulens/model/coordinates.hpp"
 #include "genulens/model/kinematics.hpp"
+#include "genulens/model/mass_function.hpp"
+#include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/likelihood.hpp"
 #include "genulens/simulation/observation_likelihood.hpp"
@@ -38,6 +40,12 @@ int main()
     require(nmin == 7, "Newton-Cotes order normalization failed");
     require(std::abs(locations[1] - 0.25) < 1e-12, "Newton-Cotes locations changed");
     require(std::abs(weights[0] - 70.0 / 360.0) < 1e-12, "Newton-Cotes weights changed");
+
+    const auto grid = genulens::model::BrokenPowerLawIMF(genulens::model::default_model_parameters().imf)
+                          .build_grid(100, 0.001, 120.0);
+    require(grid.log_mass.size() == 101, "IMF grid size changed");
+    require(std::abs(grid.cumulative_number_norm.front()) < 1e-15, "IMF cumulative start changed");
+    require(std::abs(grid.cumulative_number_norm.back() - 1.0) < 1e-12, "IMF cumulative normalization changed");
 
     genulens::Event event;
     event.tE = 10.0;

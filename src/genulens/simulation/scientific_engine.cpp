@@ -31,12 +31,14 @@
 #include <stdarg.h>
 #include <random>
 #include <memory>
+#include <vector>
 #include "genulens/cli/option.h"
 #include <stdlib.h>
 #include "genulens/io/input_data.hpp"
 #include "genulens/math/interpolation.hpp"
 #include "genulens/math/quadrature.hpp"
 #include "genulens/model/coordinates.hpp"
+#include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/scientific_engine.hpp"
@@ -2198,48 +2200,31 @@ double like_obs(double mod, double obs, double err, double fe, int det, int UNIF
 void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0){
   /* Store IMF with a broken-power law form.
    * Update normalize factors for the density distribution if B == 1 */
-  double *PlogM_cum, *Mass, *PMlogM_cum, *PMlogM_cum_norm;
-  Mass            = (double *)calloc(nm+1, sizeof(double *));
-  PlogM_cum       = (double *)calloc(nm+1, sizeof(double *));
-  PMlogM_cum      = (double *)calloc(nm+1, sizeof(double *));
-  PMlogM_cum_norm = (double *)calloc(nm+1, sizeof(double *));
-  logMst = log10(Ml);
-	dlogM = (double) (log10(Mu)-logMst)/nm;
-  for (int i=0; i<=nm; i++){
-    double Mp  = i*dlogM + logMst;
-    logMass[i] = Mp;
-    Mass[i]  = pow(10, Mp);
-    double alpha = (Mass[i] < M3) ? alpha4 : (Mass[i] < M2) ? alpha3 : (Mass[i] < M1) ? alpha2 : (Mass[i] < M0) ? alpha1 : alpha0;
-    double temp00    = pow(M0,alpha0+1.);
-    double temp01    = pow(M0,alpha1+1.);
-    double temp11    = pow(M1,alpha1+1.);
-    double temp12    = pow(M1,alpha2+1.);
-    double temp22    = pow(M2,alpha2+1.);
-    double temp23    = pow(M2,alpha3+1.);
-    double temp33    = pow(M3,alpha3+1.);
-    double temp34    = pow(M3,alpha4+1.);
-    double dPlogM = 1;
-    if (Mass[i] <M0) dPlogM=temp01 / temp00; //dM=MdlogM
-    if (Mass[i] <M1) dPlogM=temp12 / temp11*dPlogM; //dM=MdlogM
-    if (Mass[i] <M2) dPlogM=temp23 / temp22*dPlogM;
-    if (Mass[i] <M3) dPlogM=temp34 / temp33*dPlogM;
-    double templogMF = pow(Mass[i], alpha+1.);
-    PlogM[i] = templogMF / dPlogM;
-    if (i>=1) {
-      PlogM_cum[i]  = 0.5*(PlogM[i]+PlogM[i-1])*dlogM                   + PlogM_cum[i-1];  // Mass function
-      PMlogM_cum[i] = 0.5*(Mass[i]*PlogM[i]+Mass[i-1]*PlogM[i-1])*dlogM + PMlogM_cum[i-1]; // Mass spectrum
-    } else {
-      PlogM_cum[i] = 0.0;
-      PMlogM_cum[i] = 0.0;
-    }
-  }
-  // PlogM: Percentage of logM stars in total number of stars born, PMlogM: in total mass of stars born
+  gmodel::IMFParameters imf_parameters;
+  imf_parameters.m0 = M0;
+  imf_parameters.m1 = M1;
+  imf_parameters.m2 = M2;
+  imf_parameters.m3 = M3;
+  imf_parameters.ml = Ml;
+  imf_parameters.mu = Mu;
+  imf_parameters.alpha0 = alpha0;
+  imf_parameters.alpha1 = alpha1;
+  imf_parameters.alpha2 = alpha2;
+  imf_parameters.alpha3 = alpha3;
+  imf_parameters.alpha4 = alpha4;
+  const auto mass_grid = gmodel::BrokenPowerLawIMF(imf_parameters).build_grid(nm, Ml, Mu);
+  std::vector<double> PlogM_cum = mass_grid.cumulative_number;
+  std::vector<double> PMlogM_cum = mass_grid.cumulative_mass;
+  std::vector<double> PMlogM_cum_norm = mass_grid.cumulative_mass_norm;
+  logMst = mass_grid.log_mass_start;
+	dlogM = mass_grid.log_mass_step;
   for(int i=0;i<=nm;i++){
-    PlogM_cum_norm[i]= PlogM_cum[i]/PlogM_cum[nm];
-    PMlogM_cum_norm[i]= PMlogM_cum[i]/PMlogM_cum[nm];
-    PlogM[i] /= PlogM_cum[nm]; // for getcumu2xist
-    int intp = PlogM_cum_norm[i]*20;
-    if (imptiles[intp] == 0)  imptiles[intp] = (intp==0) ? 1 : i+0.5;
+    logMass[i] = mass_grid.log_mass[i];
+    PlogM[i] = mass_grid.probability_log_mass[i];
+    PlogM_cum_norm[i] = mass_grid.cumulative_number_norm[i];
+  }
+  for(int i=0;i<22;i++){
+    imptiles[i] = mass_grid.percentile_index[i];
   }
   if (B == 0) return;
 
@@ -2305,7 +2290,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
     double logMdie = log10(MinidieD[itmp]);
     double logMRG1 = log10(MRGstD[itmp]);
     double logMRG2 = log10(MRGenD[itmp]);
-    double PM   = interp_x(nm+1, PMlogM_cum_norm, logMst, dlogM, logMdie);
+    double PM   = interp_x(nm+1, PMlogM_cum_norm.data(), logMst, dlogM, logMdie);
     double P    = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMdie);
     double PRG1 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG1);
     double PRG2 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG2);
@@ -2367,7 +2352,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
       double logMdie = log10(MinidieD[nageD - 2]);
       double logMRG1 = log10(MRGstD[nageD - 2]);
       double logMRG2 = log10(MRGenD[nageD - 2]);
-      double PM   = interp_x(nm+1, PMlogM_cum_norm, logMst, dlogM, logMdie);
+      double PM   = interp_x(nm+1, PMlogM_cum_norm.data(), logMst, dlogM, logMdie);
       double P    = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMdie);
       double PRG1 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG1);
       double PRG2 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG2);
@@ -2391,7 +2376,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
       double logMdie = log10(MinidieD[nageD - 1]);
       double logMRG1 = log10(MRGstD[nageD - 1]);
       double logMRG2 = log10(MRGenD[nageD - 1]);
-      double PM   = interp_x(nm+1, PMlogM_cum_norm, logMst, dlogM, logMdie);
+      double PM   = interp_x(nm+1, PMlogM_cum_norm.data(), logMst, dlogM, logMdie);
       double P    = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMdie);
       double PRG1 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG1);
       double PRG2 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG2);
@@ -2426,7 +2411,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
     double logMdie = log10(MinidieB[i]);
     double logMRG1 = log10(MRGstB[i]);
     double logMRG2 = log10(MRGenB[i]);
-    double PM   = interp_x(nm+1, PMlogM_cum_norm, logMst, dlogM, logMdie);
+    double PM   = interp_x(nm+1, PMlogM_cum_norm.data(), logMst, dlogM, logMdie);
     double P    = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMdie);
     double PRG1 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG1);
     double PRG2 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG2);
@@ -2465,7 +2450,7 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
     double logMdie = log10(MinidieND[i]);
     double logMRG1 = log10(MRGstND[i]);
     double logMRG2 = log10(MRGenND[i]);
-    double PM   = interp_x(nm+1, PMlogM_cum_norm, logMst, dlogM, logMdie);
+    double PM   = interp_x(nm+1, PMlogM_cum_norm.data(), logMst, dlogM, logMdie);
     double P    = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMdie);
     double PRG1 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG1);
     double PRG2 = interp_x(nm+1, PlogM_cum_norm,  logMst, dlogM, logMRG2);
@@ -2493,10 +2478,6 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
   m2nND_WD  = 1/aveMWD;
   nMS2nRGND = sumRGs_ND/sumstars_ND; // RG to MS+RG ratio in number of stars
   fND_MS    = wt_ND/(wt_ND+wtWD_ND);
-  free(Mass          );
-  free(PlogM_cum     );
-  free(PMlogM_cum    );
-  free(PMlogM_cum_norm);
 }
 
 //----------------
