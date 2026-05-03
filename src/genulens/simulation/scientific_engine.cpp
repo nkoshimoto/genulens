@@ -34,6 +34,7 @@
 #include "genulens/cli/option.h"
 #include <stdlib.h>
 #include "genulens/io/input_data.hpp"
+#include "genulens/math/interpolation.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/scientific_engine.hpp"
@@ -3023,36 +3024,7 @@ void getaproj(double *pout, double M1, double M2, int coeff)  { // pick up aproj
 }
 
 double getcumu2xist(int n, double *x, double *F, double *f, double Freq, int ist, int inv){ 
-  // for cumulative distribution (assuming linear interpolation for f(x) when cumu = F = int f(x))
-  double Fmax = F[n-1];
-  double Fmin = F[0];
-  if (Fmin > Freq) return 0;
-  if (Fmax < Freq) return 0;
-  if (ist < 1) ist = 1;
-  if (inv==0){
-    for(int i=ist;i<n;i++){
-       if (F[i] <= Freq && F[i-1] >Freq || F[i] >=Freq && F[i-1] < Freq){
-          double a = 0.5*(f[i]-f[i-1])/(x[i]-x[i-1]);
-          double b = f[i-1] - 2*a*x[i-1];
-          double c = a*x[i-1]*x[i-1] - f[i-1]*x[i-1] + F[i-1] - Freq;
-          double xreq = (a != 0) ? (-b + sqrt(b*b - 4*a*c)) * 0.5/a  // root of ax^2 +bx + c
-                                 : (x[i]-x[i-1])/(F[i]-F[i-1])*(Freq-F[i-1]) + x[i-1];
-          return xreq;
-       }
-    }
-  }else{
-    for(int i=ist;i>0;i--){
-       if (F[i] <= Freq && F[i-1] >Freq || F[i] >=Freq && F[i-1] < Freq){
-          double a = 0.5*(f[i]-f[i-1])/(x[i]-x[i-1]);
-          double b = f[i-1] - 2*a*x[i-1];
-          double c = a*x[i-1]*x[i-1] - f[i-1]*x[i-1] + F[i-1] - Freq;
-          double xreq = (a != 0) ? (-b + sqrt(b*b - 4*a*c)) * 0.5/a  // root of ax^2 +bx + c
-                                 : (x[i]-x[i-1])/(F[i]-F[i-1])*(Freq-F[i-1]) + x[i-1];
-          return xreq;
-       }
-    }
-  }
-  return 0;
+  return genulens::math::Interpolation::inverse_cumulative_linear_density(n, x, F, f, Freq, ist, inv);
 }
 //---------------
 int read_MLemp(char *infile, double *M_emps, double **Mag_emps) 
@@ -3851,106 +3823,27 @@ int get_p_integral(int nji, double *ls, double *ks)
 //---- getx2y for linear interpolation
 double getx2y(int n, double *x, double *y, double xin)
 {
-   int i;
-   double xmin,xmax;
-   if (x[0] < x[n-1]){xmin=x[0];xmax=x[n-1];}else{xmin=x[n-1];xmax=x[0];}
-   //printf("n=%d %f %f %f\n",n, xmin,xmax,logM);
-
-   if (xmin > xin) return 0;
-   if (xmax < xin) return 0;
-   //printf("n=%d %f %f %f\n",n, xmin,xmax,logM);
-
-   for(i=0;i<n;i++){
-      //printf("i= %d x= %f logM= %f\n",i, x[i],logM);
-      if (i == 0) continue;
-      if (x[i] <= xin && x[i-1] >=xin || x[i] >=xin && x[i-1] <= xin){
-         double yreq = (y[i]-y[i-1])/(x[i]-x[i-1])*(xin -x[i-1]) + y[i-1];
-         return yreq;
-      }
-   }
-   return 0;
+   return genulens::math::Interpolation::linear(n, x, y, xin);
 }
 //---- getx2y_ist for linear interpolation
 double getx2y_ist(int n, double *x, double *y, double xin, int *ist)
 {
-   int i;
-   /* The followings are commented cuz Mag vs Mini  */
-   // double xmin,xmax;
-   // if (x[0] < x[n-1]){xmin=x[0];xmax=x[n-1];}else{xmin=x[n-1];xmax=x[0];}
-   // //printf("n=%d %f %f %f\n",n, xmin,xmax,logM);
-
-   // if (xmin > xin) return 0;
-   // if (xmax < xin) return 0;
-   // //printf("n=%d %f %f %f\n",n, xmin,xmax,logM);
-
-   for(i=*ist;i<n;i++){
-      //printf("i= %d x= %f logM= %f\n",i, x[i],logM);
-      if (i == 0) continue;
-      if (x[i] <= xin && x[i-1] >=xin || x[i] >=xin && x[i-1] <= xin){
-         double yreq = (y[i]-y[i-1])/(x[i]-x[i-1])*(xin -x[i-1]) + y[i-1];
-         *ist = i;
-         return yreq;
-      }
-   }
-   return 0;
+   return genulens::math::Interpolation::linear_from_index(n, x, y, xin, ist);
 }
 //---- getx2y_khi for linear interpolation
 double getx2y_khi(int n, double *x, double *y, double xin, int *khi)
 {
-   int i;
-   double xmin,xmax;
-   if (x[0] < x[n-1]){xmin=x[0];xmax=x[n-1];}else{xmin=x[n-1];xmax=x[0];}
-   //printf("n=%d %f %f %f\n",n, xmin,xmax,logM);
-
-   if (xmin > xin) return 0;
-   if (xmax < xin) return 0;
-   //printf("n=%d %f %f %f\n",n, xmin,xmax,logM);
-   int klo;
-   if (*khi > 0){
-     klo = *khi - 1;
-   }else{
-     klo = 0;
-     *khi = n-1;
-     while (*khi-klo > 1) {
-       int k=(*khi+klo) >> 1;
-       if (x[k] > xin) *khi=k;
-       else klo=k;
-     }
-   }
-   double h = x[*khi] - x[klo];
-   if (h == 0.0) return 0;
-   double a = (x[*khi]-xin)/h;
-   double b = (xin-x[klo])/h;
-   double yreq = a*y[klo] + b*y[*khi];
-   return yreq;
+   return genulens::math::Interpolation::linear_with_upper_index(n, x, y, xin, khi);
 }
 //---------------
 double interp_x(int n, double *F, double xst, double dx, double xreq) // just for this code
 {
-  int    ix   = (xreq - xst)/dx;
-  double xres = (xreq - xst)/dx - ix;
-  if (ix < 0 || ix > n - 1) return 0;
-  if (ix+1 > n - 1) return F[ix];
-  double F1 = F[ix];
-  double F2 = F[ix+1];
-  return F1 * (1 - xres) + F2 * xres;
+  return genulens::math::Interpolation::uniform_grid(n, F, xst, dx, xreq);
 }
 //---------------
 double interp_xy(int nx, int ny, double **F, double xst, double yst, double dx, double dy, double xreq, double yreq) // just for this code
 {
-  int    ix   = (xreq - xst)/dx;
-  double xres = (xreq - xst)/dx - ix;
-  int    iy   = (yreq - yst)/dy;
-  double yres = (yreq - yst)/dy - iy;
-  if (ix < 0 || ix > nx - 1 || iy < 0 || iy > ny -1) return 0;
-  if (ix+1 > nx - 1 && iy+1 > ny - 1) return F[ix][iy]; // return edge value
-  if (ix+1 > nx - 1) return F[ix][iy] * (1 - yres) + F[ix][iy+1] * yres; // only interpolate y
-  if (iy+1 > ny - 1) return F[ix][iy] * (1 - xres) + F[ix+1][iy] * xres; // only interpolate x
-  double a1 = (1 - xres) * (1 - yres), F1 = F[ix][iy]    ;
-  double a2 =      xres  * (1 - yres), F2 = F[ix+1][iy]  ;
-  double a3 = (1 - xres) *      yres , F3 = F[ix][iy+1]  ;
-  double a4 =      xres  *      yres , F4 = F[ix+1][iy+1];
-  return a1 * F1 + a2 * F2 + a3 * F3 + a4 * F4;
+  return genulens::math::Interpolation::bilinear(nx, ny, F, xst, yst, dx, dy, xreq, yreq);
 }
 //---------------
 void interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double dx, double dy, double xreq, double yreq) // just for this code
@@ -3958,29 +3851,7 @@ void interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double 
  * Interpolated value is given by
  *   as[0]*F[ix][iy] + as[1]*F[ix+1][iy] + as[2]*F[ix][iy+1] + as[3]*F[ix+1][iy+1]  */
 {
-  int    ix   = (xreq - xst)/dx;
-  double xres = (xreq - xst)/dx - ix;
-  int    iy   = (yreq - yst)/dy;
-  double yres = (yreq - yst)/dy - iy;
-  if (ix < 0 || ix > nx - 1 || iy < 0 || iy > ny -1){ // Out of range
-    as[0] = as[1] = as[2] = as[3] = 0;
-  }else if (ix+1 > nx - 1 && iy+1 > ny - 1){ // return edge value
-    as[1] = as[2] = as[3] = 0;
-    as[0]= 1; 
-  }else if (ix+1 > nx - 1){ // only interpolate y
-    as[0] = (1 - yres);
-    as[2] = yres;
-    as[1] = as[3] = 0;
-  }else if (iy+1 > ny - 1){ // only interpolate x
-    as[0] = (1 - xres);
-    as[1] = xres;
-    as[2] = as[3] = 0;
-  }else{ // when either ix or iy is not at the edge
-    as[0] = (1 - xres) * (1 - yres);
-    as[1] =      xres  * (1 - yres);
-    as[2] = (1 - xres) *      yres ;
-    as[3] =      xres  *      yres ;
-  }
+  genulens::math::Interpolation::bilinear_coefficients(nx, ny, as, xst, yst, dx, dy, xreq, yreq);
 }
 
 } // namespace genulens

@@ -125,4 +125,17 @@
 - Converted the scientific CLI to instantiate `ScientificEngine` and call `ScientificEngine::run()`.
 - Removed the large file-scope global variable definitions from `scientific_engine.cpp`; the remaining C-style subroutines now access state through a transitional active-state bridge.
 - This is not the final decomposition, but ownership has moved from process-global variables into an engine object, enabling the next cuts into `DensityModel`, `KinematicsModel`, and `StellarPopulationModel`.
+
+## 2026-05-03 10:50 JST - Math Helper Extraction
+
+- Added `math::Interpolation` under `src/genulens/math/`.
+- Moved the substantive implementations of:
+  - linear interpolation,
+  - indexed interpolation,
+  - uniform-grid interpolation,
+  - bilinear interpolation,
+  - bilinear interpolation coefficients,
+  - inverse-CDF lookup with linearly interpolated density.
+- Left thin compatibility wrappers in `scientific_engine.cpp` so the scientific path remains stable while the rest of the engine is split.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.
