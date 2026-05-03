@@ -36,9 +36,12 @@
 #include "genulens/io/input_data.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
+#include "genulens/simulation/scientific_engine.hpp"
 #include "genulens/simulation/observation_likelihood.hpp"
 
 #define fopen(path, mode) genulens::open_input_file((path), (mode))
+
+namespace gmodel = genulens::model;
 
 #define EPS 1.2e-7
 #define RNMX (1.0 - EPS)
@@ -63,120 +66,187 @@
 #define MAXMEANLOGA 1.7 // 
 #define MINMEANLOGA 0.6 // 
 
+namespace genulens {
 
-static std::unique_ptr<genulens::RandomEngine> active_rng;
+static genulens::ScientificState *active_state = nullptr;
 
 double ran1(){
-    return active_rng->uniform();
+    return active_state->runtime.rng->uniform();
 }
 
 double gasdev(){
-    return active_rng->gaussian();
+    return active_state->runtime.rng->gaussian();
 }
 
-// --- define global parameters ------
-long seed;
-static int B14disk, B14vbar;
-static int ncomp = 11; // 7xthin + thick + bar + NSD + Halo, V, I, J, H, Ks 
-static double tSFR = 7.0;  // time scale of SFR, 7.0 Gyr
-static double rhot0;
-static double MiniWDmax= 9; // 
-
-// --- for fit to tE --- (from get_chi2_for_tE.c)
-static int agesD[250], agesB[50], agesND[10];
-static double MinidieD[250], MinidieB[50], MinidieND[10];
-static int nageD=0, nageB=0, nageND=0;
-static double mageB = 9, sageB = 1, mageND = 7, sageND = 1; // in Gyr
-
-// --- for Mass function ---
-static int nm;
-static double logMst, dlogM;
-
-// --- Parameters for bulge ---
-// Values here will be overwritten in store_IMF_nBs using given IMF
-static double fb_MS   = 1.62/2.07; // MS mass / total mass in bulge / bar
-static double m2nb_MS  = 1/0.227943; // Msun/star in bulge / bar
-static double m2nb_WD  = 1/0.847318; // Msun/WD   in bulge / bar
-static double nMS2nRGb = 2.33232e-03; // n_RG/n_MS for bulge / bar
-static double rho0b, n0MSb, n0RGb, n0b;
-
-// Nuclear disk (for |b| < 1 deg.)
-static int ND = 0, x0ND = 250, y0ND = 125, z0ND = 50;
-static double C1ND = 2, rho0ND, n0MSND, n0RGND, n0ND;
-static double fND_MS    = 0; // MS mass / total mass in NSD
-static double m2nND_MS  = 0; // Msun/star in NSD
-static double m2nND_WD  = 0; // Msun/WD   in NSD
-static double nMS2nRGND = 0; // n_RG/n_MS for NSD
-
-// Stellar Halo (Spheroid from Robin+03)
-static int SH = 1;
-static double rho0SHMS= 9.32e-06; // Msun/pc^3 Table 2 and Sec 2.3 of Robin+03
-static double epsSH= 0.76; // Table 2 of Robin+03
-static double alphaSH= 2.44; // Table 2 of Robin+03
-static double acSH2   = 500*500; // pc^2
-static double rho0SH, n0MSSH, n0RGSH, n0SH;
-static double sigU_SH, sigV_SH, sigW_SH;
-
-// --- Parameters for Disk ---
-// Density values will be overwritten in store_IMF_nBs using given IMF
-static double rho0d[8]   = {5.16e-03+3.10e-04, 5.00e-03+5.09e-04, 3.85e-03+5.42e-04, 3.18e-03+5.54e-04,
-                            5.84e-03+1.21e-03, 6.24e-03+1.51e-03, 1.27e-02+3.49e-03, 1.68e-03+6.02e-04};
-static double n0d[8]     = {1.51e-02+1.12e-04, 1.66e-02+3.22e-04, 1.40e-02+4.39e-04, 1.22e-02+5.15e-04, 
-                            2.36e-02+1.25e-03, 2.63e-02+1.67e-03, 5.55e-02+4.08e-03, 7.91e-03+7.81e-04};
-static double n0MSd[8]   = {1.51e-02, 1.66e-02, 1.40e-02, 1.22e-02, 2.36e-02, 2.63e-02, 5.55e-02, 7.91e-03};
-static double n0RGd[8]   = {7.09e-06, 3.40e-05, 4.32e-05, 2.16e-05, 6.60e-05, 6.19e-05, 1.29e-04, 9.38e-06};
-// Scale lengths and heights are fixed
-static double y0d[3];
-static int       Rd[3] = {5000, 2600, 2200};
-static int        Rh = 3740, Rdbreak = 5300, nh = 1;
-static double zd[8]   =  {61.47, 141.84, 224.26, 292.36, 372.85, 440.71, 445.37, 903.12};
-static double zd45[8] =  {36.88,  85.10, 134.55, 175.41, 223.71, 264.42, 267.22, 903.12};
-static int DISK, hDISK, addX, model;
-static double R0, thetaD, x0_1, y0_1, z0_1=0, C1, C2, C3, Rc, frho0b, costheta, sintheta, zb_c;
-static double x0_X, y0_X, z0_X=0, C1_X, C2_X, b_zX, fX, Rsin, b_zY, Rc_X;
-
-//--- To give coordinate globally ---
-static double *lDs, *bDs;
-
-//--- For read Data from LFeachBD.dat & inputs/NbleNall_bin.dat ----
-//--- For rough source mag and color constraint ----
-static int nMIs, nVIs;
-static double *MIs, **CumuN_MIs, dILF;
-static double *VIs, ***f_VI_Is, dVILF;
-
-//--- For Circular Velocity ------
-static int nVcs=0;
-static double Rcs[60], Vcs[60];
-
-//--- Sun kinematics ------
-static double vxsun = -10.0, Vsun = 11.0, vzsun = 7.0, vysun = 243.0;
-
-//--- For Disk kinematics ------
-static double ****fgsShu, ****PRRgShus, ****cumu_PRRgs;
-static int ***n_fgsShu, ****kptiles;
-static double hsigUt, hsigWt, hsigUT, hsigWT, betaU, betaW, sigU10d, sigW10d, sigU0td, sigW0td;
-static double medtauds[8] = {0.075273, 0.586449, 1.516357, 2.516884, 4.068387, 6.069263, 8.656024, 12};
-/* The line of sight toward (lSIMU, bSIMU) until Dmax pc needs to be inside the cylinder defined by
- * R < RenShu and -zenShu < z < zenShu 
- * Please change the following zenShu and/or RenShu value when you want to extend 
- * the line of sight outside of the default cylinder. */
-static int zstShu =   0, zenShu = 3600, dzShu = 200;
-static int RstShu = 500, RenShu = 12200, dRShu = 100; // use value @ RstShu for R < RstShu
-
-//--- For Bulge kinematics ------
-static int model_vb, model_vbz;
-static double Omega_p, x0_vb, y0_vb, z0_vb, C1_vb, C2_vb, C3_vb, sigx_vb, sigy_vb, sigz_vb, vx_str, y0_str;
-static double sigx_vb0, sigy_vb0, sigz_vb0;
-static double x0_vbz, y0_vbz, z0_vbz, C1_vbz, C2_vbz, C3_vbz;
-
-//--- For NSD, to store values of input_files/NSD_moments.dat ------
-static double **logrhoNDs, **vphiNDs, ***logsigvNDs, **corRzNDs;
-static double zstND = 0, zenND =  400, dzND = 5;
-static double RstND = 0, RenND = 1000, dRND = 5;
-static int nzND, nRND;
-
-//--- Parameters to put Sgr A* on the GC ------
-static double xyzSgrA[3] = {};
+#define seed active_state->seed
+#define B14disk active_state->B14disk
+#define B14vbar active_state->B14vbar
+#define xyzSgrA active_state->xyzSgrA.data()
+#define ncomp active_state->density.ncomp
+#define tSFR active_state->stellar.tSFR
+#define rhot0 active_state->density.rhot0
+#define MiniWDmax active_state->stellar.MiniWDmax
+#define agesD active_state->stellar.agesD.data()
+#define agesB active_state->stellar.agesB.data()
+#define agesND active_state->stellar.agesND.data()
+#define MinidieD active_state->stellar.MinidieD.data()
+#define MinidieB active_state->stellar.MinidieB.data()
+#define MinidieND active_state->stellar.MinidieND.data()
+#define nageD active_state->stellar.nageD
+#define nageB active_state->stellar.nageB
+#define nageND active_state->stellar.nageND
+#define mageB active_state->stellar.mageB
+#define sageB active_state->stellar.sageB
+#define mageND active_state->stellar.mageND
+#define sageND active_state->stellar.sageND
+#define nm active_state->stellar.nm
+#define logMst active_state->stellar.logMst
+#define dlogM active_state->stellar.dlogM
+#define fb_MS active_state->density.fb_MS
+#define m2nb_MS active_state->density.m2nb_MS
+#define m2nb_WD active_state->density.m2nb_WD
+#define nMS2nRGb active_state->density.nMS2nRGb
+#define rho0b active_state->density.rho0b
+#define n0MSb active_state->density.n0MSb
+#define n0RGb active_state->density.n0RGb
+#define n0b active_state->density.n0b
+#define ND active_state->density.ND
+#define x0ND active_state->density.x0ND
+#define y0ND active_state->density.y0ND
+#define z0ND active_state->density.z0ND
+#define C1ND active_state->density.C1ND
+#define rho0ND active_state->density.rho0ND
+#define n0MSND active_state->density.n0MSND
+#define n0RGND active_state->density.n0RGND
+#define n0ND active_state->density.n0ND
+#define fND_MS active_state->density.fND_MS
+#define m2nND_MS active_state->density.m2nND_MS
+#define m2nND_WD active_state->density.m2nND_WD
+#define nMS2nRGND active_state->density.nMS2nRGND
+#define SH active_state->density.SH
+#define rho0SHMS active_state->density.rho0SHMS
+#define epsSH active_state->density.epsSH
+#define alphaSH active_state->density.alphaSH
+#define acSH2 active_state->density.acSH2
+#define rho0SH active_state->density.rho0SH
+#define n0MSSH active_state->density.n0MSSH
+#define n0RGSH active_state->density.n0RGSH
+#define n0SH active_state->density.n0SH
+#define rho0d active_state->density.rho0d.data()
+#define n0d active_state->density.n0d.data()
+#define n0MSd active_state->density.n0MSd.data()
+#define n0RGd active_state->density.n0RGd.data()
+#define y0d active_state->density.y0d.data()
+#define Rd active_state->density.Rd.data()
+#define Rh active_state->density.Rh
+#define Rdbreak active_state->density.Rdbreak
+#define nh active_state->density.nh
+#define zd active_state->density.zd.data()
+#define zd45 active_state->density.zd45.data()
+#define DISK active_state->density.DISK
+#define hDISK active_state->density.hDISK
+#define addX active_state->density.addX
+#define model active_state->density.model
+#define R0 active_state->density.R0
+#define thetaD active_state->density.thetaD
+#define x0_1 active_state->density.x0_1
+#define y0_1 active_state->density.y0_1
+#define z0_1 active_state->density.z0_1
+#define C1 active_state->density.C1
+#define C2 active_state->density.C2
+#define C3 active_state->density.C3
+#define Rc active_state->density.Rc
+#define frho0b active_state->density.frho0b
+#define costheta active_state->density.costheta
+#define sintheta active_state->density.sintheta
+#define zb_c active_state->density.zb_c
+#define x0_X active_state->density.x0_X
+#define y0_X active_state->density.y0_X
+#define z0_X active_state->density.z0_X
+#define C1_X active_state->density.C1_X
+#define C2_X active_state->density.C2_X
+#define b_zX active_state->density.b_zX
+#define fX active_state->density.fX
+#define Rsin active_state->density.Rsin
+#define b_zY active_state->density.b_zY
+#define Rc_X active_state->density.Rc_X
+#define lDs active_state->density.lDs
+#define bDs active_state->density.bDs
+#define nMIs active_state->luminosity.nMIs
+#define nVIs active_state->luminosity.nVIs
+#define MIs active_state->luminosity.MIs
+#define CumuN_MIs active_state->luminosity.CumuN_MIs
+#define dILF active_state->luminosity.dILF
+#define VIs active_state->luminosity.VIs
+#define f_VI_Is active_state->luminosity.f_VI_Is
+#define dVILF active_state->luminosity.dVILF
+#define nVcs active_state->kinematics.nVcs
+#define Rcs active_state->kinematics.Rcs.data()
+#define Vcs active_state->kinematics.Vcs.data()
+#define vxsun active_state->kinematics.vxsun
+#define Vsun active_state->kinematics.Vsun
+#define vzsun active_state->kinematics.vzsun
+#define vysun active_state->kinematics.vysun
+#define fgsShu active_state->kinematics.fgsShu
+#define PRRgShus active_state->kinematics.PRRgShus
+#define cumu_PRRgs active_state->kinematics.cumu_PRRgs
+#define n_fgsShu active_state->kinematics.n_fgsShu
+#define kptiles active_state->kinematics.kptiles
+#define hsigUt active_state->kinematics.hsigUt
+#define hsigWt active_state->kinematics.hsigWt
+#define hsigUT active_state->kinematics.hsigUT
+#define hsigWT active_state->kinematics.hsigWT
+#define betaU active_state->kinematics.betaU
+#define betaW active_state->kinematics.betaW
+#define sigU10d active_state->kinematics.sigU10d
+#define sigW10d active_state->kinematics.sigW10d
+#define sigU0td active_state->kinematics.sigU0td
+#define sigW0td active_state->kinematics.sigW0td
+#define medtauds active_state->kinematics.medtauds.data()
+#define zstShu active_state->kinematics.zstShu
+#define zenShu active_state->kinematics.zenShu
+#define dzShu active_state->kinematics.dzShu
+#define RstShu active_state->kinematics.RstShu
+#define RenShu active_state->kinematics.RenShu
+#define dRShu active_state->kinematics.dRShu
+#define model_vb active_state->kinematics.model_vb
+#define model_vbz active_state->kinematics.model_vbz
+#define Omega_p active_state->kinematics.Omega_p
+#define x0_vb active_state->kinematics.x0_vb
+#define y0_vb active_state->kinematics.y0_vb
+#define z0_vb active_state->kinematics.z0_vb
+#define C1_vb active_state->kinematics.C1_vb
+#define C2_vb active_state->kinematics.C2_vb
+#define C3_vb active_state->kinematics.C3_vb
+#define sigx_vb active_state->kinematics.sigx_vb
+#define sigy_vb active_state->kinematics.sigy_vb
+#define sigz_vb active_state->kinematics.sigz_vb
+#define vx_str active_state->kinematics.vx_str
+#define y0_str active_state->kinematics.y0_str
+#define sigx_vb0 active_state->kinematics.sigx_vb0
+#define sigy_vb0 active_state->kinematics.sigy_vb0
+#define sigz_vb0 active_state->kinematics.sigz_vb0
+#define x0_vbz active_state->kinematics.x0_vbz
+#define y0_vbz active_state->kinematics.y0_vbz
+#define z0_vbz active_state->kinematics.z0_vbz
+#define C1_vbz active_state->kinematics.C1_vbz
+#define C2_vbz active_state->kinematics.C2_vbz
+#define C3_vbz active_state->kinematics.C3_vbz
+#define sigU_SH active_state->kinematics.sigU_SH
+#define sigV_SH active_state->kinematics.sigV_SH
+#define sigW_SH active_state->kinematics.sigW_SH
+#define logrhoNDs active_state->nsd_moments.logrhoNDs
+#define vphiNDs active_state->nsd_moments.vphiNDs
+#define logsigvNDs active_state->nsd_moments.logsigvNDs
+#define corRzNDs active_state->nsd_moments.corRzNDs
+#define zstND active_state->nsd_moments.zstND
+#define zenND active_state->nsd_moments.zenND
+#define dzND active_state->nsd_moments.dzND
+#define RstND active_state->nsd_moments.RstND
+#define RenND active_state->nsd_moments.RenND
+#define dRND active_state->nsd_moments.dRND
+#define nzND active_state->nsd_moments.nzND
+#define nRND active_state->nsd_moments.nRND
 
 // Declare functions
 double getx2y_khi(int n, double *x, double *y, double xin, int *khi);
@@ -186,19 +256,19 @@ double interp_xy(int nx, int ny, double **F, double xst, double yst, double dx, 
 void   interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double dx, double dy, double xreq, double yreq);
 void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
 
-int genulens_scientific_main(int argc,char **argv)
+int ScientificEngine::run(int argc,char **argv)
 {
+  active_state = &state_;
   //--- Get input directory ---
   char curdir[200];
   getcwd(curdir, 200);
 
   //--- read parameters ---
   int CheckD   = getOptiond(argc,argv,"CheckD", 1, 0);
-  long seed    = getOptioni(argc,argv,"seed", 1, 12304357); // seed of random number
-  genulens::RandomEngine rng(static_cast<unsigned long>(seed));
-  active_rng = std::make_unique<genulens::RandomEngine>(std::move(rng));
+  seed    = getOptioni(argc,argv,"seed", 1, 12304357); // seed of random number
+  active_state->runtime.rng = std::make_unique<genulens::RandomEngine>(static_cast<unsigned long>(seed));
   //--- Set params for Galactic model (default: E+E_X model in Koshimoto+2021) ---
-  const auto &default_imf = genulens::model::default_model_parameters().imf;
+  const auto &default_imf = gmodel::default_model_parameters().imf;
   double M0_B      = getOptiond(argc,argv,"M0", 1, default_imf.m0);
   double M1_B      = getOptiond(argc,argv,"M1", 1, default_imf.m1);
   double M2_B      = getOptiond(argc,argv,"M2", 1, default_imf.m2);
@@ -424,7 +494,7 @@ int genulens_scientific_main(int argc,char **argv)
   }
   // When only Isrange is given
   int narry = 960;
-  int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum_norm);
+  int make_LFs(double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *PlogM_cum_norm);
   if (Isen - Isst > 0 && VIsen - VIsst == 0 && AIrc > 0){
     CumuN_MIs = (double**)malloc(sizeof(double *) * ncomp);
     for (int i=0; i<ncomp; i++){
@@ -436,7 +506,7 @@ int genulens_scientific_main(int argc,char **argv)
   }
 
   // When VIsrange is also given
-  void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs, double *VIs, double ***f_VI_Is, double *logMass, double *PlogM_cum_norm);
+  void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm);
   if (Isen - Isst > 0 && VIsen - VIsst > 0 && AIrc > 0 && EVIrc > 0){
     double MIst = -5, MIen = 10, VIst = 0.0, VIen = 3.0;
     nMIs = 150, nVIs = 30; // dI = 0.1, dVI = 0.1
@@ -2148,7 +2218,7 @@ double like_obs(double mod, double obs, double err, double fe, int det, int UNIF
   constraint.error_inflation = fe;
   constraint.detection_mode = static_cast<genulens::DetectionMode>(det);
   constraint.uniform = (UNIFORM == 1);
-  return genulens::ObservationLikelihood(constraint).accept_weight(mod, *active_rng);
+  return genulens::ObservationLikelihood(constraint).accept_weight(mod, *active_state->runtime.rng);
 }
 
 //----------------
@@ -3011,7 +3081,7 @@ int read_MLemp(char *infile, double *M_emps, double **Mag_emps)
    return i;
 }
 //---------------
-int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum_norm) 
+int make_LFs(double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *PlogM_cum_norm)
 {
    char *infile;
    FILE *fp;
@@ -3171,7 +3241,7 @@ int make_LFs(double *MIs, double **CumuN_MIs, double *logMass, double *PlogM_cum
    return i;
 }
 //---------------
-void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs, double *VIs, double ***f_VI_Is, double *logMass, double *PlogM_cum_norm){
+void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm){
   const char *file1;
   char line[1000];
   char *words[100];
@@ -3912,3 +3982,5 @@ void interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double 
     as[3] =      xres  *      yres ;
   }
 }
+
+} // namespace genulens

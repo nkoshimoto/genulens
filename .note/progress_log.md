@@ -111,4 +111,18 @@
   - added `ObservationLikelihood` and `ObservationConstraint`;
   - routed the scientific engine's `like_obs()` through the likelihood object.
 - This is the first incremental cut; remaining global model, density, luminosity-function, and kinematic state still need to be moved into owned objects.
+
+## 2026-05-03 10:35 JST - Scientific State Ownership
+
+- Added `ScientificState` with explicit grouped state objects:
+  - runtime/RNG,
+  - stellar population and IMF tables,
+  - density and structural parameters,
+  - luminosity-function tables,
+  - kinematics tables,
+  - NSD moments.
+- Added `ScientificEngine` as the object that owns `ScientificState`.
+- Converted the scientific CLI to instantiate `ScientificEngine` and call `ScientificEngine::run()`.
+- Removed the large file-scope global variable definitions from `scientific_engine.cpp`; the remaining C-style subroutines now access state through a transitional active-state bridge.
+- This is not the final decomposition, but ownership has moved from process-global variables into an engine object, enabling the next cuts into `DensityModel`, `KinematicsModel`, and `StellarPopulationModel`.
 - Added unit/smoke coverage for resolving files from a different current working directory.

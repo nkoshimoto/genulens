@@ -1,12 +1,13 @@
 #include "genulens/simulation/scientific_cli.hpp"
 
-int genulens_scientific_main(int argc, char **argv);
+#include "genulens/simulation/scientific_engine.hpp"
 
 namespace genulens {
 
 int run_scientific_cli(int argc, char **argv)
 {
-    return genulens_scientific_main(argc, argv);
+    ScientificEngine engine;
+    return engine.run(argc, argv);
 }
 
 } // namespace genulens
