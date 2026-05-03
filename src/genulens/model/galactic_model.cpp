@@ -19,8 +19,7 @@ Vec3 GalacticModel::cartesian_at(double distance_pc) const
 
 double GalacticModel::imf(double mass_msun) const
 {
-    return model::broken_power_law_imf(mass_msun);
+    return model::broken_power_law_imf(mass_msun, config_.model.imf);
 }
 
 } // namespace genulens
-

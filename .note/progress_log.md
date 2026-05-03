@@ -76,10 +76,10 @@
 ## 2026-05-03 09:35 JST - Genulens-first Refactor Direction
 
 - User clarified that the priority is not pre-gapmoe compatibility first; the priority is proper `genulens` modularization and pybind exposure of the real simulation logic.
-- Moved the legacy scientific `genulens.cpp` implementation into `src/genulens/simulation/legacy_genulens.cpp`.
-- Added thin root `genulens.cpp` wrapper that calls `genulens::run_legacy_cli()`.
-- Added `LegacySimulationBackend`, which invokes the legacy scientific simulation with `VERBOSITY=3`, captures output, parses real event rows into `SimulationResult`, and applies C++/Python likelihood callables to event weights.
-- Updated CMake so `genulens_core` owns the legacy scientific backend and Python calls the same backend path.
+- Moved the scientific `genulens.cpp` implementation into `src/genulens/simulation/scientific_engine.cpp`.
+- Added thin root `genulens.cpp` wrapper that calls `genulens::run_scientific_cli()`.
+- Added `ScientificSimulationBackend`, which invokes the scientific simulation with `VERBOSITY=3`, captures output, parses real event rows into `SimulationResult`, and applies C++/Python likelihood callables to event weights.
+- Updated CMake so `genulens_core` owns the scientific backend and Python calls the same backend path.
 - Moved pre-gapmoe implementation sources under `src/genulens/tools/pre_gapmoe/`; this is a mechanical relocation, not yet a semantic rewrite.
 - `make test`: passed after the genulens-first backend change.
 - Manual check passed: `./genulens l 0.5 b 0.2 Nsimu 10 seed 1234`.
@@ -94,5 +94,12 @@
   - `GENULENS_INPUT_DIR`,
   - build/source-tree `input_files/`,
   - installed shared data locations.
-- Wired the legacy genulens backend and moved pre-gapmoe sources through `genulens::open_input_file()`.
+- Wired the scientific genulens backend and moved pre-gapmoe sources through `genulens::open_input_file()`.
+
+## 2026-05-03 10:05 JST - Naming and Parameter Cleanup
+
+- Removed `legacy` naming from the active genulens source layout.
+- Renamed the core simulation entry points to `scientific_engine`, `scientific_cli`, and `ScientificSimulationBackend`.
+- Added `model::IMFParameters` and `model::ModelParameters` so IMF break masses and slopes are centralized.
+- Exposed model/IMF parameters through `GenulensConfig` and pybind.
 - Added unit/smoke coverage for resolving files from a different current working directory.

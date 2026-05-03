@@ -29,8 +29,18 @@ GenulensConfig config_from_cli(int argc, char **argv)
     if (const char *value = get_option(argc, argv, "Nsimu", 1)) cfg.n_simu = std::atol(value);
     if (const char *value = get_option(argc, argv, "tE", 1)) cfg.observed_tE = std::atof(value);
     if (const char *value = get_option(argc, argv, "tE", 2)) cfg.observed_tE_error = std::atof(value);
+    if (const char *value = get_option(argc, argv, "M0", 1)) cfg.model.imf.m0 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "M1", 1)) cfg.model.imf.m1 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "M2", 1)) cfg.model.imf.m2 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "M3", 1)) cfg.model.imf.m3 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "Ml", 1)) cfg.model.imf.ml = std::atof(value);
+    if (const char *value = get_option(argc, argv, "Mu", 1)) cfg.model.imf.mu = std::atof(value);
+    if (const char *value = get_option(argc, argv, "alpha0", 1)) cfg.model.imf.alpha0 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "alpha1", 1)) cfg.model.imf.alpha1 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "alpha2", 1)) cfg.model.imf.alpha2 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "alpha3", 1)) cfg.model.imf.alpha3 = std::atof(value);
+    if (const char *value = get_option(argc, argv, "alpha4", 1)) cfg.model.imf.alpha4 = std::atof(value);
     return cfg;
 }
 
 } // namespace genulens
-

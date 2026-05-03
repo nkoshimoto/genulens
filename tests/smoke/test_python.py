@@ -5,6 +5,7 @@ import genulens
 
 def test_python_binding():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10, seed=1234)
+    cfg.model.imf.alpha2 = -1.13449983242887
     result = genulens.simulate(cfg)
     arr = result.to_numpy()
     assert isinstance(arr, np.ndarray)
@@ -20,4 +21,3 @@ def test_python_callable_likelihood():
 
     result = genulens.simulate(cfg, likelihood=my_like)
     assert result.to_numpy().shape[0] == 10
-

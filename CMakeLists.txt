@@ -49,15 +49,16 @@ add_library(genulens_core
     src/genulens/types.cpp
     src/genulens/rng.cpp
     src/genulens/options.cpp
-    src/genulens/legacy/option.cpp
+    src/genulens/cli/option.cpp
+    src/genulens/model/parameters.cpp
     src/genulens/model/galactic_model.cpp
     src/genulens/model/density.cpp
     src/genulens/model/kinematics.cpp
     src/genulens/model/mass_function.cpp
     src/genulens/model/extinction.cpp
-    src/genulens/simulation/legacy_genulens.cpp
-    src/genulens/simulation/legacy_cli.cpp
-    src/genulens/simulation/legacy_backend.cpp
+    src/genulens/simulation/scientific_engine.cpp
+    src/genulens/simulation/scientific_cli.cpp
+    src/genulens/simulation/scientific_backend.cpp
     src/genulens/simulation/simulator.cpp
     src/genulens/simulation/likelihood.cpp
     src/genulens/io/input_data.cpp

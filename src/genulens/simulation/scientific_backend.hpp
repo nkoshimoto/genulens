@@ -9,7 +9,7 @@
 
 namespace genulens {
 
-class LegacySimulationBackend {
+class ScientificSimulationBackend {
 public:
     SimulationResult simulate(const GenulensConfig &config, LikelihoodFunction likelihood = {}) const;
     std::string run_cli_capture(const std::vector<std::string> &args) const;
@@ -20,4 +20,3 @@ private:
 };
 
 } // namespace genulens
-

@@ -1,4 +1,5 @@
 #include "genulens/options.hpp"
+#include "genulens/model/parameters.hpp"
 #include "genulens/simulation/simulator.hpp"
 
 #include <pybind11/functional.h>
@@ -30,7 +31,26 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("n_simu", &genulens::GenulensConfig::n_simu)
         .def_readwrite("observed_tE", &genulens::GenulensConfig::observed_tE)
         .def_readwrite("observed_tE_error", &genulens::GenulensConfig::observed_tE_error)
+        .def_readwrite("model", &genulens::GenulensConfig::model)
         .def_readwrite("input_dir", &genulens::GenulensConfig::input_dir);
+
+    py::class_<genulens::model::IMFParameters>(m, "IMFParameters")
+        .def(py::init<>())
+        .def_readwrite("m0", &genulens::model::IMFParameters::m0)
+        .def_readwrite("m1", &genulens::model::IMFParameters::m1)
+        .def_readwrite("m2", &genulens::model::IMFParameters::m2)
+        .def_readwrite("m3", &genulens::model::IMFParameters::m3)
+        .def_readwrite("ml", &genulens::model::IMFParameters::ml)
+        .def_readwrite("mu", &genulens::model::IMFParameters::mu)
+        .def_readwrite("alpha0", &genulens::model::IMFParameters::alpha0)
+        .def_readwrite("alpha1", &genulens::model::IMFParameters::alpha1)
+        .def_readwrite("alpha2", &genulens::model::IMFParameters::alpha2)
+        .def_readwrite("alpha3", &genulens::model::IMFParameters::alpha3)
+        .def_readwrite("alpha4", &genulens::model::IMFParameters::alpha4);
+
+    py::class_<genulens::model::ModelParameters>(m, "ModelParameters")
+        .def(py::init<>())
+        .def_readwrite("imf", &genulens::model::ModelParameters::imf);
 
     py::class_<genulens::Event>(m, "Event")
         .def_readonly("weight", &genulens::Event::weight)
@@ -70,4 +90,3 @@ PYBIND11_MODULE(genulens, m)
         return genulens::simulate(cfg, fn);
     }, py::arg("cfg"), py::arg("likelihood") = py::none());
 }
-

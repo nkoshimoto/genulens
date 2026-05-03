@@ -1,5 +1,7 @@
 #pragma once
 
+#include "genulens/model/parameters.hpp"
+
 #include <string>
 #include <vector>
 
@@ -13,6 +15,7 @@ struct GenulensConfig {
     double observed_tE = 54.5;
     double observed_tE_error = 99999999999.0;
     bool use_gaussian_likelihood = true;
+    model::ModelParameters model;
     std::string input_dir;
     std::vector<std::string> raw_cli_args;
 };
@@ -20,4 +23,3 @@ struct GenulensConfig {
 GenulensConfig config_from_cli(int argc, char **argv);
 
 } // namespace genulens
-

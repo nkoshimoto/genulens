@@ -30,11 +30,12 @@
 #include <string.h> 
 #include <stdarg.h>
 #include <random>
-#include "genulens/legacy/option.h"
+#include "genulens/cli/option.h"
 #include <stdlib.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include "genulens/io/input_data.hpp"
+#include "genulens/model/parameters.hpp"
 
 #define fopen(path, mode) genulens::open_input_file((path), (mode))
 
@@ -189,7 +190,7 @@ double interp_xy(int nx, int ny, double **F, double xst, double yst, double dx, 
 void   interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double dx, double dy, double xreq, double yreq);
 void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
 
-int genulens_legacy_main(int argc,char **argv)
+int genulens_scientific_main(int argc,char **argv)
 {
   //--- Get input directory ---
   char curdir[200];
@@ -203,17 +204,18 @@ int genulens_legacy_main(int argc,char **argv)
   r = gsl_rng_alloc (T);
   gsl_rng_set(r, seed); 
   //--- Set params for Galactic model (default: E+E_X model in Koshimoto+2021) ---
-  double M0_B      = getOptiond(argc,argv,"M0", 1, 1.0);
-  double M1_B      = getOptiond(argc,argv,"M1", 1, 0.859770466578045);
-  double M2_B      = getOptiond(argc,argv,"M2", 1, 0.08);
-  double M3_B      = getOptiond(argc,argv,"M3", 1, 0.01);
-  double Ml        = getOptiond(argc,argv,"Ml", 1, 0.001); // default : w/o planetary mass
-  double Mu        = getOptiond(argc,argv,"Mu", 1, 120); // need to be fixed!!!. Affect normalizing bulge coeffs 
-  double alpha1_B  = getOptiond(argc,argv,"alpha1", 1, -2.32279457078378);
-  double alpha2_B  = getOptiond(argc,argv,"alpha2", 1, -1.13449983242887);
-  double alpha3_B  = getOptiond(argc,argv,"alpha3", 1, -0.175862190587576);
-  double alpha0_B  = getOptiond(argc,argv,"alpha0", 1,  alpha1_B);
-  double alpha4_B  = getOptiond(argc,argv,"alpha4", 1,  alpha3_B);
+  const auto &default_imf = genulens::model::default_model_parameters().imf;
+  double M0_B      = getOptiond(argc,argv,"M0", 1, default_imf.m0);
+  double M1_B      = getOptiond(argc,argv,"M1", 1, default_imf.m1);
+  double M2_B      = getOptiond(argc,argv,"M2", 1, default_imf.m2);
+  double M3_B      = getOptiond(argc,argv,"M3", 1, default_imf.m3);
+  double Ml        = getOptiond(argc,argv,"Ml", 1, default_imf.ml); // default : w/o planetary mass
+  double Mu        = getOptiond(argc,argv,"Mu", 1, default_imf.mu); // need to be fixed!!!. Affect normalizing bulge coeffs
+  double alpha1_B  = getOptiond(argc,argv,"alpha1", 1, default_imf.alpha1);
+  double alpha2_B  = getOptiond(argc,argv,"alpha2", 1, default_imf.alpha2);
+  double alpha3_B  = getOptiond(argc,argv,"alpha3", 1, default_imf.alpha3);
+  double alpha0_B  = getOptiond(argc,argv,"alpha0", 1, default_imf.alpha0);
+  double alpha4_B  = getOptiond(argc,argv,"alpha4", 1, default_imf.alpha4);
   DISK     = getOptiond(argc,argv,"DISK",   1,    2); // 0: wo disk, 1: w/ disk+hole, 2: w/ disk like P17
   rhot0    = getOptiond(argc,argv,"rhot0",   1,   0.042); // local thin disk density, Msun/pc^3 (Bovy17: 0.042 +- 0.002 incl.BD)
   hDISK     = getOptiond(argc,argv,"hDISK",  1,    0); // 0: const scale height, 1: linear scale height

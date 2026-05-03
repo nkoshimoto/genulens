@@ -1,6 +1,6 @@
-#include "genulens/simulation/legacy_backend.hpp"
+#include "genulens/simulation/scientific_backend.hpp"
 
-#include "genulens/simulation/legacy_cli.hpp"
+#include "genulens/simulation/scientific_cli.hpp"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -96,8 +96,9 @@ private:
 
 } // namespace
 
-std::vector<std::string> LegacySimulationBackend::build_event_args(const GenulensConfig &config) const
+std::vector<std::string> ScientificSimulationBackend::build_event_args(const GenulensConfig &config) const
 {
+    const auto &imf = config.model.imf;
     std::vector<std::string> args = {
         "genulens",
         "l", std::to_string(config.l),
@@ -105,12 +106,26 @@ std::vector<std::string> LegacySimulationBackend::build_event_args(const Genulen
         "Nsimu", std::to_string(config.n_simu),
         "seed", std::to_string(config.seed),
         "tE", std::to_string(config.observed_tE), std::to_string(config.observed_tE_error),
+        "M0", std::to_string(imf.m0),
+        "M1", std::to_string(imf.m1),
+        "M2", std::to_string(imf.m2),
+        "M3", std::to_string(imf.m3),
+        "Ml", std::to_string(imf.ml),
+        "Mu", std::to_string(imf.mu),
+        "alpha0", std::to_string(imf.alpha0),
+        "alpha1", std::to_string(imf.alpha1),
+        "alpha2", std::to_string(imf.alpha2),
+        "alpha3", std::to_string(imf.alpha3),
+        "alpha4", std::to_string(imf.alpha4),
         "VERBOSITY", "3",
     };
 
     for (std::size_t i = 1; i < config.raw_cli_args.size(); ++i) {
         const auto &arg = config.raw_cli_args[i];
-        if (arg == "VERBOSITY" || arg == "l" || arg == "b" || arg == "Nsimu" || arg == "seed" || arg == "tE") {
+        if (arg == "VERBOSITY" || arg == "l" || arg == "b" || arg == "Nsimu" || arg == "seed" ||
+            arg == "tE" || arg == "M0" || arg == "M1" || arg == "M2" || arg == "M3" ||
+            arg == "Ml" || arg == "Mu" || arg == "alpha0" || arg == "alpha1" ||
+            arg == "alpha2" || arg == "alpha3" || arg == "alpha4") {
             ++i;
             if (arg == "tE") ++i;
             continue;
@@ -120,7 +135,7 @@ std::vector<std::string> LegacySimulationBackend::build_event_args(const Genulen
     return args;
 }
 
-std::string LegacySimulationBackend::run_cli_capture(const std::vector<std::string> &args) const
+std::string ScientificSimulationBackend::run_cli_capture(const std::vector<std::string> &args) const
 {
     std::vector<char *> argv;
     argv.reserve(args.size());
@@ -129,15 +144,15 @@ std::string LegacySimulationBackend::run_cli_capture(const std::vector<std::stri
     }
 
     StdoutCapture capture;
-    const int code = run_legacy_cli(static_cast<int>(argv.size()), argv.data());
+    const int code = run_scientific_cli(static_cast<int>(argv.size()), argv.data());
     const auto output = capture.finish();
     if (code != 0) {
-        throw std::runtime_error("legacy genulens backend returned non-zero status");
+        throw std::runtime_error("genulens scientific backend returned non-zero status");
     }
     return output;
 }
 
-SimulationResult LegacySimulationBackend::parse_verbosity3_events(const std::string &output, LikelihoodFunction likelihood) const
+SimulationResult ScientificSimulationBackend::parse_verbosity3_events(const std::string &output, LikelihoodFunction likelihood) const
 {
     SimulationResult result;
     std::istringstream lines(output);
@@ -182,10 +197,9 @@ SimulationResult LegacySimulationBackend::parse_verbosity3_events(const std::str
     return result;
 }
 
-SimulationResult LegacySimulationBackend::simulate(const GenulensConfig &config, LikelihoodFunction likelihood) const
+SimulationResult ScientificSimulationBackend::simulate(const GenulensConfig &config, LikelihoodFunction likelihood) const
 {
     return parse_verbosity3_events(run_cli_capture(build_event_args(config)), std::move(likelihood));
 }
 
 } // namespace genulens
-

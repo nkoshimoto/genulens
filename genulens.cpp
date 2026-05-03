@@ -1,7 +1,6 @@
-#include "genulens/simulation/legacy_cli.hpp"
+#include "genulens/simulation/scientific_cli.hpp"
 
 int main(int argc, char **argv)
 {
-    return genulens::run_legacy_cli(argc, argv);
+    return genulens::run_scientific_cli(argc, argv);
 }
-

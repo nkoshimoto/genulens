@@ -24,15 +24,15 @@
 ## Current Architecture
 
 - `./genulens` is now a thin wrapper.
-- The production scientific `genulens` implementation lives under `src/genulens/simulation/legacy_genulens.cpp` and is invoked through `genulens::run_legacy_cli()`.
-- `EventSimulator` uses `LegacySimulationBackend`, which runs the scientific backend with event-level verbosity, parses the generated physical events into `SimulationResult`, and applies C++/Python likelihood callables.
+- The production scientific `genulens` implementation lives under `src/genulens/simulation/scientific_engine.cpp` and is invoked through `genulens::run_scientific_cli()`.
+- `EventSimulator` uses `ScientificSimulationBackend`, which runs the scientific backend with event-level verbosity, parses the generated physical events into `SimulationResult`, and applies C++/Python likelihood callables.
 - The Python binding calls the same `EventSimulator` path as C++.
 - The pre-gapmoe implementation sources have been moved under `src/genulens/tools/pre_gapmoe/` and are built from there.
 
 ## Known Limitations
 
-- The scientific engine is now callable from the shared core and Python, but some of its internal state is still retained in the migrated legacy implementation file. Further cleanup can split that file into the existing `model/`, `io/`, and `simulation/` modules without changing the public CLI/Python surface.
-- Python custom likelihood is applied to parsed generated events as an additional weight. It does not yet alter the legacy importance-sampling proposal distribution before event generation.
+- The scientific engine is now callable from the shared core and Python, but some internal state still remains in the migrated scientific engine file. Further cleanup can split that file into the existing `model/`, `io/`, and `simulation/` modules without changing the public CLI/Python surface.
+- Python custom likelihood is applied to parsed generated events as an additional weight. It does not yet alter the scientific backend importance-sampling proposal distribution before event generation.
 
 ## Python Example
 
