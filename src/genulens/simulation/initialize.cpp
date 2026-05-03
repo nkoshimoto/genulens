@@ -1,12 +1,21 @@
 #include "genulens/simulation/initialize.hpp"
 
 #include "genulens/cli/option.h"
+#include "genulens/rng.hpp"
+
+#include <memory>
 
 namespace genulens {
 
 RunContext Initializer::create_context() const
 {
     return {};
+}
+
+void Initializer::initialize_rng(RunContext &context, int argc, char **argv) const
+{
+    context.seed = getOptioni(argc, argv, "seed", 1, 12304357);
+    context.runtime.rng = std::make_unique<RandomEngine>(static_cast<unsigned long>(context.seed));
 }
 
 void Initializer::read_sampling_options(RunContext &context, int argc, char **argv,

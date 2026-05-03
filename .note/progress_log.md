@@ -229,4 +229,11 @@
 - Renamed the CLI entry function to `run_cli()`.
 - Confirmed no active references remain to the removed `genulens_*` simulation filenames or `Genulens*` internal simulation class names.
 - `make test`: passed.
+
+## 2026-05-03 13:40 JST - RNG Initialization Responsibility
+
+- Moved seed parsing and `RandomEngine` construction out of `Sampler::run_cli()`.
+- Added `Initializer::initialize_rng()`.
+- `Sampler` now consumes an initialized RNG from `RunContext`.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

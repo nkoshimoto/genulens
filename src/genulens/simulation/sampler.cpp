@@ -303,8 +303,7 @@ int Sampler::run_cli(RunContext &context, int argc,char **argv)
 
   //--- read parameters ---
   int CheckD   = getOptiond(argc,argv,"CheckD", 1, 0);
-  seed    = getOptioni(argc,argv,"seed", 1, 12304357); // seed of random number
-  active_state->runtime.rng = std::make_unique<genulens::RandomEngine>(static_cast<unsigned long>(seed));
+  Initializer().initialize_rng(context, argc, argv);
   //--- Set params for Galactic model (default: E+E_X model in Koshimoto+2021) ---
   const auto &default_imf = gmodel::default_model_parameters().imf;
   double M0_B      = getOptiond(argc,argv,"M0", 1, default_imf.m0);
