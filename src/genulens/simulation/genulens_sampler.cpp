@@ -48,6 +48,37 @@
 
 namespace gmodel = genulens::model;
 
+namespace {
+
+struct MonteCarloStats {
+  double ncntall = 0;
+  double ncnts = 0;
+  double ncntbWD = 0;
+  double ncntbCD = 0;
+  double nBD = 0;
+  double nMS = 0;
+  double nWD = 0;
+  double nNS = 0;
+  double nBH = 0;
+  int Nlike = 0;
+  long NrejIS = 0;
+  long Ngen = 0;
+  double wtlike = 0;
+  double wtlike_tE = 0;
+  double wtlike_except_piE = 0;
+  double wtlike_w_piEe = 0;
+  double wtlike_except_thE = 0;
+  double wtlike_w_thEe = 0;
+  double SumGamma = 0;
+  double SumtE = 0;
+  double logtEmin = -1;
+  double logtEmax = 2;
+  int NbintE = 300;
+  double NlogtEs[500] = {};
+};
+
+} // namespace
+
 #define EPS 1.2e-7
 #define RNMX (1.0 - EPS)
 #define       PI 3.1415926535897932385
@@ -1200,13 +1231,31 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
   // Monte Carlo simulation
   printf ("#----- Output of Monte Carlo simulation w/ VERBOSITY= %d and seed= %ld -------- \n",VERBOSITY,seed);
   double getcumu2xist (int n, double *x, double *F, double *f, double Freq, int ist, int inv);
-  double ncntall = 0, ncnts = 0, ncntbWD = 0, ncntbCD = 0; 
-  double nBD = 0, nMS = 0, nWD = 0, nNS= 0, nBH =  0;
-  int Nlike = 0;
-  long NrejIS = 0, Ngen = 0;
-  double wtlike = 0, wtlike_tE =0, wtlike_except_piE = 0, wtlike_w_piEe = 0, wtlike_except_thE = 0, wtlike_w_thEe = 0;
-  double SumGamma = 0, SumtE = 0; // for mean tE
-  double logtEmin = -1, logtEmax = 2, NbintE = 300, NlogtEs[500] = {}; // for median tE
+  MonteCarloStats stats;
+#define ncntall stats.ncntall
+#define ncnts stats.ncnts
+#define ncntbWD stats.ncntbWD
+#define ncntbCD stats.ncntbCD
+#define nBD stats.nBD
+#define nMS stats.nMS
+#define nWD stats.nWD
+#define nNS stats.nNS
+#define nBH stats.nBH
+#define Nlike stats.Nlike
+#define NrejIS stats.NrejIS
+#define Ngen stats.Ngen
+#define wtlike stats.wtlike
+#define wtlike_tE stats.wtlike_tE
+#define wtlike_except_piE stats.wtlike_except_piE
+#define wtlike_w_piEe stats.wtlike_w_piEe
+#define wtlike_except_thE stats.wtlike_except_thE
+#define wtlike_w_thEe stats.wtlike_w_thEe
+#define SumGamma stats.SumGamma
+#define SumtE stats.SumtE
+#define logtEmin stats.logtEmin
+#define logtEmax stats.logtEmax
+#define NbintE stats.NbintE
+#define NlogtEs stats.NlogtEs
   if (VERBOSITY == 2) printf ("#        wtj           tE       thetaE          piEN          piEE   D_S         muSl         muSb iS iL fREM");
   if (VERBOSITY == 3) printf ("#        wtj          M_L   D_L   D_S          t_E      theta_E         pi_E         pi_EN         pi_EE       mu_rel        mu_Sl        mu_Sb     I_L     K_L iS iL fREM");
   if (VERBOSITY == 4) printf ("#        wtj          M_L   D_L   D_S          t_E      theta_E         pi_E         pi_EN         pi_EE       mu_rel        mu_Sl        mu_Sb     I_L     K_L iS iL fREM   muhel_N      muhel_E        muhel");
@@ -1945,6 +1994,30 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
   free(cumu_PRRgs);
   free(kptiles);
   free(n_fgsShu);
+#undef ncntall
+#undef ncnts
+#undef ncntbWD
+#undef ncntbCD
+#undef nBD
+#undef nMS
+#undef nWD
+#undef nNS
+#undef nBH
+#undef Nlike
+#undef NrejIS
+#undef Ngen
+#undef wtlike
+#undef wtlike_tE
+#undef wtlike_except_piE
+#undef wtlike_w_piEe
+#undef wtlike_except_thE
+#undef wtlike_w_thEe
+#undef SumGamma
+#undef SumtE
+#undef logtEmin
+#undef logtEmax
+#undef NbintE
+#undef NlogtEs
   return 0;
 } // end main
 

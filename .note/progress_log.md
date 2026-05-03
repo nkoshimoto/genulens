@@ -191,4 +191,11 @@
 - Replaced `getaproj()` with a thin delegate to `BinaryLensSampler`.
 - Added unit coverage for deterministic WD remnant mass and binary separation sanity.
 - `make test`: passed.
+
+## 2026-05-03 12:40 JST - Monte Carlo Statistics State
+
+- Added `MonteCarloStats` inside the sampler translation unit.
+- Moved event-loop counters, likelihood-weight totals, remnant/binary counts, and tE histogram storage into that state object.
+- Kept temporary macro aliases so the numerical loop can be split further without changing expressions in the same patch.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.
