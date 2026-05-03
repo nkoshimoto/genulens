@@ -11,6 +11,25 @@ struct ScientificRuntimeState {
     std::unique_ptr<RandomEngine> rng;
 };
 
+struct SamplingOptions {
+    long n_simu = 100000;
+    long n_like_min = 0;
+    double v_earth_l = 11.9392;
+    double v_earth_b = -17.9020;
+    double gamma_ds = 0.5;
+    double weight_lens_distance = 0.0;
+    double weight_lens_mass = 0.0;
+    int no_gamma_importance_sampling = 0;
+    int small_gamma = 0;
+    int verbosity = 0;
+    int uniform_likelihood = 0;
+    int binary = 0;
+    int remnant = 0;
+    int only_white_dwarf = 0;
+    int calc_prior_piE = 0;
+    int calc_prior_thetaE = 0;
+};
+
 struct StellarPopulationState {
     double tSFR = 7.0;
     double MiniWDmax = 9.0;
@@ -219,6 +238,7 @@ struct GenulensRunContext {
     int B14disk = 0;
     int B14vbar = 0;
     std::array<double, 3> xyzSgrA{};
+    SamplingOptions sampling;
 };
 
 } // namespace genulens

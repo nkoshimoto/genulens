@@ -198,4 +198,11 @@
 - Moved event-loop counters, likelihood-weight totals, remnant/binary counts, and tE histogram storage into that state object.
 - Kept temporary macro aliases so the numerical loop can be split further without changing expressions in the same patch.
 - `make test`: passed.
+
+## 2026-05-03 12:55 JST - Sampling Option Initialization
+
+- Added `SamplingOptions` to `GenulensRunContext`.
+- Moved parsing of simulation controls (`Nsimu`, `NlikeMIN`, Earth velocity, importance-sampling weights, verbosity, binary/remnant flags, and prior flags) into `GenulensInitializer::read_sampling_options()`.
+- `GenulensSampler` now consumes those prepared options from context.
+- `make test`: passed.
 - Added unit/smoke coverage for resolving files from a different current working directory.

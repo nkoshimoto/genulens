@@ -41,6 +41,7 @@
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
+#include "genulens/simulation/genulens_initializer.hpp"
 #include "genulens/simulation/genulens_sampler.hpp"
 #include "genulens/simulation/observation_likelihood.hpp"
 
@@ -777,32 +778,27 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
   calc_PA(lSIMU, bSIMU, &PA, &cosPA, &sinPA);
   
   // Read Input parameters for simulation
-  long   NSIMU     = getOptiond(argc,argv,"Nsimu",  1, 100000);
-  long   NlikeMIN  = getOptiond(argc,argv,"NlikeMIN",  1, 0);
+  auto &sampling_options = active_state->sampling;
+  GenulensInitializer().read_sampling_options(context, argc, argv, cosPA, sinPA);
+#define NSIMU sampling_options.n_simu
+#define NlikeMIN sampling_options.n_like_min
   // double PA         = getOptiond(argc,argv,"PA", 1, 59.56); // postition angle l to E value. 59.56 is for (l,b) = (0.94, -1.48), needed to calculate piEn and piEe
   // double cosPA    = cos(PA/180.0*PI), sinPA = sin(PA/180.0*PI);
   // printf("PA= %f, cosPA= %f, sinPA= %f\n",PA,cosPA,sinPA);
-  double vEarthl  = getOptiond(argc,argv,"vEarthlb", 1, 11.9392); // in km/s, default for MB16227 occured on May
-  double vEarthb  = getOptiond(argc,argv,"vEarthlb", 2,-17.9020); // in km/s, default for MB16227 occured on May
-  double vEarthE  = getOptiond(argc,argv,"vEarthEN", 1, 0); // in km/s
-  double vEarthN  = getOptiond(argc,argv,"vEarthEN", 2, 0); // in km/s
-  if (vEarthl == 11.9392 && vEarthb == -17.9020 && vEarthN != 0 && vEarthE != 0){
-    vEarthb =  cosPA*vEarthN - sinPA*vEarthE;
-    vEarthl =  sinPA*vEarthN + cosPA*vEarthE;
-  }
-  double gammaDs  = getOptiond(argc,argv,"gammaDs",  1, 0.5);
-  double wtD_L    = getOptiond(argc,argv,"wtD_L",    1, 0);  // parameter for importance sampling 
-  double wtM_L    = getOptiond(argc,argv,"wtM_L",    1, 0);  // parameter for importance sampling
-  int NoGAMMAIS   = getOptiond(argc,argv,"NoGAMMAIS",     1,  0);
-  int SMALLGAMMA  = getOptiond(argc,argv,"SMALLGAMMA",   1,  0);
-  int VERBOSITY   = getOptiond(argc,argv,"VERBOSITY",  1, 0);
-  int UNIFORM     = getOptiond(argc,argv,"UNIFORM",   1,  0);
-  int BINARY      = getOptiond(argc,argv,"BINARY",   1,  0);
-  int REMNANT     = getOptiond(argc,argv,"REMNANT",  1,  0);
-  int onlyWD      = getOptiond(argc,argv,"onlyWD",  1,  0);
-  if (onlyWD == 1) REMNANT = 0;
-  int CALCPRIORpiE   = getOptiond(argc,argv,"CALCPRIORpiE",   1,  0);
-  int CALCPRIORthE   = getOptiond(argc,argv,"CALCPRIORthE",   1,  0); // thetaE prior given tE or murel prior given tE
+#define vEarthl sampling_options.v_earth_l
+#define vEarthb sampling_options.v_earth_b
+#define gammaDs sampling_options.gamma_ds
+#define wtD_L sampling_options.weight_lens_distance
+#define wtM_L sampling_options.weight_lens_mass
+#define NoGAMMAIS sampling_options.no_gamma_importance_sampling
+#define SMALLGAMMA sampling_options.small_gamma
+#define VERBOSITY sampling_options.verbosity
+#define UNIFORM sampling_options.uniform_likelihood
+#define BINARY sampling_options.binary
+#define REMNANT sampling_options.remnant
+#define onlyWD sampling_options.only_white_dwarf
+#define CALCPRIORpiE sampling_options.calc_prior_piE
+#define CALCPRIORthE sampling_options.calc_prior_thetaE
   double tEobs     = getOptiond(argc,argv,"tE", 1, 54.5); // in day
   double tEe       = getOptiond(argc,argv,"tE", 2, 99999999999.0); // in day
   double fetE = 0;
@@ -1722,7 +1718,7 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
      }
      // if (i_l == 10)
      //   printf("2 j= %ld i_l: %d D_l= %f thetaE= %f murel= %f Gamma= %12.6e\n",j,i_l,D_l, thetaE, murel, Gamma);
-     double like_obs(double mod, double obs, double err, double fe, int det, int UNIFORM);
+     double like_obs(double mod, double obs, double err, double fe, int det, int uniform_mode);
      double addGamma = 1;
      double wtj = (Gamma > 1 || SMALLGAMMA == 1) ? Gamma : 1;
 
@@ -2018,6 +2014,22 @@ int GenulensSampler::run_cli(GenulensRunContext &context, int argc,char **argv)
 #undef logtEmax
 #undef NbintE
 #undef NlogtEs
+#undef NSIMU
+#undef NlikeMIN
+#undef vEarthl
+#undef vEarthb
+#undef gammaDs
+#undef wtD_L
+#undef wtM_L
+#undef NoGAMMAIS
+#undef SMALLGAMMA
+#undef VERBOSITY
+#undef UNIFORM
+#undef BINARY
+#undef REMNANT
+#undef onlyWD
+#undef CALCPRIORpiE
+#undef CALCPRIORthE
   return 0;
 } // end main
 
