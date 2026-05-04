@@ -14,9 +14,10 @@ void calc_PA(double gl, double gb, double *PA, double *cosPA, double *sinPA){
 }
 
 //----------------
-void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen)
+void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen)
 {
-  /* For optical depth or event rate calculation    
+  active_state = &ctx;
+  /* For optical depth or event rate calculation
    * Not optimized for this code and many calculations are dupulicated with previous calculations. */
   int get_p_integral(int nji, double *ls, double *ks);
   int nmin;
@@ -66,7 +67,7 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
   NDs   = (double *)malloc(sizeof(double *) * (ncalc21 + ncalcDl0)); // NDs stores ncalc21*NDs[Ds] + ncalcDl*NDs[Dl]
   wtDBs = (double *)malloc(sizeof(double *) * (ncalc21 + ncalcDl0)); // wtDBs:     0.1*int(wtDBs) -> mean diski
                                                            //      : wtDBs - int(wtDBs) -> disk/total 
-  double calc_rho_n(double D, int idata, double *rho_n); // return rho(D) & n(D)
+  double calc_rho_n(RunContext &ctx, double D, int idata, double *rho_n); // return rho(D) & n(D)
   double *rhoDlkpt0, *rhoDlkpt1;
   rhoDlkpt0 = (double *)calloc(narryDl, sizeof(double *));
   int narrytmp = (Dsmax21 - Dlmin)/dDl0; // default should be 16000/200 = 80 
@@ -93,7 +94,7 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
         // 密度も同じなので、最初にrho*Dl にkeepしてそれを使いまわす
         Dl   =  Dlmin + dDltmp;
         if (iDs == 0){
-          wtDB = calc_rho_n(Dl, idata, rho_n);
+          wtDB = calc_rho_n(ctx, Dl, idata, rho_n);
             NDs[ncalc21+2*j] = rho_n[1]*Dl*Dl; // store n[Ds], Ds = Dlmin - Dsmin21
           wtDBs[ncalc21+2*j] = wtDB; // store n[Ds], Ds = Dlmin - Dsmin21
           rhoDlkpt0[j] = rho_n[0] * Dl;
@@ -107,7 +108,7 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
           tau = rhoDlkpt1[nbun-(int)lsDl[j]] * (1 - Dl/Ds);
           // printf (" iDs= %2d j= %2d lsDl= %.2f rhoDlkpt1[%d]= %.5e\n",iDs,j,lsDl[j],nbun-(int)lsDl[j],rhoDlkpt1[nbun-(int)lsDl[j]]);
         }else{
-          wtDB = calc_rho_n(Dl, idata, rho_n);
+          wtDB = calc_rho_n(ctx, Dl, idata, rho_n);
           tau  = rho_n[0] * Dl * (1 - Dl/Ds);
           if (ceil(lsDl[j]) == floor(lsDl[j])) rhoDlkpt1[nbun-(int)lsDl[j]] = rho_n[0] * Dl;
           if (j   == 0)   NDs[iDs]         = rho_n[1]*Dl*Dl; // store n[Ds], Dsmin21 <= Ds <= Dsmax21
@@ -122,7 +123,7 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
     for(int j=njiDl;j<=nbun-njiDl;j++){
         Dl  =  Dlmin + dDl0*j;
         if (rhoDlkpt1[j] == 0){
-          wtDB = calc_rho_n(Dl, idata, rho_n);
+          wtDB = calc_rho_n(ctx, Dl, idata, rho_n);
           if (iDs == 0)   NDs[ncalc21+2*narryDl+j-njiDl] = rho_n[1]*Dl*Dl; // store n[Ds], Dlmin <= Ds <= Dsmin21
           if (iDs == 0) wtDBs[ncalc21+2*narryDl+j-njiDl] = wtDB;
           rhoDlkpt1[j] = rho_n[0] * Dl;
@@ -137,7 +138,7 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
   free(rhoDlkpt1);
 
   // Calc N_source and tau (from int_Ds21 in get_chi2_forN13_M19_C19_Neve_tE.c)
-  double fLF_detect(double extI, double Imin, double Imax, int idisk);
+  double fLF_detect(RunContext &ctx, double extI, double Imin, double Imax, int idisk);
   *tauall = 0, *Nsall = 0; 
   for (int iDs = 0; iDs < ncalc21; iDs++){
      int iDstmp = iDs - 2*narry21 + nji21;        // iDstmp = nji21 - (nbun21 - nji21)
@@ -152,12 +153,12 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
      double f_disk  = 10*(wtDBs[iDs] - m_idisk);
      m_idisk *= 0.1;
      double wtD = m_idisk - (int) m_idisk; // e.g.) 4.2 - 4.0 = 0.2 
-     double fMagD =  (1 - wtD) * fLF_detect(extI, Isst, Isen, (int)floor(m_idisk))
-                   +      wtD  * fLF_detect(extI, Isst, Isen, (int) ceil(m_idisk));
+     double fMagD =  (1 - wtD) * fLF_detect(ctx, extI, Isst, Isen, (int)floor(m_idisk))
+                   +      wtD  * fLF_detect(ctx, extI, Isst, Isen, (int) ceil(m_idisk));
 
      // Bulge/bar fraction of 14 < I < 21
      // Assume same fMag for NSD as Bulge
-     double fMagB =  fLF_detect(extI, Isst, Isen, 8);
+     double fMagB =  fLF_detect(ctx, extI, Isst, Isen, 8);
 
      // Total
      double fMag = fMagD * f_disk + fMagB * (1 - f_disk);
@@ -187,12 +188,12 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
      double f_disk  = 10*(wtDBs[ncalc21+iDl] - m_idisk);
      m_idisk *= 0.1;
      double wtD = m_idisk - (int) m_idisk; // e.g.) 4.2 - 4.0 = 0.2 
-     double fMagD =  (1 - wtD) * fLF_detect(extI, Isst, Isen, (int)floor(m_idisk))
-                   +      wtD  * fLF_detect(extI, Isst, Isen, (int) ceil(m_idisk));
+     double fMagD =  (1 - wtD) * fLF_detect(ctx, extI, Isst, Isen, (int)floor(m_idisk))
+                   +      wtD  * fLF_detect(ctx, extI, Isst, Isen, (int) ceil(m_idisk));
 
      // Bulge/bar fraction of 14 < I < 21
      // Assume same fMag for NSD as Bulge
-     double fMagB =  fLF_detect(extI, Isst, Isen, 8);
+     double fMagB =  fLF_detect(ctx, extI, Isst, Isen, 8);
 
      // Total
      double fMag = fMagD * f_disk + fMagB * (1 - f_disk);
@@ -211,9 +212,10 @@ void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, do
 } // End of optical depth calculation
 
 //----------------
-void store_NSDmoments(char *infile) // Read input_files/NSD_moments.dat
+void store_NSDmoments(RunContext &ctx, char *infile) // Read input_files/NSD_moments.dat
 {
-  // read moments of Sormani+21's NSD DF model 
+  active_state = &ctx;
+  // read moments of Sormani+21's NSD DF model
   FILE *fp;
   char line[1000];
   char *words[100];
@@ -243,14 +245,14 @@ void store_NSDmoments(char *infile) // Read input_files/NSD_moments.dat
   fclose(fp);
 }
 //----------------
-double like_obs(double mod, double obs, double err, double fe, int det, int UNIFORM){
+double like_obs(RunContext &ctx, double mod, double obs, double err, double fe, int det, int UNIFORM){
   genulens::ObservationConstraint constraint;
   constraint.observed = obs;
   constraint.error = err;
   constraint.error_inflation = fe;
   constraint.detection_mode = static_cast<genulens::DetectionMode>(det);
   constraint.uniform = (UNIFORM == 1);
-  return genulens::ObservationLikelihood(constraint).accept_weight(mod, *active_state->runtime.rng);
+  return genulens::ObservationLikelihood(constraint).accept_weight(mod, *ctx.runtime.rng);
 }
 
 } // namespace genulens

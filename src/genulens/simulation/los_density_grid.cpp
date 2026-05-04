@@ -38,9 +38,9 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
     ibinptiles_S_.assign(ncomp_, std::vector<int>(22, 0));
     ibinptiles_L_.assign(ncomp_, std::vector<int>(22, 0));
 
-    void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb);
-    double fLF_detect(double extI, double Imin, double Imax, int idisk);
-    double fIVI_detect(double extI, double Imin, double Imax,
+    void calc_rho_each(RunContext &ctx, double D, int idata, double *rhos, double *xyz, double *xyb);
+    double fLF_detect(RunContext &ctx, double extI, double Imin, double Imax, int idisk);
+    double fIVI_detect(RunContext &ctx, double extI, double Imin, double Imax,
                        double extVI, double VImin, double VImax, int idisk);
 
     double rhos[11] = {}, xyz[3] = {}, xyb[2] = {};
@@ -48,7 +48,7 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
 
     for (int ibin = 0; ibin <= nbin_; ibin++) {
         D_[ibin] = (double)ibin / nbin_ * Dmax;
-        calc_rho_each(D_[ibin], idata, rhos, xyz, xyb);
+        calc_rho_each(ctx, D_[ibin], idata, rhos, xyz, xyb);
         double R = sqrt(xyz[0]*xyz[0] + xyz[1]*xyz[1]);
         double z = xyz[2];
 
@@ -133,12 +133,12 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
 
             if (cfg.AI0 > 0 && cfg.Isen - cfg.Isst > 0 &&
                 cfg.EVI0 > 0 && cfg.VIsen - cfg.VIsst > 0) {
-                double fIVIs = fIVI_detect(extI, cfg.Isst, cfg.Isen,
+                double fIVIs = fIVI_detect(ctx, extI, cfg.Isst, cfg.Isen,
                                            extVI, cfg.VIsst, cfg.VIsen, i);
                 rhoD_S_[i][ibin] = nMS * fIVIs * 1e-06 * D_[ibin] * D_[ibin];
                 nallS_ += rhoD_S_[i][ibin] * dD_;
             } else if (cfg.AI0 > 0 && cfg.Isen - cfg.Isst > 0) {
-                double fIs = fLF_detect(extI, cfg.Isst, cfg.Isen, i);
+                double fIs = fLF_detect(ctx, extI, cfg.Isst, cfg.Isen, i);
                 rhoD_S_[i][ibin] = nMS * fIs * 1e-06 * D_[ibin] * D_[ibin];
                 nallS_ += rhoD_S_[i][ibin] * dD_;
             } else {

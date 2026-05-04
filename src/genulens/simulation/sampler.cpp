@@ -37,7 +37,6 @@ double gasdev() { return active_state->runtime.rng->gaussian(); }
 #define seed active_state->seed
 #define B14disk active_state->B14disk
 #define B14vbar active_state->B14vbar
-#define xyzSgrA active_state->xyzSgrA.data()
 #define ncomp active_state->density.ncomp
 #define tSFR active_state->stellar.tSFR
 #define rhot0 active_state->density.rhot0
@@ -238,8 +237,8 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
 
     // ------- Population runtime -------
     PopulationRuntime population;
-    population.initialize_mass_function(context.imf_options);
-    population.initialize_luminosity_functions(Isst, Isen, VIsst, VIsen, AIrc, EVIrc);
+    population.initialize_mass_function(*active_state, context.imf_options);
+    population.initialize_luminosity_functions(*active_state, Isst, Isen, VIsst, VIsen, AIrc, EVIrc);
     population.read_empirical_mass_luminosity();
     double *logMass_B        = population.log_mass;
     double *PlogM_B          = population.mass_probability;
@@ -248,7 +247,7 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
 
     // ------- Kinematic tables -------
     KinematicRuntimeTables kinematic_tables;
-    kinematic_tables.initialize_shu_distribution();
+    kinematic_tables.initialize_shu_distribution(*active_state);
 
     VelocityDistribution vel_dist;
     vel_dist.bind(context);
@@ -318,13 +317,13 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     printf("#   (vkickNS, vkickBH) = (%6.1f , %6.1f) km/s\n", vkickNS, vkickBH);
 
     // ------- Bulge normalization -------
-    double crude_integrate(double xmax, double ymax, double zmax, int nbun);
-    double massVVVbox = crude_integrate(2200, 1400, 1200, 15);
-    double massentire = crude_integrate(6000, 3000, 3000, 30);
+    double crude_integrate(RunContext &ctx, double xmax, double ymax, double zmax, int nbun);
+    double massVVVbox = crude_integrate(*active_state, 2200, 1400, 1200, 15);
+    double massentire = crude_integrate(*active_state, 6000, 3000, 3000, 30);
     double fm1 = 1, fmX = 0;
     if (addX >= 5) {
         int addXtmp = addX; addX = 0;
-        double mass1all = crude_integrate(6000, 3000, 3000, 30);
+        double mass1all = crude_integrate(*active_state, 6000, 3000, 3000, 30);
         addX = addXtmp;
         fm1 = mass1all / massentire;
         fmX = 1 - fm1;
@@ -355,7 +354,7 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
         n0ND   = n0MSND + rho0ND * (1 - fND_MS) * m2nND_WD;
     }
     NsdMomentRuntime nsd_moments;
-    nsd_moments.initialize_if_enabled();
+    nsd_moments.initialize_if_enabled(*active_state);
 
     printf("#--- Bulge: (alpha_bar, Mbar)= (%.1f deg, %.2e Msun) ---\n",
            thetaD, massentire);
@@ -439,7 +438,7 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
         alpha2_B += sampling_options.weight_lens_mass;
         alpha3_B += sampling_options.weight_lens_mass;
         alpha4_B += sampling_options.weight_lens_mass;
-        store_IMF_nBs(0, logMass_B, PlogM_B, PlogM_cum_norm_B, imptiles_B,
+        store_IMF_nBs(*active_state, 0, logMass_B, PlogM_B, PlogM_cum_norm_B, imptiles_B,
                       M0_B, M1_B, M2_B, M3_B, Ml, Mu,
                       alpha1_B, alpha2_B, alpha3_B, alpha4_B, alpha0_B);
     }
@@ -485,10 +484,10 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     int    CALCTAU = getOptioni(argc, argv, "CALCTAU", 1, 0);
     double tauall  = 0, Nsall = 0;
     if (CALCTAU && Isen - Isst > 0 && AIrc > 0) {
-        void calc_opticaldepth(double *tauall, double *Nsall, int idata,
+        void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata,
                                int Dsmax21, double AI0, double hscale,
                                double Isst, double Isen);
-        calc_opticaldepth(&tauall, &Nsall, 0, Dmax, AI0, hscale, Isst, Isen);
+        calc_opticaldepth(*active_state, &tauall, &Nsall, 0, Dmax, AI0, hscale, Isst, Isen);
     }
 
     // ------- CheckD mode -------
@@ -511,12 +510,12 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
             }
             double d_L = grid.sample_lens_distance(j_L, 0, grid.nbin(), ran1());
             double d_S = grid.sample_source_distance(j_S, ran1());
-            void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD);
+            void get_vxyz_ran(RunContext &ctx, double *vxyz, int i, double tau, double D, double lD, double bD);
             double vxyz_L[3] = {};
             double tau_l = (j_L == 9) ? mageND + sageND*gasdev()
                          : (j_L == 8) ? mageB + sageB*gasdev()
                          : (j_L == 10) ? 14.0 : medtauds[j_L];
-            get_vxyz_ran(vxyz_L, j_L, tau_l, d_L, lDs[0], bDs[0]);
+            get_vxyz_ran(*active_state, vxyz_L, j_L, tau_l, d_L, lDs[0], bDs[0]);
             double v_l = sqrt(vxyz_L[0]*vxyz_L[0] + vxyz_L[1]*vxyz_L[1]
                             + vxyz_L[2]*vxyz_L[2]);
             printf("%d %6.0f %d %6.0f %.6f %7.2f %7.2f %7.2f %7.2f\n",
@@ -527,7 +526,7 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     }
 
     // Release luminosity tables (no longer needed after grid build)
-    population.release_luminosity_functions();
+    population.release_luminosity_functions(*active_state);
 
     // ------- MassFunction wrapper -------
     MassFunction mf;
@@ -556,8 +555,8 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     event_sampler.run_cli(context, grid, population, mf, es_cfg, obs);
 
     // ------- Cleanup -------
-    nsd_moments.release_if_enabled();
-    population.release_all();
+    nsd_moments.release_if_enabled(*active_state);
+    population.release_all(*active_state);
     free(lDs);
     free(bDs);
     kinematic_tables.release_all();

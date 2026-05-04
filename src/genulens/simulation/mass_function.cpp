@@ -45,9 +45,9 @@ double MassFunction::sample_log_mass(double ran, int nbinMmin, int nbinMmax,
 }
 
 MassFunction::RemnantResult MassFunction::evolve(double initial_mass) const {
-    void Mini2Mrem(double *pout, double M, int mean);
+    void Mini2Mrem(RunContext &ctx, double *pout, double M, int mean);
     double pout[2] = {};
-    Mini2Mrem(pout, initial_mass, 0);
+    Mini2Mrem(*active_state, pout, initial_mass, 0);
     return {pout[0], (int)pout[1]};
 }
 

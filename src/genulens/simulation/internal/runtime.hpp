@@ -36,8 +36,9 @@ struct PopulationRuntime {
   bool has_luminosity_function = false;
   bool has_color_magnitude_function = false;
 
-  void initialize_mass_function(const InitialMassFunctionOptions &options);
+  void initialize_mass_function(RunContext &ctx, const InitialMassFunctionOptions &options);
   void initialize_luminosity_functions(
+      RunContext &ctx,
       double source_i_min,
       double source_i_max,
       double source_vi_min,
@@ -45,8 +46,8 @@ struct PopulationRuntime {
       double ai_rc,
       double evi_rc);
   void read_empirical_mass_luminosity();
-  void release_luminosity_functions();
-  void release_all();
+  void release_luminosity_functions(RunContext &ctx);
+  void release_all(RunContext &ctx);
 };
 
 struct KinematicRuntimeTables {
@@ -55,45 +56,45 @@ struct KinematicRuntimeTables {
   int n_disk = 8;
   int n_fg = 100;
 
-  void initialize_shu_distribution();
+  void initialize_shu_distribution(RunContext &ctx);
   void release_all();
 };
 
 struct NsdMomentRuntime {
-  void initialize_if_enabled();
-  void release_if_enabled();
+  void initialize_if_enabled(RunContext &ctx);
+  void release_if_enabled(RunContext &ctx);
 };
 
 void calc_PA(double gl, double gb, double *PA, double *cosPA, double *sinPA);
-void calc_opticaldepth(double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen);
-void store_NSDmoments(char *infile);
-double like_obs(double mod, double obs, double err, double fe, int det, int UNIFORM);
-void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0);
-void Mini2Mrem(double *pout, double Mini, int mean);
-double fLF_detect(double extI, double Imin, double Imax, int idisk);
-double fIVI_detect(double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk);
-void store_cumuP_Shu(char *infile);
+void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen);
+void store_NSDmoments(RunContext &ctx, char *infile);
+double like_obs(RunContext &ctx, double mod, double obs, double err, double fe, int det, int UNIFORM);
+void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0);
+void Mini2Mrem(RunContext &ctx, double *pout, double Mini, int mean);
+double fLF_detect(RunContext &ctx, double extI, double Imin, double Imax, int idisk);
+double fIVI_detect(RunContext &ctx, double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk);
+void store_cumuP_Shu(RunContext &ctx, char *infile);
 void get_PRRGmax2(double *pout, int R, int z, double fg1, double sigU0, double hsigU, int rd);
 void calc_dpdfg(double *pout, int R, int z, double fg1, double sigU0, double hsigU, int rd);
-void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD);
-void getaproj(double *pout, double M1, double M2, int coeff);
+void get_vxyz_ran(RunContext &ctx, double *vxyz, int i, double tau, double D, double lD, double bD);
+void getaproj(RunContext &ctx, double *pout, double M1, double M2, int coeff);
 double getcumu2xist(int n, double *x, double *F, double *f, double Freq, int ist, int inv);
 int read_MLemp(char *infile, double *M_emps, double **Mag_emps);
-int make_LFs(double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *PlogM_cum_norm);
-void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm);
+int make_LFs(RunContext &ctx, double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *PlogM_cum_norm);
+void store_VI_MI(RunContext &ctx, double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm);
 double calc_PRRg(int R, int z, double fg, double sigU0, double hsigU, int rd);
 double calc_gc(double c);
 double calc_SigRg(double Rg, double hsigU, int rd, double a0);
 double calc_faca(double Rg, double hsigU, int rd, double a0);
-double crude_integrate(double xmax, double ymax, double zmax, int nbun);
+double crude_integrate(RunContext &ctx, double xmax, double ymax, double zmax, int nbun);
 void calc_sigvb(double xb, double yb, double zb, double *sigvbs);
 void cross(double *c, double *a, double *b);
 double dot(double *a, double *b);
 void norm_vec(double *a);
-double calc_rho_n(double D, int idata, double *rho_n);
-void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb);
+double calc_rho_n(RunContext &ctx, double D, int idata, double *rho_n);
+void calc_rho_each(RunContext &ctx, double D, int idata, double *rhos, double *xyz, double *xyb);
 double calc_rhoB(double xb, double yb, double zb);
-void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
+void Dlb2xyz(const RunContext &ctx, double D, double lD, double bD, double Rsun, double *xyz);
 int get_p_integral(int nji, double *ls, double *ks);
 double getx2y(int n, double *x, double *y, double xin);
 double getx2y_ist(int n, double *x, double *y, double xin, int *ist);
@@ -128,7 +129,6 @@ void interp_xy_coeff(int nx, int ny, double *as, double xst, double yst, double 
 #define seed active_state->seed
 #define B14disk active_state->B14disk
 #define B14vbar active_state->B14vbar
-#define xyzSgrA active_state->xyzSgrA.data()
 #define ncomp active_state->density.ncomp
 #define tSFR active_state->stellar.tSFR
 #define rhot0 active_state->density.rhot0

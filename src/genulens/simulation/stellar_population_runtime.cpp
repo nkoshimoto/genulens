@@ -6,24 +6,27 @@ namespace gmodel = genulens::model;
 #include "genulens/simulation/internal/runtime.hpp"
 namespace genulens {
 
-void PopulationRuntime::initialize_mass_function(const InitialMassFunctionOptions &options) {
+void PopulationRuntime::initialize_mass_function(RunContext &ctx, const InitialMassFunctionOptions &options) {
+  active_state = &ctx;
   nm = 1000;
   log_mass = (double*)calloc(nm + 1, sizeof(double *));
   mass_probability = (double*)calloc(nm + 1, sizeof(double *));
   mass_cumulative = (double*)calloc(nm + 1, sizeof(double *));
   mass_percentiles = (int*)calloc(22, sizeof(int *));
-  store_IMF_nBs(1, log_mass, mass_probability, mass_cumulative, mass_percentiles,
+  store_IMF_nBs(ctx, 1, log_mass, mass_probability, mass_cumulative, mass_percentiles,
                 options.m0, options.m1, options.m2, options.m3, options.ml, options.mu,
                 options.alpha1, options.alpha2, options.alpha3, options.alpha4, options.alpha0);
 }
 
 void PopulationRuntime::initialize_luminosity_functions(
+    RunContext &ctx,
     double source_i_min,
     double source_i_max,
     double source_vi_min,
     double source_vi_max,
     double ai_rc,
     double evi_rc) {
+  active_state = &ctx;
   const int narrow_lf_capacity = 960;
   if (source_i_max - source_i_min > 0 && source_vi_max - source_vi_min == 0 && ai_rc > 0) {
     CumuN_MIs = (double**)malloc(sizeof(double *) * ncomp);
@@ -31,7 +34,7 @@ void PopulationRuntime::initialize_luminosity_functions(
       CumuN_MIs[i] = (double*)calloc(narrow_lf_capacity, sizeof(double *));
     }
     MIs = (double*)malloc(sizeof(double *) * narrow_lf_capacity);
-    nMIs = make_LFs(MIs, CumuN_MIs, log_mass, mass_cumulative);
+    nMIs = make_LFs(ctx, MIs, CumuN_MIs, log_mass, mass_cumulative);
     dILF = (MIs[nMIs - 1] - MIs[0]) / (nMIs - 1);
     has_luminosity_function = true;
   }
@@ -49,7 +52,7 @@ void PopulationRuntime::initialize_luminosity_functions(
         f_VI_Is[i][j] = (double*)calloc(nMIs + 1, sizeof(double *));
       }
     }
-    store_VI_MI(MIst, MIen, nMIs, VIst, VIen, nVIs, MIs, VIs, f_VI_Is, log_mass, mass_cumulative);
+    store_VI_MI(ctx, MIst, MIen, nMIs, VIst, VIen, nVIs, MIs, VIs, f_VI_Is, log_mass, mass_cumulative);
     dILF = (double)(MIen - MIst) / nMIs;
     dVILF = (double)(VIen - VIst) / nVIs;
     has_color_magnitude_function = true;
@@ -67,7 +70,8 @@ void PopulationRuntime::read_empirical_mass_luminosity() {
   empirical_count = read_MLemp(file_MLemp, empirical_masses, empirical_magnitudes);
 }
 
-void PopulationRuntime::release_luminosity_functions() {
+void PopulationRuntime::release_luminosity_functions(RunContext &ctx) {
+  active_state = &ctx;
   if (has_luminosity_function) {
     for (int i = 0; i < ncomp; i++) {
       free(CumuN_MIs[i]);
@@ -90,8 +94,8 @@ void PopulationRuntime::release_luminosity_functions() {
   }
 }
 
-void PopulationRuntime::release_all() {
-  release_luminosity_functions();
+void PopulationRuntime::release_all(RunContext &ctx) {
+  release_luminosity_functions(ctx);
   free(log_mass);
   free(mass_cumulative);
   free(mass_probability);
@@ -105,7 +109,8 @@ void PopulationRuntime::release_all() {
   free(empirical_masses);
 }
 
-void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0){
+void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0){
+  active_state = &ctx;
   /* Store IMF with a broken-power law form.
    * Update normalize factors for the density distribution if B == 1 */
   gmodel::IMFParameters imf_parameters;
@@ -140,12 +145,12 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
   double *ageMloss;
   ageMloss       = (double *)calloc(nm+1, sizeof(double *));
   double cumMwt = 0, cumWDwt = 0;
-  void Mini2Mrem (double *pout, double M, int mean); 
+  void Mini2Mrem (RunContext &ctx, double *pout, double M, int mean);
   for (int i=nm;i>=0;i--){
     double pout[2] = {};
     double M = pow(10, logMass[i]);
     double wt = PlogM[i];
-    Mini2Mrem(pout, M, 1);  // 0 : random
+    Mini2Mrem(ctx, pout, M, 1);  // 0 : random
     double MWD = pout[0];
     cumMwt  += M * wt;
     cumWDwt += MWD * wt;
@@ -389,13 +394,15 @@ void store_IMF_nBs(int B, double *logMass, double *PlogM, double *PlogM_cum_norm
 }
 
 //----------------
-void Mini2Mrem (double *pout, double Mini, int mean) {  // mean = 1: give mean, 0: give random
-  const auto remnant = gmodel::RemnantMassModel(MiniWDmax).evolve(Mini, mean == 1, *active_state->runtime.rng);
+void Mini2Mrem (RunContext &ctx, double *pout, double Mini, int mean) {  // mean = 1: give mean, 0: give random
+  active_state = &ctx;
+  const auto remnant = gmodel::RemnantMassModel(MiniWDmax).evolve(Mini, mean == 1, *ctx.runtime.rng);
   pout[0] = remnant.mass_msun;
   pout[1] = remnant.remnant_type;
 }
 //----------------
-double fLF_detect(double extI, double Imin, double Imax, int idisk){
+double fLF_detect(RunContext &ctx, double extI, double Imin, double Imax, int idisk){
+  active_state = &ctx;
   double imaxd = (Imax - extI - MIs[0])/dILF;
   double imind = (Imin - extI - MIs[0])/dILF;
   if (imaxd < 0)      imaxd = 0;
@@ -411,7 +418,8 @@ double fLF_detect(double extI, double Imin, double Imax, int idisk){
   return (fmax - fmin);
 }
 //----------------
-double fIVI_detect(double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk){
+double fIVI_detect(RunContext &ctx, double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk){
+  active_state = &ctx;
   double imaxd = (Imax - extI - MIs[0])/dILF;
   double imind = (Imin - extI - MIs[0])/dILF;
   if (imaxd < 0)      imaxd = 0;
@@ -462,8 +470,9 @@ int read_MLemp(char *infile, double *M_emps, double **Mag_emps)
    return i;
 }
 //---------------
-int make_LFs(double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *PlogM_cum_norm)
+int make_LFs(RunContext &ctx, double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *PlogM_cum_norm)
 {
+  active_state = &ctx;
    char *infile;
    FILE *fp;
    char line[1000];
@@ -622,7 +631,8 @@ int make_LFs(double *MIs_arg, double **CumuN_MIs_arg, double *logMass, double *P
    return i;
 }
 //---------------
-void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm){
+void store_VI_MI(RunContext &ctx, double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm){
+  active_state = &ctx;
   const char *file1;
   char line[1000];
   char *words[100];

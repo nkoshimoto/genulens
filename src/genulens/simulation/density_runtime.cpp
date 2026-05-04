@@ -2,8 +2,9 @@
 
 namespace genulens {
 
-double crude_integrate(double xmax, double ymax, double zmax, int nbun)  // for normalize rho_b
+double crude_integrate(RunContext &ctx, double xmax, double ymax, double zmax, int nbun)  // for normalize rho_b
 {
+  active_state = &ctx;
   double calc_rhoB(double xb, double yb, double zb);
   int get_p_integral(int nji, double *ls, double *ks);
   double *ls, *ks;
@@ -88,13 +89,14 @@ double crude_integrate(double xmax, double ymax, double zmax, int nbun)  // for 
   free (rhosumyz);
   return totalmass;
 }
-double calc_rho_n(double D, int idata, double *rho_n){  // return rho, n, and wtDBs 
+double calc_rho_n(RunContext &ctx, double D, int idata, double *rho_n){  // return rho, n, and wtDBs
+  active_state = &ctx;
   double m_idisk = 0, f_disk = 0;
 	// Calc rho & n
-  void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb);  // return rho for each component 
+  void calc_rho_each(RunContext &ctx, double D, int idata, double *rhos, double *xyz, double *xyb);  // return rho for each component
   double *rhos, xyz[3] = {}, xyb[2] = {};
   rhos        = (double *)calloc(ncomp, sizeof(double *));
-	calc_rho_each(D, idata, rhos, xyz, xyb);
+	calc_rho_each(ctx, D, idata, rhos, xyz, xyb);
   rho_n[0] = rho_n[1] = 0;
   if (DISK > 0) {
     for (int i=0; i<8; i++){
@@ -119,14 +121,14 @@ double calc_rho_n(double D, int idata, double *rho_n){  // return rho, n, and wt
   return (int) m_idisk + 0.1*f_disk;
 }
 //---------------
-void calc_rho_each(double D, int idata, double *rhos, double *xyz, double *xyb){  // return rho for each component 
-  void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
+void calc_rho_each(RunContext &ctx, double D, int idata, double *rhos, double *xyz, double *xyb){  // return rho for each component
+  active_state = &ctx;
   double calc_rhoB(double xb, double yb, double zb);
   double x, y, z, R, xb, yb, zb, xn, yn, zn, rs, zdtmp, rhotmp;
   double lD, bD;
   lD = lDs[idata];
   bD = bDs[idata];
-  Dlb2xyz(D, lD, bD, R0, xyz);
+  Dlb2xyz(ctx, D, lD, bD, R0, xyz);
   x = xyz[0], y = xyz[1], z = xyz[2];
   R = sqrt(x*x + y*y);
   // i = 0-6: thin disk, i=7: thick disk, i=8: bulge, i=9: long bar, i = 10: super thin bar

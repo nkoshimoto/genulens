@@ -22,13 +22,9 @@ void norm_vec(double *a){
     a[i] = a[i]/sqrt(norm);
   }
 }
-void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz)
-/*------------------------------------------------------------*/
-/*  Give (x,y,z) for a given D, lD, bD  */
-/*------------------------------------------------------------*/
+void Dlb2xyz(const RunContext &ctx, double D, double lD, double bD, double Rsun, double *xyz)
 {
-  const std::array<double, 3> offset = {xyzSgrA[0], xyzSgrA[1], xyzSgrA[2]};
-  const auto value = gmodel::CoordinateTransformer(offset).distance_l_b_to_xyz(D, lD, bD, Rsun);
+  const auto value = gmodel::CoordinateTransformer(ctx.xyzSgrA).distance_l_b_to_xyz(D, lD, bD, Rsun);
   xyz[0] = value[0];
   xyz[1] = value[1];
   xyz[2] = value[2];

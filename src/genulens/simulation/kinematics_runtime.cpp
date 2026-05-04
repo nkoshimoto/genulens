@@ -6,7 +6,8 @@ namespace gmodel = genulens::model;
 #include "genulens/simulation/internal/runtime.hpp"
 namespace genulens {
 
-void KinematicRuntimeTables::initialize_shu_distribution() {
+void KinematicRuntimeTables::initialize_shu_distribution(RunContext &ctx) {
+  active_state = &ctx;
   n_z = (zenShu - zstShu) / dzShu + 1;
   n_R = (RenShu - RstShu) / dRShu + 1;
   fgsShu = (double****)malloc(sizeof(double *) * n_z);
@@ -35,7 +36,7 @@ void KinematicRuntimeTables::initialize_shu_distribution() {
     }
   }
   char *fileVc = (char*)"input_files/Rotcurve_BG16.dat";
-  store_cumuP_Shu(fileVc);
+  store_cumuP_Shu(ctx, fileVc);
 }
 
 void KinematicRuntimeTables::release_all() {
@@ -66,7 +67,8 @@ void KinematicRuntimeTables::release_all() {
   free(n_fgsShu);
 }
 
-void NsdMomentRuntime::initialize_if_enabled() {
+void NsdMomentRuntime::initialize_if_enabled(RunContext &ctx) {
+  active_state = &ctx;
   nzND = (zenND - zstND) / dzND + 1.5;
   nRND = (RenND - RstND) / dRND + 1.5;
   if (ND != 3) {
@@ -86,10 +88,11 @@ void NsdMomentRuntime::initialize_if_enabled() {
     }
   }
   char *fileND = (char*)"input_files/NSD_moments.dat";
-  store_NSDmoments(fileND);
+  store_NSDmoments(ctx, fileND);
 }
 
-void NsdMomentRuntime::release_if_enabled() {
+void NsdMomentRuntime::release_if_enabled(RunContext &ctx) {
+  active_state = &ctx;
   if (ND != 3) {
     return;
   }
@@ -108,8 +111,9 @@ void NsdMomentRuntime::release_if_enabled() {
   free(logsigvNDs);
 }
 
-void store_cumuP_Shu(char *infile) // calculate cumu prob dist of fg = Rg/R following Shu DF
+void store_cumuP_Shu(RunContext &ctx, char *infile) // calculate cumu prob dist of fg = Rg/R following Shu DF
 {
+  active_state = &ctx;
   // read circular velocity
   FILE *fp;
   char line[1000];
@@ -354,13 +358,13 @@ void calc_dpdfg(double *pout, int R, int z, double fg1, double sigU0, double hsi
   pout[1] = PRRg1;
 }
 //----------------
-void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD) //
+void get_vxyz_ran(RunContext &ctx, double *vxyz, int i, double tau, double D, double lD, double bD) //
 {
-  void Dlb2xyz(double D, double lD, double bD, double Rsun, double *xyz);
+  active_state = &ctx;
   double getcumu2xist (int n, double *x, double *F, double *f, double Freq, int ist, int inv);
   double getx2y(int n, double *x, double *y, double xin);
   double xyz[3]={};
-  Dlb2xyz(D, lD, bD, R0, xyz);
+  Dlb2xyz(ctx, D, lD, bD, R0, xyz);
   double x = xyz[0], y = xyz[1], z = xyz[2];
   double R = sqrt(x*x + y*y);
   double vx = 0, vy = 0, vz = 0;
@@ -483,8 +487,8 @@ void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double b
   vxyz[2] = vz;
 }
 //---------------
-void getaproj(double *pout, double M1, double M2, int coeff)  { // pick up aproj  
-   const auto separation = gmodel::BinaryLensSampler().sample_projected_separation(M1, M2, coeff, *active_state->runtime.rng);
+void getaproj(RunContext &ctx, double *pout, double M1, double M2, int coeff)  { // pick up aproj
+   const auto separation = gmodel::BinaryLensSampler().sample_projected_separation(M1, M2, coeff, *ctx.runtime.rng);
    pout[0] = separation.log_separation_au;
    pout[1] = separation.projected_separation_au;
 }

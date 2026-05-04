@@ -106,10 +106,10 @@ int EventSampler::run_cli(RunContext &ctx,
     int    *imptiles_B       = pop.mass_percentiles;
 
     // Function declarations from runtime
-    void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD);
-    void Mini2Mrem(double *pout, double M, int mean);
-    void getaproj(double *pout, double M1, double M2, int coeff);
-    double like_obs(double mod, double obs_val, double err, double fe, int det, int uniform_mode);
+    void get_vxyz_ran(RunContext &ctx, double *vxyz, int i, double tau, double D, double lD, double bD);
+    void Mini2Mrem(RunContext &ctx, double *pout, double M, int mean);
+    void getaproj(RunContext &ctx, double *pout, double M1, double M2, int coeff);
+    double like_obs(RunContext &ctx, double mod, double obs_val, double err, double fe, int det, int uniform_mode);
     double getcumu2xist(int n, double *x, double *F, double *f, double Freq, int ist, int inv);
     double getx2y(int n, double *x, double *y, double xin);
     double interp_x(int n, double *F, double xst, double dx, double xreq);
@@ -181,8 +181,8 @@ int EventSampler::run_cli(RunContext &ctx,
 
         // --- Velocities ---
         double vxyz_S[3] = {}, vxyz_L[3] = {};
-        get_vxyz_ran(vxyz_S, i_s, tau_s, D_s, cfg.l, cfg.b);
-        get_vxyz_ran(vxyz_L, i_l, tau_l, D_l, cfg.l, cfg.b);
+        get_vxyz_ran(ctx, vxyz_S, i_s, tau_s, D_s, cfg.l, cfg.b);
+        get_vxyz_ran(ctx, vxyz_L, i_l, tau_l, D_l, cfg.l, cfg.b);
         double vx_s = vxyz_S[0], vx_l = vxyz_L[0];
         double vy_s = vxyz_S[1], vy_l = vxyz_L[1];
         double vz_s = vxyz_S[2], vz_l = vxyz_L[2];
@@ -363,7 +363,7 @@ int EventSampler::run_cli(RunContext &ctx,
         if (M_l > Minidie) {
             if (REMNANT == 1 || onlyWD == 1) {
                 double pout[2] = {};
-                Mini2Mrem(pout, M_l, 0);
+                Mini2Mrem(ctx, pout, M_l, 0);
                 M_l  = pout[0];
                 fREM = (int)pout[1];
                 if (fREM >= 2) {
@@ -411,7 +411,7 @@ int EventSampler::run_cli(RunContext &ctx,
                 double thetaE1  = sqrt(Mtmp1 * pirel * KAPPA);
                 double thetaE12 = sqrt((Mtmp1+Mtmp2) * pirel * KAPPA);
                 double pout[2] = {};
-                getaproj(pout, M_l, M_l2, (int)coeff);
+                getaproj(ctx, pout, M_l, M_l2, (int)coeff);
                 al     = (pout[0] < 99) ? pow(10.0, pout[0]) : -1;
                 alpmin = pout[1];
                 u0S    = (u0obs > 0) ? u0obs : ran1();
@@ -464,24 +464,24 @@ int EventSampler::run_cli(RunContext &ctx,
         if (wtD_L != 0) addGamma /= pow((D_l + 1000) / 4500.0, wtD_L);
 
         // --- Observational likelihood ---
-        double Gamma_tE     = like_obs(tE, tEobs, tEe, fetE, tEdet, UNIFORM);
+        double Gamma_tE     = like_obs(ctx, tE, tEobs, tEe, fetE, tEdet, UNIFORM);
         int    like_tE      = (Gamma_tE > 0) ? 1 : 0;
         if (Gamma_tE > 0) addGamma *= Gamma_tE;
 
-        double Gamma_thetaE = like_obs(thetaE, thetaEobs, thetaEe, fethetaE, thetaEdet, UNIFORM);
+        double Gamma_thetaE = like_obs(ctx, thetaE, thetaEobs, thetaEe, fethetaE, thetaEdet, UNIFORM);
         int    like_thetaE  = (Gamma_thetaE > 0) ? 1 : 0;
         if (Gamma_thetaE > 0) addGamma *= Gamma_thetaE;
 
         int like_piE = 1;
         if (piEe > 0) {
-            double Gamma_piE = like_obs(piE, piEobs, piEe, fepiE, piEdet, UNIFORM);
+            double Gamma_piE = like_obs(ctx, piE, piEobs, piEe, fepiE, piEdet, UNIFORM);
             like_piE = (Gamma_piE > 0) ? 1 : 0;
             if (Gamma_piE > 0) addGamma *= Gamma_piE;
         } else if (piENe > 0 && piEEe > 0) {
-            double Gamma_piEN = like_obs(piEN, piENobs, piENe, fepiEN, 0, UNIFORM);
+            double Gamma_piEN = like_obs(ctx, piEN, piENobs, piENe, fepiEN, 0, UNIFORM);
             int like_piEN = (Gamma_piEN > 0) ? 1 : 0;
             if (Gamma_piEN > 0) addGamma *= Gamma_piEN;
-            double Gamma_piEE = like_obs(piEE, piEEobs, piEEe, fepiEE, 0, UNIFORM);
+            double Gamma_piEE = like_obs(ctx, piEE, piEEobs, piEEe, fepiEE, 0, UNIFORM);
             int like_piEE = (Gamma_piEE > 0) ? 1 : 0;
             if (Gamma_piEE > 0) addGamma *= Gamma_piEE;
             like_piE = like_piEN * like_piEE;
@@ -497,16 +497,16 @@ int EventSampler::run_cli(RunContext &ctx,
             muSb = (vxr*cosl*sinb - vyr*sinl*sinb + vzr*cosb)*KS2MY/D_s;
         }
         if (musle > 0 && musbe > 0) {
-            double G_musl = like_obs(muSl, muslobs, musle, femusl, 0, UNIFORM);
-            double G_musb = like_obs(muSb, musbobs, musbe, femusb, 0, UNIFORM);
+            double G_musl = like_obs(ctx, muSl, muslobs, musle, femusl, 0, UNIFORM);
+            double G_musb = like_obs(ctx, muSb, musbobs, musbe, femusb, 0, UNIFORM);
             like_mus = ((G_musl > 0) ? 1 : 0) * ((G_musb > 0) ? 1 : 0);
             if (G_musl > 0) addGamma *= G_musl;
             if (G_musb > 0) addGamma *= G_musb;
         } else if (musNe > 0 && musEe > 0) {
             double muSN =  muSb*cosPA + muSl*sinPA;
             double muSE = -muSb*sinPA + muSl*cosPA;
-            double G_musN = like_obs(muSN, musNobs, musNe, femusN, 0, UNIFORM);
-            double G_musE = like_obs(muSE, musEobs, musEe, femusE, 0, UNIFORM);
+            double G_musN = like_obs(ctx, muSN, musNobs, musNe, femusN, 0, UNIFORM);
+            double G_musE = like_obs(ctx, muSE, musEobs, musEe, femusE, 0, UNIFORM);
             like_mus = ((G_musN > 0) ? 1 : 0) * ((G_musE > 0) ? 1 : 0);
             if (G_musN > 0) addGamma *= G_musN;
             if (G_musE > 0) addGamma *= G_musE;
@@ -521,8 +521,8 @@ int EventSampler::run_cli(RunContext &ctx,
             muhelE = -murelbhel*sinPA + murellhel*cosPA;
         }
         if (muhelNe > 0 && muhelEe > 0) {
-            double G_N = like_obs(muhelN, muhelNobs, muhelNe, femuhelN, 0, UNIFORM);
-            double G_E = like_obs(muhelE, muhelEobs, muhelEe, femuhelE, 0, UNIFORM);
+            double G_N = like_obs(ctx, muhelN, muhelNobs, muhelNe, femuhelN, 0, UNIFORM);
+            double G_E = like_obs(ctx, muhelE, muhelEobs, muhelEe, femuhelE, 0, UNIFORM);
             like_muhel = ((G_N > 0) ? 1 : 0) * ((G_E > 0) ? 1 : 0);
             if (G_N > 0) addGamma *= G_N;
             if (G_E > 0) addGamma *= G_E;
@@ -541,7 +541,7 @@ int EventSampler::run_cli(RunContext &ctx,
             }
             IL += ext->distance_modulus_term(D_l) + ext->at_distance(D_l).i_band;
             if (ILe > 0) {
-                double G_IL = like_obs(IL, ILobs, ILe, feIL, ILdet, UNIFORM);
+                double G_IL = like_obs(ctx, IL, ILobs, ILe, feIL, ILdet, UNIFORM);
                 like_IL = (G_IL > 0) ? 1 : 0;
                 if (G_IL > 0) addGamma *= G_IL;
             }
@@ -560,7 +560,7 @@ int EventSampler::run_cli(RunContext &ctx,
             }
             KL += ext->distance_modulus_term(D_l) + ext->at_distance(D_l).k_band;
             if (KLe > 0) {
-                double G_KL = like_obs(KL, KLobs, KLe, feKL, KLdet, UNIFORM);
+                double G_KL = like_obs(ctx, KL, KLobs, KLe, feKL, KLdet, UNIFORM);
                 like_KL = (G_KL > 0) ? 1 : 0;
                 if (G_KL > 0) addGamma *= G_KL;
             }
