@@ -11,6 +11,8 @@
 
 namespace genulens {
 
+namespace gmodel = genulens::model;
+
 RunContext Initializer::create_context() const
 {
     return {};
@@ -27,7 +29,7 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     auto &density = context.density;
     auto &kinematics = context.kinematics;
     auto &imf = context.imf_options;
-    const auto &default_imf = model::default_model_parameters().imf;
+    const auto &default_imf = gmodel::default_model_parameters().imf;
 
     imf.m0 = getOptiond(argc, argv, "M0", 1, default_imf.m0);
     imf.m1 = getOptiond(argc, argv, "M1", 1, default_imf.m1);
@@ -238,7 +240,7 @@ void Initializer::finalize_spatial_model(RunContext &context, int argc, char **a
     auto &spatial = context.spatial;
     spatial.center_on_sgr_a = getOptioni(argc, argv, "CenSgrA", 1, spatial.center_on_sgr_a);
     if (spatial.center_on_sgr_a == 1) {
-        context.xyzSgrA = model::CoordinateTransformer().distance_l_b_to_xyz(
+        context.xyzSgrA = gmodel::CoordinateTransformer().distance_l_b_to_xyz(
             density.R0, spatial.l_sgr_a, spatial.b_sgr_a, density.R0);
     }
 

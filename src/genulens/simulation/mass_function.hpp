@@ -35,6 +35,7 @@ public:
     double cumulative_at(int bin) const;
 
 private:
+    RunContext *ctx_   = nullptr;
     double *log_mass_  = nullptr;
     double *mass_prob_ = nullptr;
     double *mass_cumu_ = nullptr;

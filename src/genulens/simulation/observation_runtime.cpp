@@ -16,7 +16,6 @@ void calc_PA(double gl, double gb, double *PA, double *cosPA, double *sinPA){
 //----------------
 void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen)
 {
-  active_state = &ctx;
   /* For optical depth or event rate calculation
    * Not optimized for this code and many calculations are dupulicated with previous calculations. */
   int get_p_integral(int nji, double *ls, double *ks);
@@ -214,7 +213,6 @@ void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata
 //----------------
 void store_NSDmoments(RunContext &ctx, char *infile) // Read input_files/NSD_moments.dat
 {
-  active_state = &ctx;
   // read moments of Sormani+21's NSD DF model
   FILE *fp;
   char line[1000];
@@ -227,16 +225,16 @@ void store_NSDmoments(RunContext &ctx, char *infile) // Read input_files/NSD_mom
   while (fgets(line,1000,fp) !=NULL){
      split((char*)" ", line, words);
      if (*words[0] == '#') continue;
-     int iR = iRz % nRND;
-     int iz = iRz / nRND;
-     if (RstND + iR*dRND == 1000*atof(words[0]) && zstND + iz*dzND == 1000*atof(words[1])){
-       logrhoNDs[iz][iR] = log10(atof(words[2])); // log [M_sun/pc^3]
-       vphiNDs[iz][iR] = atof(words[3]); // vphi
-       logsigvNDs[iz][iR][0] = log10(atof(words[4])); // sigphi
-       logsigvNDs[iz][iR][1] = log10(atof(words[5])); // sigR
-       logsigvNDs[iz][iR][2] = log10(atof(words[6])); // sigz
-       corRzNDs[iz][iR] = atof(words[7]); // correlation coefficient between vR and vz
-       // printf("iz=%d iR=%d %f %f %6.3f %5.1f\n", iz,iR,atof(words[1]),atof(words[0]),logrhoNDs[iz][iR], vphiNDs[iz][iR]);
+     int iR = iRz % ctx.nsd_moments.nRND;
+     int iz = iRz / ctx.nsd_moments.nRND;
+     if (ctx.nsd_moments.RstND + iR*ctx.nsd_moments.dRND == 1000*atof(words[0]) && ctx.nsd_moments.zstND + iz*ctx.nsd_moments.dzND == 1000*atof(words[1])){
+       ctx.nsd_moments.logrhoNDs[iz][iR] = log10(atof(words[2])); // log [M_sun/pc^3]
+       ctx.nsd_moments.vphiNDs[iz][iR] = atof(words[3]); // vphi
+       ctx.nsd_moments.logsigvNDs[iz][iR][0] = log10(atof(words[4])); // sigphi
+       ctx.nsd_moments.logsigvNDs[iz][iR][1] = log10(atof(words[5])); // sigR
+       ctx.nsd_moments.logsigvNDs[iz][iR][2] = log10(atof(words[6])); // sigz
+       ctx.nsd_moments.corRzNDs[iz][iR] = atof(words[7]); // correlation coefficient between vR and vz
+       // printf("iz=%d iR=%d %f %f %6.3f %5.1f\n", iz,iR,atof(words[1]),atof(words[0]),ctx.nsd_moments.logrhoNDs[iz][iR], ctx.nsd_moments.vphiNDs[iz][iR]);
      }else{
        printf("something goes wrong\n");
      }

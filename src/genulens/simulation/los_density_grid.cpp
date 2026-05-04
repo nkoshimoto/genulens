@@ -15,14 +15,13 @@ static const double a0toSig25BHs[5] = {1,  1.01342,  1.05382,  1.05898,  0.69889
 
 void LineOfSightDensityGrid::build(RunContext &ctx,
                                     const LineOfSightDensityGridConfig &cfg) {
-    active_state = &ctx;
 
-    ncomp_ = ncomp;
+    ncomp_ = ctx.density.ncomp;
     const int Dmax = cfg.Dmax;
 
-    nbin_ = (ND > 0 && fabs(cfg.l) < 0.05 && fabs(cfg.b) < 0.05) ? (int)(0.20*Dmax + 0.5)
-          : (ND > 0 && fabs(cfg.l) < 0.10 && fabs(cfg.b) < 0.10) ? (int)(0.10*Dmax + 0.5)
-          : (ND > 0)                                               ? (int)(0.04*Dmax + 0.5)
+    nbin_ = (ctx.density.ND > 0 && fabs(cfg.l) < 0.05 && fabs(cfg.b) < 0.05) ? (int)(0.20*Dmax + 0.5)
+          : (ctx.density.ND > 0 && fabs(cfg.l) < 0.10 && fabs(cfg.b) < 0.10) ? (int)(0.10*Dmax + 0.5)
+          : (ctx.density.ND > 0)                                               ? (int)(0.04*Dmax + 0.5)
           :                                                           (int)(0.01*Dmax + 0.5);
     dD_    = (double)Dmax / nbin_;
     nallS_ = 0.0;
@@ -73,23 +72,23 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
 
             int ien = (cfg.BHhb == 1) ? 9 : 8;
             if (cfg.BHhd == 1 && i < ien) {
-                double sigW0 = (i < 7) ? sigW10d * pow((medtauds[i]+0.01)/10.01, betaW)
-                                       : sigW0td;
-                double hsigW = (i < 7) ? hsigWt : hsigWT;
+                double sigW0 = (i < 7) ? ctx.kinematics.sigW10d * pow((ctx.kinematics.medtauds.data()[i]+0.01)/10.01, ctx.kinematics.betaW)
+                                       : ctx.kinematics.sigW0td;
+                double hsigW = (i < 7) ? ctx.kinematics.hsigWt : ctx.kinematics.hsigWT;
                 double sigvbs[3] = {};
                 if (cfg.BHhb == 1 && i == 8) {
-                    void calc_sigvb(double xb, double yb, double zb, double *sigvbs);
-                    calc_sigvb(xyb[0], xyb[1], z, sigvbs);
+                    void calc_sigvb(RunContext &ctx, double xb, double yb, double zb, double *sigvbs);
+                    calc_sigvb(ctx, xyb[0], xyb[1], z, sigvbs);
                 }
-                double sigW     = (i == 8) ? sigvbs[2] : sigW0 * exp(-(R - R0) / hsigW);
+                double sigW     = (i == 8) ? sigvbs[2] : sigW0 * exp(-(R - ctx.density.R0) / hsigW);
                 double sigW2    = sigW * sigW;
                 double sigzkick2 = cfg.vkickBH * cfg.vkickBH * PI / 8;
                 double sigzadd  = sqrt(sigW2 + sigzkick2);
                 double fvBH     = pow(sigzadd / sigW, cfg.betaBH);
                 double RhdBH    = (cfg.fixRhdBH == 1) ? cfg.RhdBH0
                                                        : cfg.RhdBH0 * (1 + sigW2 / sigzkick2);
-                double fzdBH    = exp((R - R0) / RhdBH) * fvBH;
-                double zd0 = (i < 8) ? zd[i] : 235.344943180979;
+                double fzdBH    = exp((R - ctx.density.R0) / RhdBH) * fvBH;
+                double zd0 = (i < 8) ? ctx.density.zd.data()[i] : 235.344943180979;
                 double zdBH = (i < 8) ? zd0 * fzdBH : zd0 * fvBH;
                 double rhoMS = 0, rhoBH = 0;
                 if (i == 8) {
@@ -122,14 +121,14 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
             if (i < 8 && cfg.printBHfac)
                 printf(" %.6f\n", fBH_[i][ibin]);
 
-            double nMS = (i == 8)  ? n0MSb  * rhos[8]
-                       : (i == 9)  ? n0MSND * rhos[9]
-                       : (i == 10) ? n0MSSH * rhos[10]
-                       :             n0MSd[i] * rhos[i];
-            double rho = (i == 8)  ? n0b   * rhos[8]
-                       : (i == 9)  ? n0ND  * rhos[9]
-                       : (i == 10) ? n0SH  * rhos[10]
-                       :             n0d[i] * rhos[i];
+            double nMS = (i == 8)  ? ctx.density.n0MSb  * rhos[8]
+                       : (i == 9)  ? ctx.density.n0MSND * rhos[9]
+                       : (i == 10) ? ctx.density.n0MSSH * rhos[10]
+                       :             ctx.density.n0MSd.data()[i] * rhos[i];
+            double rho = (i == 8)  ? ctx.density.n0b   * rhos[8]
+                       : (i == 9)  ? ctx.density.n0ND  * rhos[9]
+                       : (i == 10) ? ctx.density.n0SH  * rhos[10]
+                       :             ctx.density.n0d.data()[i] * rhos[i];
 
             if (cfg.AI0 > 0 && cfg.Isen - cfg.Isst > 0 &&
                 cfg.EVI0 > 0 && cfg.VIsen - cfg.VIsst > 0) {

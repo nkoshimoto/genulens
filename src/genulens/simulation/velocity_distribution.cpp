@@ -8,10 +8,9 @@ namespace genulens {
 
 std::array<double, 3> VelocityDistribution::sample(
         int component, double age, double D, double l, double b) {
-    active_state = ctx_;
-    void get_vxyz_ran(double *vxyz, int i, double tau, double D, double lD, double bD);
+    void get_vxyz_ran(RunContext &ctx, double *vxyz, int i, double tau, double D, double lD, double bD);
     double vxyz[3] = {};
-    get_vxyz_ran(vxyz, component, age, D, l, b);
+    get_vxyz_ran(*ctx_, vxyz, component, age, D, l, b);
     return {vxyz[0], vxyz[1], vxyz[2]};
 }
 

@@ -37,7 +37,6 @@ int EventSampler::run_cli(RunContext &ctx,
                            const ObservationConfig &obs,
                            std::function<double(double, double, double, double,
                                                 double, double, double)> custom_likelihood) {
-    active_state = &ctx;
 
     // Sampling options aliases (mutable, mirror RunContext fields)
     auto &samp = ctx.sampling;
@@ -151,14 +150,14 @@ int EventSampler::run_cli(RunContext &ctx,
         stats.Ngen++;
 
         // --- Sample source component and distance ---
-        int i_s = grid.sample_source_component(ran1());
-        if (i_s == ncomp) { j--; continue; }
+        int i_s = grid.sample_source_component(ctx.runtime.rng->uniform());
+        if (i_s == ctx.density.ncomp) { j--; continue; }
 
-        double tau_s = (i_s == 9)  ? mageND + sageND*gasdev()
-                     : (i_s == 8)  ? mageB  + sageB *gasdev()
+        double tau_s = (i_s == 9)  ? ctx.stellar.mageND + ctx.stellar.sageND*ctx.runtime.rng->gaussian()
+                     : (i_s == 8)  ? ctx.stellar.mageB  + ctx.stellar.sageB *ctx.runtime.rng->gaussian()
                      : (i_s == 10) ? 14.0
-                     :               medtauds[i_s];
-        double D_s = grid.sample_source_distance(i_s, ran1());
+                     :               ctx.kinematics.medtauds.data()[i_s];
+        double D_s = grid.sample_source_distance(i_s, ctx.runtime.rng->uniform());
         int nbinDs = (int)(D_s / grid.dD());
 
         // --- Importance sampling lens distance range ---
@@ -169,14 +168,14 @@ int EventSampler::run_cli(RunContext &ctx,
                                        nbinDlmin, nbinDlmax);
 
         // --- Sample lens component and distance ---
-        int i_l = grid.sample_lens_component(nbinDlmin, nbinDlmax, ran1());
-        if (i_l == ncomp) { j--; continue; }
+        int i_l = grid.sample_lens_component(nbinDlmin, nbinDlmax, ctx.runtime.rng->uniform());
+        if (i_l == ctx.density.ncomp) { j--; continue; }
 
-        double tau_l = (i_l == 9)  ? mageND + sageND*gasdev()
-                     : (i_l == 8)  ? mageB  + sageB *gasdev()
+        double tau_l = (i_l == 9)  ? ctx.stellar.mageND + ctx.stellar.sageND*ctx.runtime.rng->gaussian()
+                     : (i_l == 8)  ? ctx.stellar.mageB  + ctx.stellar.sageB *ctx.runtime.rng->gaussian()
                      : (i_l == 10) ? 14.0
-                     :               medtauds[i_l];
-        double D_l = grid.sample_lens_distance(i_l, nbinDlmin, nbinDlmax, ran1());
+                     :               ctx.kinematics.medtauds.data()[i_l];
+        double D_l = grid.sample_lens_distance(i_l, nbinDlmin, nbinDlmax, ctx.runtime.rng->uniform());
         addGammaIS *= grid.importance_weight(nbinDlmin, nbinDlmax);
 
         // --- Velocities ---
@@ -187,15 +186,15 @@ int EventSampler::run_cli(RunContext &ctx,
         double vy_s = vxyz_S[1], vy_l = vxyz_L[1];
         double vz_s = vxyz_S[2], vz_l = vxyz_L[2];
 
-        double vxrel_s = vx_s - vxsun;
-        double vyrel_s = vy_s - vysun;
-        double vzrel_s = vz_s - vzsun;
+        double vxrel_s = vx_s - ctx.kinematics.vxsun;
+        double vyrel_s = vy_s - ctx.kinematics.vysun;
+        double vzrel_s = vz_s - ctx.kinematics.vzsun;
         double muSl = (vxrel_s*sinl      + vyrel_s*cosl)*KS2MY/D_s;
         double muSb = (vxrel_s*cosl*sinb - vyrel_s*sinl*sinb + vzrel_s*cosb)*KS2MY/D_s;
 
         double murells[3] = {}, murelbs[3] = {}, murels[3] = {};
-        double thetakick = (REMNANT == 1 && onlyWD == 0) ? asin(1 - 2*ran1()) : 0;
-        double phikick   = (REMNANT == 1 && onlyWD == 0) ? ran1()*2*PI - PI : 0;
+        double thetakick = (REMNANT == 1 && onlyWD == 0) ? asin(1 - 2*ctx.runtime.rng->uniform()) : 0;
+        double phikick   = (REMNANT == 1 && onlyWD == 0) ? ctx.runtime.rng->uniform()*2*PI - PI : 0;
         int nREM = (REMNANT == 1 && onlyWD == 0) ? 3 : 1;
         for (int iREM = 0; iREM < nREM; iREM++) {
             double vxadd = 0, vyadd = 0, vzadd = 0;
@@ -203,18 +202,18 @@ int EventSampler::run_cli(RunContext &ctx,
                 double vkick = (iREM == 1) ? vkickNS : vkickBH;
                 if (MXDkick == 1) {
                     double sigv1D = vkick * 0.5 * sqrt(0.5*PI);
-                    vxadd = sigv1D * gasdev();
-                    vyadd = sigv1D * gasdev();
-                    vzadd = sigv1D * gasdev();
+                    vxadd = sigv1D * ctx.runtime.rng->gaussian();
+                    vyadd = sigv1D * ctx.runtime.rng->gaussian();
+                    vzadd = sigv1D * ctx.runtime.rng->gaussian();
                 } else {
                     vxadd = vkick * cos(thetakick) * cos(phikick);
                     vyadd = vkick * cos(thetakick) * sin(phikick);
                     vzadd = vkick * sin(thetakick);
                 }
             }
-            double vxrel_l = vx_l + vxadd - vxsun;
-            double vyrel_l = vy_l + vyadd - vysun;
-            double vzrel_l = vz_l + vzadd - vzsun;
+            double vxrel_l = vx_l + vxadd - ctx.kinematics.vxsun;
+            double vyrel_l = vy_l + vyadd - ctx.kinematics.vysun;
+            double vzrel_l = vz_l + vzadd - ctx.kinematics.vzsun;
             double muLl = (vxrel_l*sinl      + vyrel_l*cosl)*KS2MY/D_l;
             double muLb = (vxrel_l*cosl*sinb - vyrel_l*sinl*sinb + vzrel_l*cosb)*KS2MY/D_l;
             double murellhel = muLl - muSl;
@@ -234,24 +233,24 @@ int EventSampler::run_cli(RunContext &ctx,
         double Minidie;
         if (i_l == 8) {
             int iage_l = (int)(tau_l * 2 + 0.5) * 50;
-            int itmp = (iage_l - agesB[0]) / (agesB[1] - agesB[0]);
-            Minidie = MinidieB[itmp];
+            int itmp = (iage_l - ctx.stellar.agesB.data()[0]) / (ctx.stellar.agesB.data()[1] - ctx.stellar.agesB.data()[0]);
+            Minidie = ctx.stellar.MinidieB.data()[itmp];
         } else if (i_l == 10) {
-            Minidie = MinidieD[nageD-1];
+            Minidie = ctx.stellar.MinidieD.data()[ctx.stellar.nageD-1];
         } else if (i_l == 9) {
             int iage_l = (int)(100*(tau_l + 0.5));
-            int itmp = (iage_l <= agesND[0]) ? 0
-                     : (iage_l >= agesND[nageND-1]) ? nageND-1
-                     : (iage_l - agesND[0]) / (agesND[1] - agesND[0]);
-            Minidie = MinidieND[itmp];
+            int itmp = (iage_l <= ctx.stellar.agesND.data()[0]) ? 0
+                     : (iage_l >= ctx.stellar.agesND.data()[ctx.stellar.nageND-1]) ? ctx.stellar.nageND-1
+                     : (iage_l - ctx.stellar.agesND.data()[0]) / (ctx.stellar.agesND.data()[1] - ctx.stellar.agesND.data()[0]);
+            Minidie = ctx.stellar.MinidieND.data()[itmp];
         } else if (i_l == 7) {
-            Minidie = MinidieD[nageD-2];
+            Minidie = ctx.stellar.MinidieD.data()[ctx.stellar.nageD-2];
         } else {
             int iage_l = (int)(tau_l * 100 + 0.5);
             iage_l = (iage_l % 5 > 2) ? iage_l + (5 - iage_l % 5) : iage_l - iage_l % 5;
             if (iage_l < 5) iage_l = 5;
-            int itmp = (iage_l - agesD[0]) / (agesD[1] - agesD[0]);
-            Minidie = MinidieD[itmp];
+            int itmp = (iage_l - ctx.stellar.agesD.data()[0]) / (ctx.stellar.agesD.data()[1] - ctx.stellar.agesD.data()[0]);
+            Minidie = ctx.stellar.MinidieD.data()[itmp];
         }
         double MMSmax = (BINARY == 1) ? 2 * Minidie : Minidie;
         double MPDmax = (REMNANT == 1) ? MBHmax
@@ -323,7 +322,7 @@ int EventSampler::run_cli(RunContext &ctx,
                 Minimax = (Minimax > MNSMIN) ? ctx.imf_options.mu
                         : (Minimax > MWDmin) ? (Minimax - 0.394)/0.109
                         : Minimax;
-                Minimin = (Minimin > MWDmax && Minimin > MMSmax) ? MiniWDmax
+                Minimin = (Minimin > MWDmax && Minimin > MMSmax) ? ctx.stellar.MiniWDmax
                         : (Minimin > MMSmax) ? (Minimin - 0.394)/0.109
                         : (BINARY == 1) ? 0.5 * Minimin : Minimin;
             } else if (onlyWD == 1) {
@@ -334,19 +333,19 @@ int EventSampler::run_cli(RunContext &ctx,
             } else {
                 Minimin = (BINARY == 1) ? 0.5 * Minimin : Minimin;
             }
-            nbinMmin = (int)floor((log10(Minimin) - logMst) / dlogM);
-            nbinMmax = (int)floor((log10(Minimax) - logMst) / dlogM) + 1;
+            nbinMmin = (int)floor((log10(Minimin) - ctx.stellar.logMst) / ctx.stellar.dlogM);
+            nbinMmax = (int)floor((log10(Minimax) - ctx.stellar.logMst) / ctx.stellar.dlogM) + 1;
             if (nbinMmin < 0)   nbinMmin = 0;
-            if (nbinMmax > nm)  nbinMmax = nm;
+            if (nbinMmax > ctx.stellar.nm)  nbinMmax = ctx.stellar.nm;
         }
 
         double logM, M_l;
         if (nbinMmax - nbinMmin > 0) {
-            ran = ran1() * (PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin])
+            ran = ctx.runtime.rng->uniform() * (PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin])
                  + PlogM_cum_norm_B[nbinMmin];
             addGammaIS *= PlogM_cum_norm_B[nbinMmax] - PlogM_cum_norm_B[nbinMmin];
         } else {
-            ran = ran1();
+            ran = ctx.runtime.rng->uniform();
         }
         inttmp = (int)(ran * 20);
         kst = 1;
@@ -354,7 +353,7 @@ int EventSampler::run_cli(RunContext &ctx,
             kst = imptiles_B[itmp] - 1;
             if (kst > 0) break;
         }
-        logM = getcumu2xist(nm, logMass_B, PlogM_cum_norm_B, PlogM_B, ran, kst, 0);
+        logM = getcumu2xist(ctx.stellar.nm, logMass_B, PlogM_cum_norm_B, PlogM_B, ran, kst, 0);
         M_l  = pow(10.0, logM);
         double Morg = M_l;
 
@@ -382,7 +381,7 @@ int EventSampler::run_cli(RunContext &ctx,
         if (BINARY && fREM == 0) {
             double mult = 0.196 + 0.255*M_l;
             if (mult > MAXMULT) mult = MAXMULT;
-            ran = ran1();
+            ran = ctx.runtime.rng->uniform();
             double coeff, q2;
             if (ran < 0.5 * mult) {
                 swl = 1;
@@ -391,7 +390,7 @@ int EventSampler::run_cli(RunContext &ctx,
                 if (gamma < MINGAMMA) gamma = MINGAMMA;
                 coeff = -1;
                 double tmp = pow(0.1, gamma+1);
-                q2 = pow((1-tmp)*ran1() + tmp, 1.0/(gamma+1));
+                q2 = pow((1-tmp)*ctx.runtime.rng->uniform() + tmp, 1.0/(gamma+1));
             } else if (ran < mult) {
                 swl = 2;
                 double gamma = (M_l >= 0.344) ? 0 : -3.09 - 6.67*log10(M_l);
@@ -399,12 +398,12 @@ int EventSampler::run_cli(RunContext &ctx,
                 if (gamma < MINGAMMA) gamma = MINGAMMA;
                 coeff = 1;
                 double tmp = pow(0.1, gamma+1);
-                q2 = pow((1-tmp)*ran1() + tmp, 1.0/(gamma+1));
+                q2 = pow((1-tmp)*ctx.runtime.rng->uniform() + tmp, 1.0/(gamma+1));
             } else { coeff = 0; q2 = 0; }
             if (swl > 0) {
                 M_l2 = M_l * q2;
                 double Ptmp = sqrt(M_l) / (sqrt(M_l) + sqrt(M_l2));
-                ran = ran1();
+                ran = ctx.runtime.rng->uniform();
                 double Mtmp1 = (ran < Ptmp) ? M_l  : M_l2;
                 double Mtmp2 = (ran < Ptmp) ? M_l2 : M_l;
                 double qtmp  = Mtmp2 / Mtmp1;
@@ -414,7 +413,7 @@ int EventSampler::run_cli(RunContext &ctx,
                 getaproj(ctx, pout, M_l, M_l2, (int)coeff);
                 al     = (pout[0] < 99) ? pow(10.0, pout[0]) : -1;
                 alpmin = pout[1];
-                u0S    = (u0obs > 0) ? u0obs : ran1();
+                u0S    = (u0obs > 0) ? u0obs : ctx.runtime.rng->uniform();
                 double tmp = qtmp / u0S;
                 apdetL = (sqrt(tmp+1) + sqrt(tmp)) * thetaE1 * D_l * 0.001;
                 if (qtmp > 1) tmp = 1.0/qtmp/u0S;
@@ -455,7 +454,7 @@ int EventSampler::run_cli(RunContext &ctx,
         if (ilogtE > stats.NbintE - 1) ilogtE = stats.NbintE - 1;
         stats.NlogtEs[ilogtE] += Gamma * addGammaIS;
 
-        if (Gamma < ran1() && SMALLGAMMA == 0) { j--; continue; }
+        if (Gamma < ctx.runtime.rng->uniform() && SMALLGAMMA == 0) { j--; continue; }
 
         double addGamma = 1.0;
         double wtj = (Gamma > 1 || SMALLGAMMA == 1) ? Gamma : 1.0;
@@ -490,9 +489,9 @@ int EventSampler::run_cli(RunContext &ctx,
         int like_mus = 1;
         if (musRCG == 1) {
             double musfac = 1.0 - D_s / Dmean;
-            double vxr = vx_s - musfac*vxsun;
-            double vyr = vy_s - musfac*vysun;
-            double vzr = vz_s - musfac*vzsun;
+            double vxr = vx_s - musfac*ctx.kinematics.vxsun;
+            double vyr = vy_s - musfac*ctx.kinematics.vysun;
+            double vzr = vz_s - musfac*ctx.kinematics.vzsun;
             muSl = (vxr*sinl      + vyr*cosl)*KS2MY/D_s;
             muSb = (vxr*cosl*sinb - vyr*sinl*sinb + vzr*cosb)*KS2MY/D_s;
         }

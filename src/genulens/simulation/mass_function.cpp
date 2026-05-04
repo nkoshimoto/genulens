@@ -8,14 +8,14 @@ namespace genulens {
 
 void MassFunction::init_from_population(const PopulationRuntime &pop,
                                          const RunContext &ctx) {
-    active_state = const_cast<RunContext*>(&ctx);
+    ctx_ = const_cast<RunContext*>(&ctx);
     log_mass_  = pop.log_mass;
     mass_prob_ = pop.mass_probability;
     mass_cumu_ = pop.mass_cumulative;
     ptiles_    = pop.mass_percentiles;
-    nm_     = nm;
-    logMst_ = logMst;
-    dlogM_  = dlogM;
+    nm_     = ctx.stellar.nm;
+    logMst_ = ctx.stellar.logMst;
+    dlogM_  = ctx.stellar.dlogM;
 
     M_emps_   = pop.empirical_masses;
     Mag_emps_ = pop.empirical_magnitudes;
@@ -47,7 +47,7 @@ double MassFunction::sample_log_mass(double ran, int nbinMmin, int nbinMmax,
 MassFunction::RemnantResult MassFunction::evolve(double initial_mass) const {
     void Mini2Mrem(RunContext &ctx, double *pout, double M, int mean);
     double pout[2] = {};
-    Mini2Mrem(*active_state, pout, initial_mass, 0);
+    Mini2Mrem(*ctx_, pout, initial_mass, 0);
     return {pout[0], (int)pout[1]};
 }
 
