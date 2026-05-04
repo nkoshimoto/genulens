@@ -12,6 +12,7 @@ public:
     void finalize_spatial_model(RunContext &context, int argc, char **argv) const;
     void read_sampling_options(RunContext &context, int argc, char **argv,
                                double cos_pa, double sin_pa) const;
+    void finalize_density_normalization(RunContext &ctx) const;
 };
 
 } // namespace genulens

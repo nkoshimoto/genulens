@@ -1,4 +1,5 @@
 #include "genulens/simulation/initialize.hpp"
+#include "genulens/simulation/internal/runtime.hpp"
 
 #include "genulens/cli/option.h"
 #include "genulens/constants.hpp"
@@ -281,6 +282,50 @@ void Initializer::read_sampling_options(RunContext &context, int argc, char **ar
     if (options.only_white_dwarf == 1) options.remnant = 0;
     options.calc_prior_piE = getOptiond(argc, argv, "CALCPRIORpiE", 1, options.calc_prior_piE);
     options.calc_prior_thetaE = getOptiond(argc, argv, "CALCPRIORthE", 1, options.calc_prior_thetaE);
+}
+
+void Initializer::finalize_density_normalization(RunContext &ctx) const {
+    auto &d = ctx.density;
+
+    // Disk y0d (used by calc_rho_each)
+    for (int i = 0; i < 3; i++) {
+        d.y0d[i] = (d.DISK == 1)
+            ? std::exp(-d.R0 / d.Rd[i] - std::pow((double)d.Rh / d.R0, d.nh))
+            : std::exp(-d.R0 / d.Rd[i]);
+    }
+
+    // Disk mass in the VVV box (for bar normalization)
+    double MVVVd = 0;
+    for (int i = 0; i < 8; i++) {
+        int rd    = (i == 0) ? d.Rd[0] : (i < 7) ? d.Rd[1] : d.Rd[2];
+        int zdtmp = (d.hDISK == 0) ? (int)d.zd[i] : (int)d.zd45[i];
+        double t  = d.rho0d[i] * std::exp((d.R0 - d.Rdbreak) / rd) * 2200*2 * 1400*2 * d.zd[i] / zdtmp;
+        double z  = 1200.0 / zdtmp;
+        t *= (i < 7) ? 2*zdtmp*(std::exp(2*z)-1)/(std::exp(2*z)+1)
+                     : 2*zdtmp*(1 - std::exp(-z));
+        MVVVd += t;
+    }
+
+    // Bar normalization via crude_integrate
+    double massVVVbox = crude_integrate(ctx, 2200, 1400, 1200, 15);
+    if (d.addX >= 5) {
+        int saved = d.addX;
+        d.addX = 0;
+        crude_integrate(ctx, 6000, 3000, 3000, 30);
+        d.addX = saved;
+    }
+    constexpr double MVVVP17 = 1.32e+10;
+    d.rho0b = (d.frho0b * MVVVP17 - MVVVd) / massVVVbox;
+    d.n0MSb = d.rho0b * d.fb_MS * d.m2nb_MS;
+    d.n0RGb = d.n0MSb * d.nMS2nRGb;
+    d.n0b   = d.n0MSb + d.rho0b * (1 - d.fb_MS) * d.m2nb_WD;
+
+    // NSD normalization (ND and rho0ND must already be set by caller)
+    if (d.ND) {
+        d.n0MSND = d.rho0ND * d.fND_MS * d.m2nND_MS;
+        d.n0RGND = d.n0MSND * d.nMS2nRGND;
+        d.n0ND   = d.n0MSND + d.rho0ND * (1 - d.fND_MS) * d.m2nND_WD;
+    }
 }
 
 } // namespace genulens

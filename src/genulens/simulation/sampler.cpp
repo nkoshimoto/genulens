@@ -115,16 +115,9 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
            "        n0     n0WD    Sigma0  \n");
     printf("#            Gyr   pc  pc   pc  km/s  km/s     pc     pc  Msun/pc^3"
            "  */pc^3   */pc^3  Msun/pc^2\n");
-    double MVVVd = 0, Mind = 0;
     for (int i = 0; i < 8; i++) {
         int rd    = (i == 0) ? context.density.Rd.data()[0] : (i < 7) ? context.density.Rd.data()[1] : context.density.Rd.data()[2];
         int zdtmp = (context.density.hDISK == 0) ? context.density.zd.data()[i] : context.density.zd45.data()[i];
-        double MVVVtmp = context.density.rho0d.data()[i] * exp((context.density.R0 - context.density.Rdbreak)/rd) * 2200*2 * 1400*2 * context.density.zd.data()[i] / zdtmp;
-        double ztmp = 1200.0/zdtmp;
-        Mind    += 2 * zdtmp * MVVVtmp / 4400 / 2800 * PI * context.density.Rdbreak * context.density.Rdbreak;
-        MVVVtmp *= (i < 7) ? 2 * zdtmp * (exp(2*ztmp)-1)/(exp(2*ztmp)+1)
-                           : 2 * zdtmp * (1 - exp(-ztmp));
-        MVVVd += MVVVtmp;
         double hsigU = (i < 7) ? context.kinematics.hsigUt : context.kinematics.hsigUT;
         double hsigW = (i < 7) ? context.kinematics.hsigWt : context.kinematics.hsigWT;
         double sigW0 = (i < 7) ? context.kinematics.sigW10d * pow((context.kinematics.medtauds.data()[i]+0.01)/10.01, context.kinematics.betaW) : context.kinematics.sigW0td;
@@ -143,43 +136,24 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     printf("#         MXDkick = %d\n", MXDkick);
     printf("#   (vkickNS, vkickBH) = (%6.1f , %6.1f) km/s\n", vkickNS, vkickBH);
 
-    // ------- Bulge normalization -------
-    double crude_integrate(RunContext &ctx, double xmax, double ymax, double zmax, int nbun);
-    double massVVVbox = crude_integrate(context, 2200, 1400, 1200, 15);
-    double massentire = crude_integrate(context, 6000, 3000, 3000, 30);
-    double fm1 = 1, fmX = 0;
-    if (context.density.addX >= 5) {
-        int addXtmp = context.density.addX; context.density.addX = 0;
-        double mass1all = crude_integrate(context, 6000, 3000, 3000, 30);
-        context.density.addX = addXtmp;
-        fm1 = mass1all / massentire;
-        fmX = 1 - fm1;
-    }
-    double MVVVP17 = 1.32e+10;
-    context.density.rho0b  = (context.density.frho0b * MVVVP17 - MVVVd) / massVVVbox;
-    context.density.n0MSb  = context.density.rho0b * context.density.fb_MS * context.density.m2nb_MS;
-    context.density.n0RGb  = context.density.n0MSb * context.density.nMS2nRGb;
-    context.density.n0b    = context.density.n0MSb + context.density.rho0b * (1 - context.density.fb_MS) * context.density.m2nb_WD;
-    massVVVbox *= context.density.rho0b;
-    massentire *= context.density.rho0b;
-
-    // ------- NSD -------
+    // ------- NSD option parsing -------
     double MND = 0;
     if (fabs(lSIMU) < 5 && fabs(bSIMU) < 2) context.density.ND = 3;
     context.density.ND = getOptiond(argc, argv, "NSD", 1, context.density.ND);
     if (context.density.ND > 0) context.density.ND = 3;
     if (context.density.ND == 1) { MND = 2.0e+09; context.density.x0ND = 250; context.density.y0ND = 125; context.density.z0ND = 50; }
     if (context.density.ND == 2) { MND = 7.0e+08; context.density.x0ND =  74; context.density.y0ND =  74; context.density.z0ND = 26; }
-    context.density.x0ND = getOptiond(argc, argv, "context.density.x0ND", 1, context.density.x0ND);
-    context.density.y0ND = getOptiond(argc, argv, "context.density.y0ND", 1, context.density.y0ND);
-    context.density.z0ND = getOptiond(argc, argv, "context.density.z0ND", 1, context.density.z0ND);
+    context.density.x0ND = getOptiond(argc, argv, "x0ND", 1, context.density.x0ND);
+    context.density.y0ND = getOptiond(argc, argv, "y0ND", 1, context.density.y0ND);
+    context.density.z0ND = getOptiond(argc, argv, "z0ND", 1, context.density.z0ND);
     MND  = getOptiond(argc, argv, "MND",  1,  MND);
-    if (context.density.ND) {
+    if (context.density.ND)
         context.density.rho0ND = (context.density.ND == 3) ? 1 : 0.25*MND/PI/context.density.x0ND/context.density.y0ND/context.density.z0ND;
-        context.density.n0MSND = context.density.rho0ND * context.density.fND_MS * context.density.m2nND_MS;
-        context.density.n0RGND = context.density.n0MSND * context.density.nMS2nRGND;
-        context.density.n0ND   = context.density.n0MSND + context.density.rho0ND * (1 - context.density.fND_MS) * context.density.m2nND_WD;
-    }
+
+    // ------- Bulge + disk + NSD normalization -------
+    Initializer().finalize_density_normalization(context);
+    double massentire = crude_integrate(context, 6000, 3000, 3000, 30) * context.density.rho0b;
+
     NsdMomentRuntime nsd_moments;
     nsd_moments.initialize_if_enabled(context);
 
@@ -187,15 +161,15 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
            context.density.thetaD, massentire);
     printf("#   (M_MS, M_REM)ave= (%.6f %.6f) Msun/*, fM_REM= %.4f\n",
            1/context.density.m2nb_MS, 1/context.density.m2nb_WD, 1-context.density.fb_MS);
-    printf("#   rho%d: context.density.rho0b= %5.2f, (x0,y0,z0,context.density.Rc)= (%4.0f,%4.0f,%3.0f,%4.0f),"
-           " (context.density.C1,context.density.C2,context.density.C3)= (%.1f,%.1f,%.1f)\n",
+    printf("#   rho%d: rho0b= %5.2f, (x0,y0,z0,Rc)= (%4.0f,%4.0f,%3.0f,%4.0f),"
+           " (C1,C2,C3)= (%.1f,%.1f,%.1f)\n",
            context.density.model, context.density.rho0b, context.density.x0_1, context.density.y0_1, context.density.z0_1, context.density.Rc, context.density.C1, context.density.C2, context.density.C3);
     if (context.density.addX >= 5)
-        printf("#     X%d: rho0X= %5.2f, (x0,y0,z0,context.density.Rc)= (%4.0f,%4.0f,%3.0f,%4.0f)\n",
+        printf("#     X%d: rho0X= %5.2f, (x0,y0,z0,Rc)= (%4.0f,%4.0f,%3.0f,%4.0f)\n",
                context.density.addX, context.density.rho0b*context.density.fX, context.density.x0_X, context.density.y0_X, context.density.z0_X, context.density.Rc_X);
-    printf("#   (context.kinematics.Omega_p, context.kinematics.vx_str)= (%.1f km/s/kpc, %3.0f[1-e^{-(|yb|/%4.0f)^2}] km/s)\n",
+    printf("#   (Omega_p, vx_str)= (%.1f km/s/kpc, %3.0f[1-e^{-(|yb|/%4.0f)^2}] km/s)\n",
            context.kinematics.Omega_p, context.kinematics.vx_str, context.kinematics.y0_str);
-    printf("#   context.density.ND= %d  context.density.SH= %d\n", context.density.ND, context.density.SH);
+    printf("#   ND= %d  SH= %d\n", context.density.ND, context.density.SH);
 
     // ------- PA calculation -------
     double PA, cosPA, sinPA;

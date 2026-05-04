@@ -83,31 +83,19 @@ target_compile_definitions(genulens_core PRIVATE GENULENS_SOURCE_DIR="${CMAKE_CU
 add_executable(genulens genulens.cpp)
 target_link_libraries(genulens PRIVATE genulens_core)
 
-add_executable(calc_rho_profile
-    src/genulens/tools/pre_gapmoe/calc_rho_profile.cpp
-    src/genulens/tools/pre_gapmoe/galactic_model.cpp
-    src/genulens/tools/pre_gapmoe/galactic_kinematics.cpp
-    src/genulens/tools/pre_gapmoe/option.cpp)
-target_include_directories(calc_rho_profile PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/genulens/tools/pre_gapmoe" ${GSL_INCLUDE_DIR})
-target_link_libraries(calc_rho_profile PRIVATE genulens_core GSL::gsl GSL::gslcblas m)
+add_executable(calc_rho_profile src/genulens/tools/pre_gapmoe/calc_rho_profile.cpp)
+target_include_directories(calc_rho_profile PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(calc_rho_profile PRIVATE genulens_core)
 set_target_properties(calc_rho_profile PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pre_gapmoe")
 
-add_executable(calc_mass_dist
-    src/genulens/tools/pre_gapmoe/calc_mass_dist.cpp
-    src/genulens/tools/pre_gapmoe/galactic_model.cpp
-    src/genulens/tools/pre_gapmoe/galactic_kinematics.cpp
-    src/genulens/tools/pre_gapmoe/option.cpp)
-target_include_directories(calc_mass_dist PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/genulens/tools/pre_gapmoe" ${GSL_INCLUDE_DIR})
-target_link_libraries(calc_mass_dist PRIVATE genulens_core GSL::gsl GSL::gslcblas m)
+add_executable(calc_mass_dist src/genulens/tools/pre_gapmoe/calc_mass_dist.cpp)
+target_include_directories(calc_mass_dist PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(calc_mass_dist PRIVATE genulens_core)
 set_target_properties(calc_mass_dist PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pre_gapmoe")
 
-add_executable(calc_murel_dist
-    src/genulens/tools/pre_gapmoe/calc_murel_dist.cpp
-    src/genulens/tools/pre_gapmoe/galactic_model.cpp
-    src/genulens/tools/pre_gapmoe/galactic_kinematics.cpp
-    src/genulens/tools/pre_gapmoe/option.cpp)
-target_include_directories(calc_murel_dist PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/genulens/tools/pre_gapmoe" ${GSL_INCLUDE_DIR})
-target_link_libraries(calc_murel_dist PRIVATE genulens_core GSL::gsl GSL::gslcblas m)
+add_executable(calc_murel_dist src/genulens/tools/pre_gapmoe/calc_murel_dist.cpp)
+target_include_directories(calc_murel_dist PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(calc_murel_dist PRIVATE genulens_core)
 set_target_properties(calc_murel_dist PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pre_gapmoe")
 
 add_executable(test_core tests/unit/test_core.cpp)

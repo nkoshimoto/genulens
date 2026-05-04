@@ -21,11 +21,14 @@
  * where nMS = MS star number density [1/pc^3], n = MS+WD number density [1/pc^3]
  */
 
-#include "galactic_model.h"
-#include "option.h"
+#include "genulens/cli/option.h"
 #include "genulens/io/input_data.hpp"
+#include "genulens/simulation/initialize.hpp"
+#include "genulens/simulation/internal/runtime.hpp"
 
 #define fopen(path, mode) genulens::open_input_file((path), (mode))
+
+using namespace genulens;
 
 static int has_help_option(int argc, char **argv)
 {
@@ -89,284 +92,6 @@ static int has_option(int argc, char **argv, const char *name)
     return 0;
 }
 
-static int nMIs = 0, nVIs = 0;
-static double *MIs = NULL, **CumuN_MIs = NULL, dILF = 0;
-static double *VIs = NULL, ***f_VI_Is = NULL, dVILF = 0;
-
-static const char *iso_file_for_component(int icomp)
-{
-    return (icomp == 0) ? "input_files/iso-thin1.dat" :
-           (icomp == 1) ? "input_files/iso-thin2.dat" :
-           (icomp == 2) ? "input_files/iso-thin3.dat" :
-           (icomp == 3) ? "input_files/iso-thin4.dat" :
-           (icomp == 4) ? "input_files/iso-thin5.dat" :
-           (icomp == 5) ? "input_files/iso-thin6.dat" :
-           (icomp == 6) ? "input_files/iso-thin7.dat" :
-           (icomp == 7) ? "input_files/iso-thick2.dat" :
-           (icomp == 8) ? "input_files/iso-bar_age.dat" :
-           (icomp == 9) ? "input_files/iso-NSD.dat" :
-                          "input_files/iso-halo.dat";
-}
-
-static int iso_nage_for_component(int icomp)
-{
-    return (icomp == 0) ? 3  : (icomp == 1) ? 18 : (icomp == 2) ? 21 :
-           (icomp == 3) ? 21 : (icomp == 4) ? 41 : (icomp == 5) ? 41 :
-           (icomp == 6) ? 61 : (icomp == 7) ? 2  : (icomp == 8) ? 27 :
-           (icomp == 9) ? 6  : 2;
-}
-
-static int iso_narry_for_component(int icomp)
-{
-    return (icomp == 0) ? 465 : (icomp == 1) ? 581 : (icomp == 2) ? 1885 :
-           (icomp == 3) ? 552 : (icomp == 4) ? 362 : (icomp == 5) ? 323 :
-           (icomp == 6) ? 296 : (icomp == 7) ? 197 : (icomp == 8) ? 766 :
-           (icomp == 9) ? 340 : 190;
-}
-
-static int iso_dtau_for_component(int icomp)
-{
-    return (icomp == 0) ? 10  : (icomp == 1) ? 85  : (icomp == 2) ? 100 :
-           (icomp == 3) ? 100 : (icomp == 4) ? 100 : (icomp == 5) ? 50  :
-           (icomp == 6) ? 100 : 100;
-}
-
-static double component_sfr_weight(int icomp, double tau)
-{
-    double gamma = 1.0 / tSFR;
-    return (icomp == 9) ? exp(-0.5 * pow((tau - mageND) / sageND, 2)) :
-           (icomp == 8) ? exp(-0.5 * pow((tau - mageB) / sageB, 2)) :
-           (icomp < 7)  ? exp(-gamma * (10 - tau)) :
-                          2.0;
-}
-
-static int make_LFs(double *MIs_out, double **CumuN_MIs_out, double *PlogM_cum_norm)
-{
-    FILE *fp;
-    char line[1000];
-    char *words[100];
-    int nMI = 0;
-    const int Nbin = 950;
-    const int MIst = -6, MIen = 13;
-    const double dI = (double)(MIen - MIst) / Nbin;
-
-    if ((fp = fopen("input_files/NbleNall_bin.dat", "r")) == NULL) {
-        printf("can't open input_files/NbleNall_bin.dat\n");
-        exit(1);
-    }
-    while (fgets(line, 1000, fp) != NULL) {
-        int nwords = split((char*)" ", line, words);
-        if (nwords == 0 || *words[0] == '#') continue;
-        MIs_out[nMI++] = atof(words[0]);
-    }
-    fclose(fp);
-
-    for (int icomp = 0; icomp < ncomp; icomp++) {
-        const char *file1 = iso_file_for_component(icomp);
-        if ((fp = fopen(file1, "r")) == NULL) {
-            printf("can't open %s\n", file1);
-            exit(1);
-        }
-
-        int nage = iso_nage_for_component(icomp);
-        int narry = iso_narry_for_component(icomp);
-        int dtau = iso_dtau_for_component(icomp);
-        int *nMinis = (int*)calloc(nage, sizeof(int));
-        double **Minis = (double**)malloc(sizeof(double*) * nage);
-        double **MIcs = (double**)malloc(sizeof(double*) * nage);
-        for (int j = 0; j < nage; j++) {
-            Minis[j] = (double*)calloc(narry, sizeof(double));
-            MIcs[j] = (double*)calloc(narry, sizeof(double));
-        }
-
-        int iage = 0, iagest = 0;
-        while (fgets(line, 1000, fp) != NULL) {
-            int nwords = split((char*)" ", line, words);
-            if (nwords == 0 || *words[0] == '#') continue;
-            if (iagest == 0) iagest = atoi(words[0]);
-            if ((atoi(words[0]) - iagest) % dtau != 0) continue;
-            iage = (int)((atoi(words[0]) - iagest + 0.5) / dtau);
-            if (iage < 0 || iage >= nage) continue;
-            Minis[iage][nMinis[iage]] = atof(words[1]);
-            MIcs[iage][nMinis[iage]] = atof(words[3]);
-            nMinis[iage]++;
-        }
-        fclose(fp);
-
-        double pIs[960] = {};
-        for (int j = 0; j < iage + 1; j++) {
-            if (nMinis[j] <= 0) continue;
-            double tau = (j * dtau + iagest) * 0.01;
-            double wtSFR = component_sfr_weight(icomp, tau);
-            if (j == 0 || j == iage) wtSFR *= 0.5;
-            if (j == 0 && icomp == 0) wtSFR *= 3.0;
-            double PBD = interp_x(nm + 1, PlogM_cum_norm, logMst, dlogM, log10(Minis[j][0]));
-            pIs[Nbin - 5] += wtSFR * PBD;
-            for (int k = 0; k < nMinis[j] - 1; k++) {
-                if (Minis[j][k + 1] == 0) continue;
-                double MIc = 0.5 * (MIcs[j][k] + MIcs[j][k + 1]);
-                double P1 = interp_x(nm + 1, PlogM_cum_norm, logMst, dlogM, log10(Minis[j][k]));
-                double P2 = interp_x(nm + 1, PlogM_cum_norm, logMst, dlogM, log10(Minis[j][k + 1]));
-                int pI = (int)((MIc - MIst) / dI);
-                if (pI < 0) pI = 0;
-                if (pI >= Nbin) pI = Nbin - 5;
-                pIs[pI] += wtSFR * (P2 - P1);
-            }
-        }
-
-        for (int pI = 0; pI <= Nbin; pI++)
-            CumuN_MIs_out[icomp][pI] = (pI >= 1) ? 0.5 * (pIs[pI] + pIs[pI - 1]) + CumuN_MIs_out[icomp][pI - 1] : 0.0;
-
-        for (int j = 0; j < nage; j++) {
-            free(Minis[j]);
-            free(MIcs[j]);
-        }
-        free(Minis);
-        free(MIcs);
-        free(nMinis);
-    }
-
-    for (int k = 0; k < ncomp; k++)
-        for (int j = 0; j < nMI; j++)
-            CumuN_MIs_out[k][j] /= CumuN_MIs_out[k][nMI - 1];
-
-    return nMI;
-}
-
-static void store_VI_MI(double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI,
-                        double *MIs_out, double *VIs_out, double ***f_VI_Is_out, double *PlogM_cum_norm)
-{
-    FILE *fp;
-    char line[1000];
-    char *words[100];
-    double dMI = (MIen - MIst) / NbinMI;
-    double dVI = (VIen - VIst) / NbinVI;
-
-    for (int icomp = 0; icomp < ncomp; icomp++) {
-        const char *file1 = iso_file_for_component(icomp);
-        if ((fp = fopen(file1, "r")) == NULL) {
-            printf("can't open %s\n", file1);
-            exit(1);
-        }
-
-        int nage = iso_nage_for_component(icomp);
-        int narry = iso_narry_for_component(icomp);
-        int *nMinis = (int*)calloc(nage, sizeof(int));
-        double *ages = (double*)calloc(nage, sizeof(double));
-        double **Minis = (double**)malloc(sizeof(double*) * nage);
-        double **VIcs = (double**)malloc(sizeof(double*) * nage);
-        double **MIcs = (double**)malloc(sizeof(double*) * nage);
-        for (int j = 0; j < nage; j++) {
-            Minis[j] = (double*)calloc(narry, sizeof(double));
-            VIcs[j] = (double*)calloc(narry, sizeof(double));
-            MIcs[j] = (double*)calloc(narry, sizeof(double));
-        }
-
-        int iage = -1;
-        double age0 = -1;
-        while (fgets(line, 1000, fp) != NULL) {
-            int nwords = split((char*)" ", line, words);
-            if (nwords == 0 || *words[0] == '#') continue;
-            double age = atof(words[0]);
-            if (age != age0) iage++;
-            age0 = age;
-            if (iage < 0 || iage >= nage) continue;
-            Minis[iage][nMinis[iage]] = atof(words[1]);
-            VIcs[iage][nMinis[iage]] = atof(words[2]) - atof(words[3]);
-            MIcs[iage][nMinis[iage]] = atof(words[3]);
-            if (nMinis[iage] == 0) ages[iage] = age;
-            nMinis[iage]++;
-        }
-        fclose(fp);
-
-        double sumwt = 0;
-        for (int j = 0; j < iage + 1; j++) {
-            if (nMinis[j] <= 0) continue;
-            double tau = 0.01 * ages[j];
-            double wtSFR = component_sfr_weight(icomp, tau);
-            if (j == 0 || j == iage) wtSFR *= 0.5;
-            if (j == 0 && icomp == 0) wtSFR *= 3.0;
-            double PBD = interp_x(nm + 1, PlogM_cum_norm, logMst, dlogM, log10(Minis[j][0]));
-            f_VI_Is_out[icomp][NbinVI - 5][NbinMI - 5] += wtSFR * PBD;
-            sumwt += wtSFR * PBD;
-            for (int k = 0; k < nMinis[j] - 1; k++) {
-                if (Minis[j][k + 1] == 0) continue;
-                double P1 = interp_x(nm + 1, PlogM_cum_norm, logMst, dlogM, log10(Minis[j][k]));
-                double P2 = interp_x(nm + 1, PlogM_cum_norm, logMst, dlogM, log10(Minis[j][k + 1]));
-                double wtM = P2 - P1;
-                for (int l = 0; l < 3; l++) {
-                    double VI = (l == 0) ? VIcs[j][k] : (l == 1) ? 0.5 * (VIcs[j][k] + VIcs[j][k + 1]) : VIcs[j][k + 1];
-                    double MI = (l == 0) ? MIcs[j][k] : (l == 1) ? 0.5 * (MIcs[j][k] + MIcs[j][k + 1]) : MIcs[j][k + 1];
-                    int pMI = (int)((MI - MIst) / dMI);
-                    int pVI = (int)((VI - VIst) / dVI);
-                    if (pMI < 0) pMI = 0;
-                    if (pMI >= NbinMI) pMI = NbinMI - 1;
-                    if (pVI < 0) pVI = 0;
-                    if (pVI >= NbinVI) pVI = NbinVI - 1;
-                    double tmpwt = (l == 1) ? 1.0 : 0.5;
-                    f_VI_Is_out[icomp][pVI][pMI] += tmpwt * wtSFR * wtM;
-                    sumwt += tmpwt * wtSFR * wtM;
-                }
-            }
-        }
-
-        for (int pVI = 0; pVI <= NbinVI; pVI++) {
-            if (icomp == 0) VIs_out[pVI] = VIst + pVI * dVI;
-            for (int pMI = 0; pMI <= NbinMI; pMI++) {
-                if (icomp == 0) MIs_out[pMI] = MIst + pMI * dMI;
-                f_VI_Is_out[icomp][pVI][pMI] /= sumwt;
-            }
-        }
-
-        for (int j = 0; j < nage; j++) {
-            free(Minis[j]);
-            free(VIcs[j]);
-            free(MIcs[j]);
-        }
-        free(Minis);
-        free(VIcs);
-        free(MIcs);
-        free(ages);
-        free(nMinis);
-    }
-}
-
-static double fLF_detect(double extI, double Imin, double Imax, int idisk)
-{
-    double imaxd = (Imax - extI - MIs[0]) / dILF;
-    double imind = (Imin - extI - MIs[0]) / dILF;
-    if (imaxd < 0) imaxd = 0;
-    if (imaxd > nMIs - 1) imaxd = nMIs - 1;
-    if (imind < 0) imind = 0;
-    if (imind > nMIs - 1) imind = nMIs - 1;
-    int imax = (int)imaxd;
-    int imin = (int)imind;
-    double fmax = CumuN_MIs[idisk][imax + 1] * (imaxd - imax) + CumuN_MIs[idisk][imax] * (1 - (imaxd - imax));
-    double fmin = CumuN_MIs[idisk][imin + 1] * (imind - imin) + CumuN_MIs[idisk][imin] * (1 - (imind - imin));
-    return fmax - fmin;
-}
-
-static double fIVI_detect(double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk)
-{
-    double imaxd = (Imax - extI - MIs[0]) / dILF;
-    double imind = (Imin - extI - MIs[0]) / dILF;
-    double jmaxd = (VImax - extVI - VIs[0]) / dVILF;
-    double jmind = (VImin - extVI - VIs[0]) / dVILF;
-    if (imaxd < 0) imaxd = 0;
-    if (imaxd > nMIs - 1) imaxd = nMIs - 1;
-    if (imind < 0) imind = 0;
-    if (imind > nMIs - 1) imind = nMIs - 1;
-    if (jmaxd < 0) jmaxd = 0;
-    if (jmaxd > nVIs - 1) jmaxd = nVIs - 1;
-    if (jmind < 0) jmind = 0;
-    if (jmind > nVIs - 1) jmind = nVIs - 1;
-    double fIVI = 0;
-    for (int j = (int)jmind; j <= (int)jmaxd; j++)
-        for (int i = (int)imind; i <= (int)imaxd; i++)
-            fIVI += f_VI_Is[idisk][j][i];
-    return fIVI;
-}
-
 int main(int argc, char **argv)
 {
     if (has_help_option(argc, argv)) {
@@ -375,130 +100,110 @@ int main(int argc, char **argv)
     }
 
     // ---- Initialize galaxy model ----
-    init_galactic_model(argc, argv, 0); // 0: no Shu DF kinematics needed
+    RunContext ctx = Initializer().create_context();
+    Initializer().initialize_rng(ctx, argc, argv);
+    Initializer().read_model_options(ctx, argc, argv);
+    Initializer().finalize_spatial_model(ctx, argc, argv);
+
+    double lSIMU   = getOptiond(argc, argv, "l",         1,  1.0);
+    double bSIMU   = getOptiond(argc, argv, "b",         1, -3.9);
+
+    ctx.density.lDs = (double*)malloc(sizeof(double));
+    ctx.density.bDs = (double*)malloc(sizeof(double));
+    ctx.density.lDs[0] = lSIMU;
+    ctx.density.bDs[0] = bSIMU;
+
+    // NSD option
+    ctx.density.ND = getOptiond(argc, argv, "NSD", 1, 0);
+    if (ctx.density.ND > 0) ctx.density.ND = 3;
+    double MND = (ctx.density.ND == 1) ? 2.0e9 : (ctx.density.ND == 2) ? 7.0e8 : 0.0;
+    MND = getOptiond(argc, argv, "MND", 1, MND);
+    if (ctx.density.ND)
+        ctx.density.rho0ND = (ctx.density.ND == 3) ? 1.0 : 0.25*MND/3.1415926535897932385/ctx.density.x0ND/ctx.density.y0ND/ctx.density.z0ND;
+
+    PopulationRuntime population;
+    population.initialize_mass_function(ctx, ctx.imf_options);
+    Initializer().finalize_density_normalization(ctx);
+
+    NsdMomentRuntime nsd_moments;
+    nsd_moments.initialize_if_enabled(ctx);
 
     // ---- Tool-specific options ----
-    double lSIMU   = getOptiond(argc,argv,"l",         1,  1.0);
-    double bSIMU   = getOptiond(argc,argv,"b",         1, -3.9);
-    double Dmax    = getOptiond(argc,argv,"Dmax",      1, 16000);
-    double Dstep   = getOptiond(argc,argv,"Dstep",     1, 100);
-    double Dmin    = getOptiond(argc,argv,"Dmin",      1, Dstep);
-    int    VERBOSE = getOptiond(argc,argv,"VERBOSITY", 1, 0);
-    int    SOURCE  = getOptioni(argc,argv,"SOURCE",    1, 0);
-    if (Dstep <= 0.0) {
-        fprintf(stderr, "Dstep must be > 0; got %.6g\n", Dstep);
-        return 1;
-    }
-    if (Dmin <= 0.0) {
-        fprintf(stderr, "Dmin must be > 0; got %.6g\n", Dmin);
-        return 1;
-    }
-    if (Dmax < Dmin) {
-        fprintf(stderr, "Dmax must be >= Dmin; got Dmax=%.6g Dmin=%.6g\n", Dmax, Dmin);
-        return 1;
-    }
+    double Dmax    = getOptiond(argc, argv, "Dmax",      1, 16000);
+    double Dstep   = getOptiond(argc, argv, "Dstep",     1, 100);
+    double Dmin    = getOptiond(argc, argv, "Dmin",      1, Dstep);
+    int    VERBOSE = getOptiond(argc, argv, "VERBOSITY", 1, 0);
+    int    SOURCE  = getOptioni(argc, argv, "SOURCE",    1, 0);
+    if (Dstep <= 0.0) { fprintf(stderr, "Dstep must be > 0\n"); return 1; }
+    if (Dmin  <= 0.0) { fprintf(stderr, "Dmin must be > 0\n");  return 1; }
+    if (Dmax  <  Dmin) { fprintf(stderr, "Dmax must be >= Dmin\n"); return 1; }
 
     double Isst  = getOptiond(argc, argv, "Isrange",  1, 14.0);
     double Isen  = getOptiond(argc, argv, "Isrange",  2, 21.0);
-    double VIsst = getOptiond(argc, argv, "VIsrange", 1, 0.0);
-    double VIsen = getOptiond(argc, argv, "VIsrange", 2, 0.0);
+    double VIsst = getOptiond(argc, argv, "VIsrange", 1,  0.0);
+    double VIsen = getOptiond(argc, argv, "VIsrange", 2,  0.0);
     double tmp;
     if (get_numeric_option(argc, argv, "Ismin", 1, &tmp)) Isst = tmp;
     if (get_numeric_option(argc, argv, "Ismax", 1, &tmp)) Isen = tmp;
     if (get_numeric_option(argc, argv, "Is", 1, &tmp)) {
         double Is2, Iserr = getOptiond(argc, argv, "Iserr", 1, 0.05);
-        if (get_numeric_option(argc, argv, "Is", 2, &Is2)) {
-            Isst = tmp;
-            Isen = Is2;
-        } else {
-            Isst = tmp - Iserr;
-            Isen = tmp + Iserr;
-        }
+        if (get_numeric_option(argc, argv, "Is", 2, &Is2)) { Isst = tmp; Isen = Is2; }
+        else { Isst = tmp - Iserr; Isen = tmp + Iserr; }
     }
     if (get_numeric_option(argc, argv, "VIsmin", 1, &tmp)) VIsst = tmp;
     if (get_numeric_option(argc, argv, "VIsmax", 1, &tmp)) VIsen = tmp;
     if (get_numeric_option(argc, argv, "VIs", 1, &tmp)) {
         double VIs2, VIserr = getOptiond(argc, argv, "VIserr", 1, 0.05);
-        if (get_numeric_option(argc, argv, "VIs", 2, &VIs2)) {
-            VIsst = tmp;
-            VIsen = VIs2;
-        } else {
-            VIsst = tmp - VIserr;
-            VIsen = tmp + VIserr;
-        }
+        if (get_numeric_option(argc, argv, "VIs", 2, &VIs2)) { VIsst = tmp; VIsen = VIs2; }
+        else { VIsst = tmp - VIserr; VIsen = tmp + VIserr; }
     }
 
     double AIrc = getOptiond(argc, argv, "AIrc", 1, 0.0);
     if (AIrc == 0.0) AIrc = getOptiond(argc, argv, "IsAIrc", 1, 0.0);
-    double EVIrc   = getOptiond(argc, argv, "EVIrc", 1, 0.0);
-    double DMrc    = getOptiond(argc, argv, "DMrc", 1, 0.0);
-    double hdust   = getOptiond(argc, argv, "hdust", 1, 164.0);
+    double EVIrc   = getOptiond(argc, argv, "EVIrc",   1, 0.0);
+    double DMrc    = getOptiond(argc, argv, "DMrc",    1, 0.0);
+    double hdust   = getOptiond(argc, argv, "hdust",   1, 164.0);
     double gammaDs = getOptiond(argc, argv, "gammaDs", 1, 0.5);
 
     if (DMrc == 0.0)
         DMrc = 14.3955 - 0.0239 * lSIMU + 0.0122 * fabs(bSIMU) + 0.128;
-    double sinb = sin(bSIMU / 180.0 * PI);
+    double sinb   = sin(bSIMU / 180.0 * 3.1415926535897932385);
     double hscale = hdust / (fabs(sinb) + 0.0001);
-    double Dmean = (DMrc > 0) ? pow(10.0, 0.2 * DMrc) * 10.0 : -9.99;
-    double AI0 = (hscale > 0 && Dmean > 0) ? AIrc / (1.0 - exp(-Dmean / hscale)) : 0.0;
-    double EVI0 = (hscale > 0 && Dmean > 0) ? EVIrc / (1.0 - exp(-Dmean / hscale)) : 0.0;
+    double Dmean  = (DMrc > 0) ? pow(10.0, 0.2 * DMrc) * 10.0 : -9.99;
+    double AI0    = (hscale > 0 && Dmean > 0) ? AIrc  / (1.0 - exp(-Dmean / hscale)) : 0.0;
+    double EVI0   = (hscale > 0 && Dmean > 0) ? EVIrc / (1.0 - exp(-Dmean / hscale)) : 0.0;
 
-    int use_I_lf = (AI0 > 0 && Isen - Isst > 0 && !(EVI0 > 0 && VIsen - VIsst > 0));
+    int use_I_lf   = (AI0 > 0 && Isen - Isst > 0 && !(EVI0 > 0 && VIsen - VIsst > 0));
     int use_IVI_lf = (AI0 > 0 && EVI0 > 0 && Isen - Isst > 0 && VIsen - VIsst > 0);
     if (use_I_lf || use_IVI_lf || has_option(argc, argv, "AIrc") || has_option(argc, argv, "IsAIrc"))
         SOURCE = 1;
 
-    if (use_I_lf) {
-        int narry = 960;
-        CumuN_MIs = (double**)malloc(sizeof(double*) * ncomp);
-        for (int i = 0; i < ncomp; i++)
-            CumuN_MIs[i] = (double*)calloc(narry, sizeof(double));
-        MIs = (double*)calloc(narry, sizeof(double));
-        nMIs = make_LFs(MIs, CumuN_MIs, g_PlogM_cum_norm);
-        dILF = (MIs[nMIs - 1] - MIs[0]) / (nMIs - 1);
-    }
-    if (use_IVI_lf) {
-        double MIst = -5.0, MIen = 10.0, VIst = 0.0, VIen = 3.0;
-        nMIs = 150;
-        nVIs = 30;
-        MIs = (double*)calloc(nMIs + 2, sizeof(double));
-        VIs = (double*)calloc(nVIs + 2, sizeof(double));
-        f_VI_Is = (double***)malloc(sizeof(double**) * ncomp);
-        for (int i = 0; i < ncomp; i++) {
-            f_VI_Is[i] = (double**)malloc(sizeof(double*) * (nVIs + 2));
-            for (int j = 0; j < nVIs + 2; j++)
-                f_VI_Is[i][j] = (double*)calloc(nMIs + 2, sizeof(double));
-        }
-        store_VI_MI(MIst, MIen, nMIs, VIst, VIen, nVIs, MIs, VIs, f_VI_Is, g_PlogM_cum_norm);
-        dILF = (MIen - MIst) / nMIs;
-        dVILF = (VIen - VIst) / nVIs;
-    }
-
-    // lDs[0] / bDs[0] are set inside init_galactic_model from "l" and "b" options,
-    // so they are already correct.
+    // Build luminosity functions (stored in ctx.luminosity)
+    if (use_I_lf || use_IVI_lf)
+        population.initialize_luminosity_functions(ctx, Isst, Isen, VIsst, VIsen, AIrc, EVIrc);
 
     // ---- Header ----
     printf("# calc_rho_profile\n");
     printf("# (l, b) = (%.4f, %.4f) deg\n", lSIMU, bSIMU);
     printf("# Dmin = %.0f pc, Dmax = %.0f pc, Dstep = %.0f pc\n", Dmin, Dmax, Dstep);
     printf("# DISK=%d  hDISK=%d  model=%d  addX=%d  ND=%d  SH=%d\n",
-           DISK, hDISK, model, addX, ND, SH);
+           ctx.density.DISK, ctx.density.hDISK, ctx.density.model, ctx.density.addX,
+           ctx.density.ND, ctx.density.SH);
     if (SOURCE) {
-        if (use_IVI_lf) {
-            printf("# SOURCE=1 with %.3f < Is < %.3f, %.3f < VIs < %.3f\n",
-                   Isst, Isen, VIsst, VIsen);
-            printf("# Extinction: hdust=%.0f pc, DMrc=%.4f, Dmean=%.0f pc, AIrc=%.3f, AI0=%.3f, EVIrc=%.3f, EVI0=%.3f\n",
-                   hdust, DMrc, Dmean, AIrc, AI0, EVIrc, EVI0);
-        } else if (use_I_lf) {
-            printf("# SOURCE=1 with %.3f < Is < %.3f\n", Isst, Isen);
-            printf("# Extinction: hdust=%.0f pc, DMrc=%.4f, Dmean=%.0f pc, AIrc=%.3f, AI0=%.3f\n",
-                   hdust, DMrc, Dmean, AIrc, AI0);
-        } else {
+        if (use_IVI_lf)
+            printf("# SOURCE=1 with %.3f < Is < %.3f, %.3f < VIs < %.3f\n"
+                   "# Extinction: hdust=%.0f pc, DMrc=%.4f, Dmean=%.0f pc, AIrc=%.3f, AI0=%.3f, EVIrc=%.3f, EVI0=%.3f\n",
+                   Isst, Isen, VIsst, VIsen, hdust, DMrc, Dmean, AIrc, AI0, EVIrc, EVI0);
+        else if (use_I_lf)
+            printf("# SOURCE=1 with %.3f < Is < %.3f\n"
+                   "# Extinction: hdust=%.0f pc, DMrc=%.4f, Dmean=%.0f pc, AIrc=%.3f, AI0=%.3f\n",
+                   Isst, Isen, hdust, DMrc, Dmean, AIrc, AI0);
+        else
             printf("# SOURCE=1 without active LF cut; gammaDs=%.3f\n", gammaDs);
-        }
     }
     printf("# Columns:\n");
     printf("# D[pc]");
+    int ncomp = ctx.density.ncomp;
     for (int i = 0; i < ncomp; i++) printf("  nMS[%d]", i);
     printf("  nMS_tot");
     for (int i = 0; i < ncomp; i++) printf("  n[%d]", i);
@@ -509,30 +214,24 @@ int main(int argc, char **argv)
     }
     printf("\n");
 
-    // ---- Normalization per component ----
-    // disk 0-7: n0MSd[i], n0d[i]
-    // bar   8:  n0MSb,    n0b
-    // NSD   9:  n0MSND,   n0ND
-    // halo 10:  n0MSSH,   n0SH
-    auto get_nMS = [](int i, double shape) -> double {
-        if (i < 8)  return n0MSd[i] * shape;
-        if (i == 8) return n0MSb    * shape;
-        if (i == 9) return n0MSND   * shape;
-        return              n0MSSH  * shape;
+    auto get_nMS = [&](int i, double shape) -> double {
+        if (i < 8)  return ctx.density.n0MSd[i] * shape;
+        if (i == 8) return ctx.density.n0MSb    * shape;
+        if (i == 9) return ctx.density.n0MSND   * shape;
+        return              ctx.density.n0MSSH  * shape;
     };
-    auto get_n = [](int i, double shape) -> double {
-        if (i < 8)  return n0d[i] * shape;
-        if (i == 8) return n0b    * shape;
-        if (i == 9) return n0ND   * shape;
-        return              n0SH  * shape;
+    auto get_n = [&](int i, double shape) -> double {
+        if (i < 8)  return ctx.density.n0d[i] * shape;
+        if (i == 8) return ctx.density.n0b    * shape;
+        if (i == 9) return ctx.density.n0ND   * shape;
+        return              ctx.density.n0SH  * shape;
     };
 
-    // ---- Loop over distance ----
     double *rhos = (double*)calloc(ncomp, sizeof(double));
     double  xyz[3] = {}, xyb[2] = {};
 
     for (double D = Dmin; D <= Dmax + 0.5*Dstep; D += Dstep) {
-        calc_rho_each(D, 0, rhos, xyz, xyb);
+        calc_rho_each(ctx, D, 0, rhos, xyz, xyb);
 
         double nMS_tot = 0, n_tot = 0;
         printf("%.1f", D);
@@ -550,19 +249,19 @@ int main(int argc, char **argv)
         printf("\t%.6e", n_tot);
         if (SOURCE) {
             double rhoD_S_tot = 0;
-            double extI = AI0 * (1.0 - exp(-D / hscale)) + 5.0 * log10(0.1 * (D + 0.1));
+            double extI  = AI0  * (1.0 - exp(-D / hscale)) + 5.0 * log10(0.1 * (D + 0.1));
             double extVI = EVI0 * (1.0 - exp(-D / hscale));
             for (int i = 0; i < ncomp; i++) {
                 double nMS_i = get_nMS(i, rhos[i]);
                 double rhoD_S = 0;
-                if (use_IVI_lf) {
-                    rhoD_S = nMS_i * fIVI_detect(extI, Isst, Isen, extVI, VIsst, VIsen, i) * 1e-06 * D * D;
-                } else if (use_I_lf) {
-                    rhoD_S = nMS_i * fLF_detect(extI, Isst, Isen, i) * 1e-06 * D * D;
-                } else {
-                    double tmpDswt = (gammaDs == 0.5) ? sqrt(D / 8000.0) : pow(((D + 10.0) / 8000.0), fabs(gammaDs));
-                    if (gammaDs < 0) tmpDswt = 1.0 / tmpDswt;
-                    rhoD_S = nMS_i * tmpDswt * 1e-03;
+                if (use_IVI_lf)
+                    rhoD_S = nMS_i * fIVI_detect(ctx, extI, Isst, Isen, extVI, VIsst, VIsen, i) * 1e-06 * D * D;
+                else if (use_I_lf)
+                    rhoD_S = nMS_i * fLF_detect(ctx, extI, Isst, Isen, i) * 1e-06 * D * D;
+                else {
+                    double w = (gammaDs == 0.5) ? sqrt(D / 8000.0) : pow(((D + 10.0) / 8000.0), fabs(gammaDs));
+                    if (gammaDs < 0) w = 1.0 / w;
+                    rhoD_S = nMS_i * w * 1e-03;
                 }
                 rhoD_S_tot += rhoD_S;
                 printf("\t%.6e", rhoD_S);
@@ -573,19 +272,10 @@ int main(int argc, char **argv)
     }
 
     free(rhos);
-    if (CumuN_MIs) {
-        for (int i = 0; i < ncomp; i++) free(CumuN_MIs[i]);
-        free(CumuN_MIs);
-    }
-    if (f_VI_Is) {
-        for (int i = 0; i < ncomp; i++) {
-            for (int j = 0; j < nVIs + 2; j++) free(f_VI_Is[i][j]);
-            free(f_VI_Is[i]);
-        }
-        free(f_VI_Is);
-    }
-    free(MIs);
-    free(VIs);
-    gsl_rng_free(r_rng);
+    population.release_luminosity_functions(ctx);
+    population.release_all(ctx);
+    nsd_moments.release_if_enabled(ctx);
+    free(ctx.density.lDs);
+    free(ctx.density.bDs);
     return 0;
 }
