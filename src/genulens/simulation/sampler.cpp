@@ -109,9 +109,9 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     printf("#            alpha4= %5.2f ( %.5f <M< %.5f )\n",  alpha4_B, Ml, M3_B);
     printf("#         (R, z)sun= (%5.0f, %5.0f) pc\n", context.density.R0, 25.0);
     printf("#   (vx, vy, vz)sun= (%5.1f, %5.1f, %4.1f) km/s\n", context.kinematics.vxsun, context.kinematics.vysun, context.kinematics.vzsun);
-    printf("#------------ Disk context.density.model: (context.density.DISK, context.density.hDISK, context.stellar.tSFR)= ( %d , %d , %.1f Gyr ) -----\n",
+    printf("#------------ Disk model: (DISK, hDISK, tSFR)= ( %d , %d , %.1f Gyr ) -----\n",
            context.density.DISK, context.density.hDISK, context.stellar.tSFR);
-    printf("#            tau   context.density.Rd.data()  context.density.zd.data() context.density.zd45.data() sigU0 sigW0  RsigU  RsigW    rho0"
+    printf("#            tau   Rd  zd zd45 sigU0 sigW0  RsigU  RsigW    rho0"
            "        n0     n0WD    Sigma0  \n");
     printf("#            Gyr   pc  pc   pc  km/s  km/s     pc     pc  Msun/pc^3"
            "  */pc^3   */pc^3  Msun/pc^2\n");
@@ -223,7 +223,7 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
         printf("#  Consider %.2f < Is < %.2f, (hdust,Dmean,AIrc,AI0)="
                "(%.0f,%.0f,%.2f,%.2f)\n", Isst, Isen, hdust, Dmean, AIrc, AI0);
     if (EVI0 > 0)
-        printf("#  Consider %.2f < context.luminosity.VIs < %.2f, (hdust,Dmean,EVIrc,EVI0)="
+        printf("#  Consider %.2f < VIs < %.2f, (hdust,Dmean,EVIrc,EVI0)="
                "(%.0f,%.0f,%.2f,%.2f)\n", VIsst, VIsen, hdust, Dmean, EVIrc, EVI0);
     if (obs.tE_max - obs.tE_min > 0)
         printf("#     tErange     : %.4f - %.4f\n", obs.tE_min, obs.tE_max);
@@ -334,7 +334,7 @@ int Sampler::run_cli(RunContext &context, int argc, char **argv)
     mf.init_from_population(population, context);
 
     // ------- Monte Carlo simulation -------
-    printf("#----- Output of Monte Carlo simulation w/ VERBOSITY= %d and context.seed= %ld ----\n",
+    printf("#----- Output of Monte Carlo simulation w/ VERBOSITY= %d and seed= %ld ----\n",
            sampling_options.verbosity, context.seed);
 
     EventSampler::Config es_cfg;
