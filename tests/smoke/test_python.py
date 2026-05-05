@@ -20,7 +20,32 @@ def test_python_callable_likelihood():
         return 1.0 if event.tE > 10 else 0.0
 
     result = genulens.simulate(cfg, likelihood=my_like)
-    assert result.to_numpy().shape[0] == 10
+    arr = result.to_numpy()
+    assert arr.shape[0] == 10
+    assert np.all(arr[:, result.columns.index("tE")] > 10.0)
+
+
+def test_python_typed_observation_config():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
+    cfg.observation.tE_obs = 20.0
+    cfg.observation.tE_err = 0.1
+
+    result = genulens.simulate(cfg)
+    arr = result.to_numpy()
+    tE = arr[:, result.columns.index("tE")]
+    assert tE.size > 0
+    assert np.all((tE > 19.0) & (tE < 21.0))
+
+
+def test_python_typed_model_config():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
+    cfg.model.density.add_x = 0
+    cfg.model.density.stellar_halo = 0
+    cfg.model.kinematics.omega_p = 45.0
+    cfg.model.nsd.enabled = 0
+    cfg.model.bh_kick.kick_bh = 50.0
+
+    assert genulens.simulate(cfg).to_numpy().shape[0] == 5
 
 
 def test_python_ruc_alias():

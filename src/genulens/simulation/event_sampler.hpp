@@ -2,6 +2,7 @@
 
 #include <functional>
 #include "genulens/model/extinction.hpp"
+#include "genulens/simulation/likelihood.hpp"
 #include "genulens/simulation/los_density_grid.hpp"
 #include "genulens/simulation/mass_function.hpp"
 #include "genulens/simulation/observation_config.hpp"
@@ -13,6 +14,8 @@ struct PopulationRuntime;
 
 class EventSampler {
 public:
+    using EventSink = std::function<void(const Event &)>;
+
     struct Config {
         // Precomputed sightline geometry
         double cosPA = 1.0, sinPA = 0.0;
@@ -39,18 +42,24 @@ public:
         double Dmean = 0.0;
     };
 
-    // Run the Monte Carlo loop and print to stdout (CLI mode).
+    // Run the Monte Carlo loop. CLI output is controlled by emit_cli_output.
     // Custom likelihood multiplies each event's weight if non-null.
+    int run(RunContext &ctx,
+            LineOfSightDensityGrid &grid,
+            PopulationRuntime &pop,
+            MassFunction &mf,
+            const Config &cfg,
+            const ObservationConfig &obs,
+            LikelihoodFunction custom_likelihood = nullptr,
+            EventSink event_sink = nullptr,
+            bool emit_cli_output = true);
+
     int run_cli(RunContext &ctx,
                 LineOfSightDensityGrid &grid,
                 PopulationRuntime &pop,
                 MassFunction &mf,
                 const Config &cfg,
-                const ObservationConfig &obs,
-                std::function<double(double /*tE*/, double /*thetaE*/,
-                                     double /*piE*/, double /*murel*/,
-                                     double /*M_l*/, double /*D_l*/,
-                                     double /*D_s*/)> custom_likelihood = nullptr);
+                const ObservationConfig &obs);
 };
 
 } // namespace genulens

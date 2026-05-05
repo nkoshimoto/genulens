@@ -51,7 +51,7 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
         double R = sqrt(xyz[0]*xyz[0] + xyz[1]*xyz[1]);
         double z = xyz[2];
 
-        if (ibin % cfg.npri == 0)
+        if (cfg.npri > 0 && ibin % cfg.npri == 0)
             printf("# %5.0f %5.0f %5.0f ", D_[ibin], R, z);
 
         double rhosum = 0;
@@ -162,7 +162,7 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
             cumu_rho_all_L_[ibin] += cumu_rho_L_[i][ibin];
             rhosum += cfg.printrhoS ? rhoD_S_[i][ibin] : rho;
 
-            if (ibin % cfg.npri == 0) {
+            if (cfg.npri > 0 && ibin % cfg.npri == 0) {
                 if (cfg.printrhoS) {
                     printf(" %d: %.1e ", i, rhoD_S_[i][ibin]);
                     printf("( %.2e )", cumu_rho_S_[i][ibin]);
@@ -173,7 +173,7 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
             }
         }
 
-        if (ibin % cfg.npri == 0) {
+        if (cfg.npri > 0 && ibin % cfg.npri == 0) {
             printf(" All: %.1e ", rhosum);
             printf(cfg.printrhoS ? "( %.2e )\n" : "( %.2e )\n",
                    cfg.printrhoS ? cumu_rho_all_S_[ibin] : cumu_rho_all_L_[ibin]);

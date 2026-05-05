@@ -65,6 +65,8 @@ add_library(genulens_core
     src/genulens/simulation/velocity_distribution.cpp
     src/genulens/simulation/mass_function.cpp
     src/genulens/simulation/event_sampler.cpp
+    src/genulens/simulation/event_reporter.cpp
+    src/genulens/simulation/prepared_simulation.cpp
     src/genulens/simulation/observation_runtime.cpp
     src/genulens/simulation/stellar_population_runtime.cpp
     src/genulens/simulation/kinematics_runtime.cpp

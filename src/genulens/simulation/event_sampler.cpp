@@ -3,40 +3,23 @@
 #include <cmath>
 #include <cstdio>
 
+#include "genulens/simulation/event_reporter.hpp"
 #include "genulens/simulation/internal/runtime.hpp"
 #define MINSIGLOGA 0.3
 #define MAXMEANLOGA 1.7
 #define MINMEANLOGA 0.6
-#define STR2MIN2 8.461595e-08
 
 namespace genulens {
 
-namespace {
-
-struct MonteCarloStats {
-    double ncntall = 0, ncnts = 0, ncntbWD = 0, ncntbCD = 0;
-    double nBD = 0, nMS = 0, nWD = 0, nNS = 0, nBH = 0;
-    int    Nlike = 0;
-    long   NrejIS = 0, Ngen = 0;
-    double wtlike = 0, wtlike_tE = 0;
-    double wtlike_except_piE = 0, wtlike_w_piEe = 0;
-    double wtlike_except_thE = 0, wtlike_w_thEe = 0;
-    double SumGamma = 0, SumtE = 0;
-    double logtEmin = -1, logtEmax = 2;
-    int    NbintE = 300;
-    double NlogtEs[500] = {};
-};
-
-} // namespace
-
-int EventSampler::run_cli(RunContext &ctx,
-                           LineOfSightDensityGrid &grid,
-                           PopulationRuntime &pop,
-                           MassFunction &mf,
-                           const Config &cfg,
-                           const ObservationConfig &obs,
-                           std::function<double(double, double, double, double,
-                                                double, double, double)> custom_likelihood) {
+int EventSampler::run(RunContext &ctx,
+	                           LineOfSightDensityGrid &grid,
+	                           PopulationRuntime &pop,
+	                           MassFunction &mf,
+	                           const Config &cfg,
+	                           const ObservationConfig &obs,
+	                           LikelihoodFunction custom_likelihood,
+	                           EventSink event_sink,
+	                           bool emit_cli_output) {
 
     // Sampling options aliases (mutable, mirror RunContext fields)
     auto &samp = ctx.sampling;
@@ -113,36 +96,16 @@ int EventSampler::run_cli(RunContext &ctx,
     double getx2y(int n, double *x, double *y, double xin);
     double interp_x(int n, double *F, double xst, double dx, double xreq);
 
-    // Print MC header
-    if (VERBOSITY == 2)
-        printf("#        wtj           tE       thetaE          piEN          piEE"
-               "   D_S         muSl         muSb iS iL fREM");
-    if (VERBOSITY == 3)
-        printf("#        wtj          M_L   D_L   D_S          t_E      theta_E"
-               "         pi_E         pi_EN         pi_EE       mu_rel"
-               "        mu_Sl        mu_Sb     I_L     K_L iS iL fREM");
-    if (VERBOSITY == 4)
-        printf("#        wtj          M_L   D_L   D_S          t_E      theta_E"
-               "         pi_E         pi_EN         pi_EE       mu_rel"
-               "        mu_Sl        mu_Sb     I_L     K_L iS iL fREM"
-               "   muhel_N      muhel_E        muhel");
-    if (VERBOSITY == 5)
-        printf("#        wtj          M_L   D_L   D_S          t_E      theta_E"
-               "         pi_E         pi_EN         pi_EE       mu_rel"
-               "        mu_Sl        mu_Sb     I_L     K_L iS iL fREM"
-               "   muhel_N      muhel_E        muhel      R_E");
-    if (VERBOSITY >= 2 && BINARY == 1)
-        printf("     q21         M2         aL     aLpmin         u0 BL");
-    if (VERBOSITY >= 2)
-        printf("\n");
+    CliEventReporter reporter(emit_cli_output, VERBOSITY, BINARY);
+    reporter.print_monte_carlo_header();
 
     MonteCarloStats stats;
 
     for (long j = 0; j < NSIMU; j++) {
         if (j == NSIMU-1 && NlikeMIN > 0) {
             long NSIMUnew = (NSIMU-1) * (double)NlikeMIN / (stats.Nlike + 1);
-            if (NSIMUnew > NSIMU) { printf("# Increase NSIMU to %ld\n", NSIMUnew); NSIMU = NSIMUnew; }
-            if (NSIMU > NDATAMAX) { printf("# Decrease NSIMU to %ld\n", NDATAMAX); NSIMU = NDATAMAX; }
+	            if (NSIMUnew > NSIMU) { if (emit_cli_output) printf("# Increase NSIMU to %ld\n", NSIMUnew); NSIMU = NSIMUnew; }
+	            if (NSIMU > NDATAMAX) { if (emit_cli_output) printf("# Decrease NSIMU to %ld\n", NDATAMAX); NSIMU = NDATAMAX; }
         }
 
         double ran, cumu, addGammaIS = 1;
@@ -565,12 +528,23 @@ int EventSampler::run_cli(RunContext &ctx,
             }
         }
 
-        // Optional custom likelihood
-        if (custom_likelihood) {
-            double cl = custom_likelihood(tE, thetaE, piE, murel, M_l, D_l, D_s);
-            if (cl <= 0) { j--; continue; }
-            addGamma *= cl;
-        }
+	        // Optional custom likelihood
+	        Event event;
+	        event.weight = wtj;
+	        event.tE = tE;
+	        event.thetaE = thetaE;
+	        event.piE = piE;
+	        event.lens_distance_pc = D_l;
+	        event.source_distance_pc = D_s;
+	        event.lens_mass_msun = M_l;
+	        event.mu_rel_masyr = murel;
+	        event.lens_component = i_l;
+	        event.source_component = i_s;
+	        if (custom_likelihood) {
+	            double cl = custom_likelihood(event);
+	            if (cl <= 0) { j--; continue; }
+	            addGamma *= cl;
+	        }
 
         Gamma *= addGamma * addGammaIS;
         wtj   *= addGamma * addGammaIS;
@@ -591,52 +565,58 @@ int EventSampler::run_cli(RunContext &ctx,
             stats.wtlike_w_thEe     += wtj * sqrt(0.5/PI)/thetaEe * exp(-0.5*chi2t);
         }
 
-        if (like_tE == 1) stats.wtlike_tE += wtj;
-        if (like == 1) { stats.Nlike++; stats.wtlike += wtj; }
-        else continue;
+	        if (like_tE == 1) stats.wtlike_tE += wtj;
+	        if (like == 1) { stats.Nlike++; stats.wtlike += wtj; }
+	        else continue;
+	        event.weight = wtj;
+	        if (event_sink) event_sink(event);
 
-        // --- Output ---
-        if (VERBOSITY == 1)
-            printf("%.5e %.5e %.5e %.5e %.5e %.5e %.5e %7.2f %7.2f %7.2f %7.2f %7.2f %7.2f"
-                   " %7.3f %1d %1d %5.2f %5.2f %d %.5e",
-                   wtj, tE, thetaE, piE, M_l, D_s, D_l,
-                   vx_s, vy_s, vz_s, vx_l, vy_l, vz_l,
-                   murel, i_s, i_l, tau_s, tau_l, fREM, Gamma);
-        if (VERBOSITY == 2)
-            printf("%12.6e %12.6e %12.6e %13.6e %13.6e %5.0f %12.5e %12.5e %2d %2d %d",
-                   wtj, tE, thetaE, piEN, piEE, D_s, muSl, muSb, i_s, i_l, fREM);
-        if (VERBOSITY == 3)
-            printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e"
-                   " %12.6e %12.5e %12.5e %7.3f %7.3f %2d %2d %d",
-                   wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE,
-                   murel, muSl, muSb, IL, KL, i_s, i_l, fREM);
-        if (VERBOSITY == 4)
-            printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e"
-                   " %12.6e %12.5e %12.5e %7.3f %7.3f %2d %2d %d"
-                   " %12.5e %12.5e %12.6e",
-                   wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE,
-                   murel, muSl, muSb, IL, KL, i_s, i_l, fREM,
-                   muhelN, muhelE, sqrt(muhelN*muhelN + muhelE*muhelE));
-        if (VERBOSITY == 5)
-            printf("%12.6e %12.6e %5.0f %5.0f %12.6e %12.6e %12.6e %13.6e %13.6e"
-                   " %12.6e %12.5e %12.5e %7.3f %7.3f %2d %2d %d"
-                   " %12.5e %12.5e %12.6e %.6e",
-                   wtj, M_l, D_l, D_s, tE, thetaE, piE, piEN, piEE,
-                   murel, muSl, muSb, IL, KL, i_s, i_l, fREM,
-                   muhelN, muhelE, sqrt(muhelN*muhelN + muhelE*muhelE),
-                   thetaE * D_l * 1e-03);
-        if (BINARY == 1 && VERBOSITY > 0)
-            printf(" %.4e %.4e %.4e %.4e %.4e %2d", q21, M_l2, al, alpmin, u0S, swl);
-        if (VERBOSITY > 0)
-            printf("\n");
+	        // --- Output ---
+	        EventOutputRow output;
+	        output.wtj = wtj;
+	        output.tE = tE;
+	        output.thetaE = thetaE;
+	        output.piE = piE;
+	        output.piEN = piEN;
+	        output.piEE = piEE;
+	        output.lens_mass = M_l;
+	        output.lens_distance = D_l;
+	        output.source_distance = D_s;
+	        output.vx_s = vx_s;
+	        output.vy_s = vy_s;
+	        output.vz_s = vz_s;
+	        output.vx_l = vx_l;
+	        output.vy_l = vy_l;
+	        output.vz_l = vz_l;
+	        output.mu_rel = murel;
+	        output.muSl = muSl;
+	        output.muSb = muSb;
+	        output.IL = IL;
+	        output.KL = KL;
+	        output.source_component = i_s;
+	        output.lens_component = i_l;
+	        output.tau_s = tau_s;
+	        output.tau_l = tau_l;
+	        output.remnant_flag = fREM;
+	        output.gamma = Gamma;
+	        output.muhelN = muhelN;
+	        output.muhelE = muhelE;
+	        output.thetaE_lens_radius = thetaE * D_l * 1e-03;
+	        output.q21 = q21;
+	        output.secondary_mass = M_l2;
+	        output.projected_separation = al;
+	        output.projected_separation_min = alpmin;
+	        output.u0_source = u0S;
+	        output.binary_state = swl;
+	        reporter.print_event(output);
 
         // Count remnants and binary types
         stats.ncntall += wtj;
         if (swl == 0)               stats.ncnts   += wtj;
         if (swl > 10 && swl < 20)   stats.ncntbWD += wtj;
         if (swl > 20)               stats.ncntbCD += wtj;
-        if (apdetS > apdetL)
-            printf("# ERROR: apdetS (= %.6f) > apdetL (= %.6f) !!!!!\n", apdetS, apdetL);
+	        if (emit_cli_output && apdetS > apdetL)
+	            printf("# ERROR: apdetS (= %.6f) > apdetL (= %.6f) !!!!!\n", apdetS, apdetL);
         if (fREM == 0 && M_l < 0.08) stats.nBD += wtj;
         if (fREM == 0 && M_l > 0.08) stats.nMS += wtj;
         if (fREM == 1) stats.nWD += wtj;
@@ -645,60 +625,20 @@ int EventSampler::run_cli(RunContext &ctx,
     }
 
     // --- Summary ---
-    printf("# Source number density= %.5e ( %.5e ) arcmin^-2\n",
-           cfg.Nsall, cfg.nallS * STR2MIN2 * 1e+6);
+    reporter.print_summary(stats, NSIMU, CALCPRIORpiE, CALCPRIORthE,
+                           cfg.Nsall, cfg.nallS, cfg.tauall);
 
-    double medtE = 0;
-    double CumuNlogtE = 0;
-    for (int ilogtE = 0; ilogtE < stats.NbintE; ilogtE++) {
-        double dP = (ilogtE == 0) ? 0.5 * stats.NlogtEs[ilogtE] / stats.SumGamma
-                  : 0.5 * (stats.NlogtEs[ilogtE-1] + stats.NlogtEs[ilogtE]) / stats.SumGamma;
-        CumuNlogtE += dP;
-        if (CumuNlogtE > 0.5) {
-            double p2 = CumuNlogtE, p1 = CumuNlogtE - dP;
-            double dlogtE = (stats.logtEmax - stats.logtEmin) / stats.NbintE;
-            double medlogtE = stats.logtEmin + (ilogtE - 0.5)*dlogtE
-                            + (0.5 - p1)/(p2 - p1)*dlogtE;
-            medtE = pow(10.0, medlogtE);
-            break;
-        }
-    }
-    double avetE       = stats.SumtE / stats.SumGamma;
-    double everate     = 2 * cfg.tauall / PI / avetE * 365.25;
-    double everatedeg2 = everate * cfg.Nsall * 3600;
-    printf("# avetE= %6.3f days, medtE= %6.3f days, tau= %.6e ,"
-           " event_rate= %.6e /star/yr or %.6e /deg^2/yr\n",
-           avetE, medtE, cfg.tauall, everate, everatedeg2);
+	    return 0;
+	}
 
-    if (BINARY == 1)
-        printf("# (n_single n_binwide n_binclose)/n_all="
-               " ( %6.0f %6.0f %6.0f ) / %6.0f = ( %.6f %.6f %.6f )\n",
-               stats.ncnts, stats.ncntbWD, stats.ncntbCD, stats.ncntall,
-               stats.ncnts/stats.ncntall, stats.ncntbWD/stats.ncntall,
-               stats.ncntbCD/stats.ncntall);
-    printf("# (n_BD n_MS n_WD n_NS n_BH)/n_all="
-           " ( %6.0f %6.0f %6.0f %6.0f %6.0f ) / %6.0f"
-           " = ( %.6f %.6f %.6f %.6f %.6f )\n",
-           stats.nBD, stats.nMS, stats.nWD, stats.nNS, stats.nBH, stats.ncntall,
-           stats.nBD/stats.ncntall, stats.nMS/stats.ncntall,
-           stats.nWD/stats.ncntall, stats.nNS/stats.ncntall, stats.nBH/stats.ncntall);
-    if (stats.NrejIS > 0)
-        printf("# N_IS/Ngen= %ld / %ld = %f of events are rejected by importance sampling\n",
-               stats.NrejIS, stats.Ngen, (double)stats.NrejIS / stats.Ngen);
-    printf("# Nlike/N/Ngen= %d / %ld / %ld     wtlike/wtlike_tE= %.0f / %.0f = %f\n",
-           stats.Nlike, NSIMU, stats.Ngen,
-           stats.wtlike, stats.wtlike_tE,
-           stats.wtlike / stats.wtlike_tE);
-    if (CALCPRIORthE)
-        printf("# P_pri(thE)= wtlike_w_thEe/wtlike_except_thE= %.2f / %.2f = %.5e\n",
-               stats.wtlike_w_thEe, stats.wtlike_except_thE,
-               stats.wtlike_w_thEe / stats.wtlike_except_thE);
-    if (CALCPRIORpiE)
-        printf("# P_pri(piEN,piEE)= wtlike_w_piEe/wtlike_except_piE= %.2f / %.2f = %.5e\n",
-               stats.wtlike_w_piEe, stats.wtlike_except_piE,
-               stats.wtlike_w_piEe / stats.wtlike_except_piE);
-
-    return 0;
+int EventSampler::run_cli(RunContext &ctx,
+                          LineOfSightDensityGrid &grid,
+                          PopulationRuntime &pop,
+                          MassFunction &mf,
+                          const Config &cfg,
+                          const ObservationConfig &obs)
+{
+    return run(ctx, grid, pop, mf, cfg, obs, {}, {}, true);
 }
 
 } // namespace genulens

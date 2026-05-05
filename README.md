@@ -101,6 +101,60 @@ make clean
 The Python extension can also be built through `pip install .` in environments
 with scikit-build-core and pybind11.
 
+## Documentation
+
+Project documentation is organized under [`docs/`](docs/):
+
+- [Python API](docs/python_api.md): direct Python usage, typed configuration,
+  ndarray conversion, and custom likelihoods.
+- [Architecture notes](docs/architecture.md): current object boundaries and
+  remaining refactor targets for collaborators.
+- [pre_gapmoe helper tools](docs/pre_gapmoe.md): current status and command-line
+  usage of the preprocessing helpers.
+
+The public Python notebook is
+[`examples/python_binding.ipynb`](examples/python_binding.ipynb).
+
+## Python API
+
+The refactored Python API calls the shared C++ simulation core directly. It does
+not run `./genulens` as a subprocess and does not parse CLI stdout.
+
+Basic example:
+
+```python
+import genulens
+
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=100_000, seed=42)
+result = genulens.simulate(cfg)
+arr = result.to_numpy()
+```
+
+`result.columns` gives the column order of the returned NumPy array. Observation
+constraints, source selection, model parameters, and sampling options are exposed
+as typed nested config objects:
+
+```python
+cfg.observation.tE_obs = 54.5
+cfg.observation.tE_err = 5.0
+cfg.sampling.small_gamma = 1
+cfg.model.imf.alpha2 = -1.35
+```
+
+Python callables can be passed as custom likelihoods and are evaluated inside the
+Monte Carlo event loop:
+
+```python
+def likelihood(event):
+    return 1.0 if event.tE > 10.0 else 0.0
+
+result = genulens.simulate(cfg, likelihood=likelihood)
+```
+
+See [docs/python_api.md](docs/python_api.md) and
+[`examples/python_binding.ipynb`](examples/python_binding.ipynb) for a complete
+walkthrough.
+
 
 ## Usage
 See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).  
