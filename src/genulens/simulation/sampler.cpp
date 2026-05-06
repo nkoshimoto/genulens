@@ -622,6 +622,7 @@ SimulationResult Sampler::simulate(RunContext &context, const GenulensConfig &co
                                    LikelihoodFunction likelihood)
 {
     SimulationResult result;
+    result.verbosity = config.sampling.verbosity;
     result.include_source_properties = config.forward_source.enabled != 0;
     result.source_property_bands = forward_source_bands_for_config(config);
     const int code = run_sampler_impl(

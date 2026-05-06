@@ -32,12 +32,23 @@ struct Event {
     double tE = 0.0;
     double thetaE = 0.0;
     double piE = 0.0;
+    double piEN = 0.0;
+    double piEE = 0.0;
     double lens_distance_pc = 0.0;
     double source_distance_pc = 0.0;
     double lens_mass_msun = 0.0;
     double mu_rel_masyr = 0.0;
+    double mu_rel_N_masyr = 0.0;
+    double mu_rel_E_masyr = 0.0;
+    double source_mu_l_masyr = 0.0;
+    double source_mu_b_masyr = 0.0;
+    double lens_i_mag = missing_value();
+    double lens_k_mag = missing_value();
     int lens_component = -1;
     int source_component = -1;
+    int remnant_flag = 0;
+    double source_age_gyr = missing_value();
+    double lens_age_gyr = missing_value();
     double source_log_age = missing_value();
     double source_metallicity_mh = missing_value();
     double source_zini = missing_value();
@@ -53,6 +64,7 @@ struct Event {
 struct SimulationResult {
     std::vector<Event> events;
     bool include_source_properties = false;
+    int verbosity = 0;
     std::vector<std::string> source_property_bands;
 
     std::vector<std::string> columns() const;

@@ -172,7 +172,9 @@ int main()
         return e.tE > 0.0 ? 1.0 : 0.0;
     });
     require(result.events.size() == 5, "simulator result size failed");
-    require(result.column_count() == 10, "result column count failed");
+    require(result.column_count() == 14, "result column count failed");
+    require(result.columns()[4] == "piEN", "result piEN column failed");
+    require(result.columns()[10] == "mu_rel_N_masyr", "result mu_rel_N column failed");
 
     genulens::GenulensConfig source_cfg;
     source_cfg.n_simu = 5;
@@ -185,7 +187,7 @@ int main()
     });
     require(source_result.events.size() == 5, "forward source simulator result size failed");
     require(source_result.include_source_properties, "forward source result flag failed");
-    require(source_result.column_count() == 25, "forward source result column count failed");
+    require(source_result.column_count() == 29, "forward source result column count failed");
     require(source_result.columns().back() == "source_abs_F213mag", "forward source result band columns failed");
     require(std::isfinite(source_result.events.front().source_teff_k),
             "forward source event Teff missing");

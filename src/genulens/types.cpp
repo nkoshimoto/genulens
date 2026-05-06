@@ -11,18 +11,43 @@ double ComponentDensities::total() const
 
 std::vector<std::string> SimulationResult::columns() const
 {
-    std::vector<std::string> out = {
+    std::vector<std::string> out;
+    if (verbosity == 1) {
+        out = {"wtj", "tE", "thetaE", "piE", "M_L", "D_S", "D_L",
+               "mu_rel", "iS", "iL", "tau_s", "tau_l", "fREM"};
+    } else if (verbosity == 2) {
+        out = {"wtj", "tE", "thetaE", "piEN", "piEE", "D_S",
+               "muSl", "muSb", "iS", "iL", "fREM"};
+    } else if (verbosity == 3) {
+        out = {"wtj", "M_L", "D_L", "D_S", "t_E", "theta_E",
+               "pi_E", "pi_EN", "pi_EE", "mu_rel", "mu_rel_N", "mu_rel_E",
+               "mu_Sl", "mu_Sb", "I_L", "K_L", "iS", "iL", "fREM"};
+    } else if (verbosity == 4) {
+        out = {"wtj", "M_L", "D_L", "D_S", "t_E", "theta_E",
+               "pi_E", "pi_EN", "pi_EE", "mu_rel", "mu_rel_N", "mu_rel_E",
+               "mu_Sl", "mu_Sb", "I_L", "K_L", "iS", "iL", "fREM"};
+    } else if (verbosity >= 5) {
+        out = {"wtj", "M_L", "D_L", "D_S", "t_E", "theta_E",
+               "pi_E", "pi_EN", "pi_EE", "mu_rel", "mu_rel_N", "mu_rel_E",
+               "mu_Sl", "mu_Sb", "I_L", "K_L", "iS", "iL", "fREM"};
+    } else {
+        out = {
         "weight",
         "tE",
         "thetaE",
         "piE",
+        "piEN",
+        "piEE",
         "lens_distance_pc",
         "source_distance_pc",
         "lens_mass_msun",
         "mu_rel_masyr",
+        "mu_rel_N_masyr",
+        "mu_rel_E_masyr",
         "lens_component",
         "source_component",
-    };
+        };
+    }
     if (include_source_properties) {
         out.push_back("source_log_age");
         out.push_back("source_metallicity_mh");
@@ -45,16 +70,68 @@ std::vector<double> SimulationResult::flattened_rows() const
     std::vector<double> rows;
     rows.reserve(events.size() * column_count());
     for (const auto &event : events) {
-        rows.push_back(event.weight);
-        rows.push_back(event.tE);
-        rows.push_back(event.thetaE);
-        rows.push_back(event.piE);
-        rows.push_back(event.lens_distance_pc);
-        rows.push_back(event.source_distance_pc);
-        rows.push_back(event.lens_mass_msun);
-        rows.push_back(event.mu_rel_masyr);
-        rows.push_back(static_cast<double>(event.lens_component));
-        rows.push_back(static_cast<double>(event.source_component));
+        if (verbosity == 1) {
+            rows.push_back(event.weight);
+            rows.push_back(event.tE);
+            rows.push_back(event.thetaE);
+            rows.push_back(event.piE);
+            rows.push_back(event.lens_mass_msun);
+            rows.push_back(event.source_distance_pc);
+            rows.push_back(event.lens_distance_pc);
+            rows.push_back(event.mu_rel_masyr);
+            rows.push_back(static_cast<double>(event.source_component));
+            rows.push_back(static_cast<double>(event.lens_component));
+            rows.push_back(event.source_age_gyr);
+            rows.push_back(event.lens_age_gyr);
+            rows.push_back(static_cast<double>(event.remnant_flag));
+        } else if (verbosity == 2) {
+            rows.push_back(event.weight);
+            rows.push_back(event.tE);
+            rows.push_back(event.thetaE);
+            rows.push_back(event.piEN);
+            rows.push_back(event.piEE);
+            rows.push_back(event.source_distance_pc);
+            rows.push_back(event.source_mu_l_masyr);
+            rows.push_back(event.source_mu_b_masyr);
+            rows.push_back(static_cast<double>(event.source_component));
+            rows.push_back(static_cast<double>(event.lens_component));
+            rows.push_back(static_cast<double>(event.remnant_flag));
+        } else if (verbosity >= 3) {
+            rows.push_back(event.weight);
+            rows.push_back(event.lens_mass_msun);
+            rows.push_back(event.lens_distance_pc);
+            rows.push_back(event.source_distance_pc);
+            rows.push_back(event.tE);
+            rows.push_back(event.thetaE);
+            rows.push_back(event.piE);
+            rows.push_back(event.piEN);
+            rows.push_back(event.piEE);
+            rows.push_back(event.mu_rel_masyr);
+            rows.push_back(event.mu_rel_N_masyr);
+            rows.push_back(event.mu_rel_E_masyr);
+            rows.push_back(event.source_mu_l_masyr);
+            rows.push_back(event.source_mu_b_masyr);
+            rows.push_back(event.lens_i_mag);
+            rows.push_back(event.lens_k_mag);
+            rows.push_back(static_cast<double>(event.source_component));
+            rows.push_back(static_cast<double>(event.lens_component));
+            rows.push_back(static_cast<double>(event.remnant_flag));
+        } else {
+            rows.push_back(event.weight);
+            rows.push_back(event.tE);
+            rows.push_back(event.thetaE);
+            rows.push_back(event.piE);
+            rows.push_back(event.piEN);
+            rows.push_back(event.piEE);
+            rows.push_back(event.lens_distance_pc);
+            rows.push_back(event.source_distance_pc);
+            rows.push_back(event.lens_mass_msun);
+            rows.push_back(event.mu_rel_masyr);
+            rows.push_back(event.mu_rel_N_masyr);
+            rows.push_back(event.mu_rel_E_masyr);
+            rows.push_back(static_cast<double>(event.lens_component));
+            rows.push_back(static_cast<double>(event.source_component));
+        }
         if (include_source_properties) {
             rows.push_back(event.source_log_age);
             rows.push_back(event.source_metallicity_mh);

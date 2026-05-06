@@ -538,12 +538,23 @@ int EventSampler::run(RunContext &ctx,
 	        event.tE = tE;
 	        event.thetaE = thetaE;
 	        event.piE = piE;
+	        event.piEN = piEN;
+	        event.piEE = piEE;
 	        event.lens_distance_pc = D_l;
 	        event.source_distance_pc = D_s;
 	        event.lens_mass_msun = M_l;
 	        event.mu_rel_masyr = murel;
+            event.mu_rel_N_masyr = murelb*cosPA + murell*sinPA;
+            event.mu_rel_E_masyr = -murelb*sinPA + murell*cosPA;
+            event.source_mu_l_masyr = muSl;
+            event.source_mu_b_masyr = muSb;
+            event.lens_i_mag = IL;
+            event.lens_k_mag = KL;
 	        event.lens_component = i_l;
 	        event.source_component = i_s;
+            event.remnant_flag = fREM;
+            event.source_age_gyr = tau_s;
+            event.lens_age_gyr = tau_l;
             if (attach_source_properties) {
                 try {
                     model::ForwardSourceQuery source_query;

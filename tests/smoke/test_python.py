@@ -11,6 +11,8 @@ def test_python_binding():
     assert isinstance(arr, np.ndarray)
     assert arr.shape[0] == 10
     assert "tE" in result.columns
+    assert "piEN" in result.columns
+    assert "mu_rel_N_masyr" in result.columns
 
 
 def test_python_callable_likelihood():
@@ -121,3 +123,33 @@ def test_python_simulation_forward_source_mode():
     assert "source_abs_F146mag" in result.columns
     teff = arr[:, result.columns.index("source_teff_k")]
     assert np.all(np.isfinite(teff))
+
+
+def test_python_simulation_cli_verbosity_columns():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
+    cfg.sampling.verbosity = 3
+    result = genulens.simulate(cfg)
+    assert result.columns[:19] == [
+        "wtj",
+        "M_L",
+        "D_L",
+        "D_S",
+        "t_E",
+        "theta_E",
+        "pi_E",
+        "pi_EN",
+        "pi_EE",
+        "mu_rel",
+        "mu_rel_N",
+        "mu_rel_E",
+        "mu_Sl",
+        "mu_Sb",
+        "I_L",
+        "K_L",
+        "iS",
+        "iL",
+        "fREM",
+    ]
+    arr = result.to_numpy()
+    assert arr.shape == (5, 19)
+    assert np.all(np.isfinite(arr[:, result.columns.index("mu_rel_N")]))
