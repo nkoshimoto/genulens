@@ -1,6 +1,7 @@
 #include "genulens/io/input_data.hpp"
 #include "genulens/math/quadrature.hpp"
 #include "genulens/model/coordinates.hpp"
+#include "genulens/model/forward_source.hpp"
 #include "genulens/model/isochrone_grid.hpp"
 #include "genulens/model/kinematics.hpp"
 #include "genulens/model/mass_function.hpp"
@@ -142,6 +143,25 @@ int main()
     const auto metal_poor_thin = population.lookup(pop_query);
     require(std::abs(metal_poor_thin.metallicity_mh + 0.5) < 1e-12,
             "population explicit metallicity failed");
+
+    genulens::RandomEngine source_rng(123);
+    const auto source_generator = genulens::model::ForwardSourceGenerator::load_default_roman();
+    genulens::model::ForwardSourceQuery source_query;
+    source_query.component = "thin1";
+    source_query.distance_pc = 8000.0;
+    source_query.min_initial_mass_msun = 0.1;
+    source_query.max_initial_mass_msun = 0.11;
+    const auto source_star = source_generator.sample(source_query, source_rng);
+    require(source_star.stellar.component == "thin1", "forward source component failed");
+    require(source_star.stellar.initial_mass_msun >= 0.1 &&
+                source_star.stellar.initial_mass_msun <= 0.11,
+            "forward source mass range failed");
+    require(source_star.angular_radius_microarcsec > 0.0, "forward source angular radius failed");
+    require(source_star.apparent_magnitudes.count("F146mag") == 1, "forward source apparent F146 missing");
+    require(std::abs(source_star.apparent_magnitudes.at("F146mag") -
+                     source_star.stellar.absolute_magnitudes.at("F146mag") -
+                     genulens::model::distance_modulus(8000.0)) < 1e-12,
+            "forward source apparent magnitude failed");
 
     genulens::GenulensConfig cfg;
     cfg.n_simu = 5;

@@ -84,3 +84,21 @@ def test_python_stellar_population_lookup():
     assert star.component == "thick"
     assert np.isclose(star.log_age, 10.07918)
     assert np.isclose(star.metallicity_mh, -0.8)
+
+
+def test_python_forward_source_generator():
+    generator = genulens.ForwardSourceGenerator.load_default_roman()
+    query = genulens.ForwardSourceQuery()
+    query.component = "thin1"
+    query.distance_pc = 8000.0
+    query.min_initial_mass_msun = 0.1
+    query.max_initial_mass_msun = 0.11
+
+    source = generator.sample(query, seed=123)
+    assert source.stellar.component == "thin1"
+    assert 0.1 <= source.stellar.initial_mass_msun <= 0.11
+    assert source.angular_radius_microarcsec > 0.0
+    assert np.isclose(
+        source.apparent_magnitudes["F146mag"],
+        source.stellar.absolute_magnitudes["F146mag"] + genulens.distance_modulus(8000.0),
+    )

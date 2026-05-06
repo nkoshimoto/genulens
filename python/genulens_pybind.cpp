@@ -1,4 +1,5 @@
 #include "genulens/options.hpp"
+#include "genulens/model/forward_source.hpp"
 #include "genulens/model/isochrone_grid.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/model/stellar_population_model.hpp"
@@ -290,6 +291,39 @@ PYBIND11_MODULE(genulens, m)
                     py::arg("component"))
         .def_static("default_metallicity_mh", &genulens::model::StellarPopulationModel::default_metallicity_mh,
                     py::arg("component"));
+
+    py::class_<genulens::model::ForwardSourceQuery>(m, "ForwardSourceQuery")
+        .def(py::init<>())
+        .def_readwrite("component", &genulens::model::ForwardSourceQuery::component)
+        .def_readwrite("component_index", &genulens::model::ForwardSourceQuery::component_index)
+        .def_readwrite("distance_pc", &genulens::model::ForwardSourceQuery::distance_pc)
+        .def_readwrite("min_initial_mass_msun", &genulens::model::ForwardSourceQuery::min_initial_mass_msun)
+        .def_readwrite("max_initial_mass_msun", &genulens::model::ForwardSourceQuery::max_initial_mass_msun)
+        .def_readwrite("log_age", &genulens::model::ForwardSourceQuery::log_age)
+        .def_readwrite("metallicity_mh", &genulens::model::ForwardSourceQuery::metallicity_mh)
+        .def_readwrite("use_default_log_age", &genulens::model::ForwardSourceQuery::use_default_log_age)
+        .def_readwrite("use_default_metallicity", &genulens::model::ForwardSourceQuery::use_default_metallicity);
+
+    py::class_<genulens::model::ForwardSource>(m, "ForwardSource")
+        .def_readonly("stellar", &genulens::model::ForwardSource::stellar)
+        .def_readonly("distance_pc", &genulens::model::ForwardSource::distance_pc)
+        .def_readonly("angular_radius_microarcsec", &genulens::model::ForwardSource::angular_radius_microarcsec)
+        .def_readonly("apparent_magnitudes", &genulens::model::ForwardSource::apparent_magnitudes);
+
+    py::class_<genulens::model::ForwardSourceGenerator>(m, "ForwardSourceGenerator")
+        .def_static("load_default_roman", &genulens::model::ForwardSourceGenerator::load_default_roman,
+                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
+        .def_static("load_default_prime", &genulens::model::ForwardSourceGenerator::load_default_prime,
+                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
+        .def("sample", [](const genulens::model::ForwardSourceGenerator &generator,
+                          const genulens::model::ForwardSourceQuery &query,
+                          unsigned long seed) {
+            genulens::RandomEngine rng(seed);
+            return generator.sample(query, rng);
+        }, py::arg("query"), py::arg("seed") = 12304357UL);
+    m.def("distance_modulus", &genulens::model::distance_modulus, py::arg("distance_pc"));
+    m.def("angular_radius_microarcsec", &genulens::model::angular_radius_microarcsec,
+          py::arg("radius_rsun"), py::arg("distance_pc"));
 
     py::class_<genulens::Event>(m, "Event")
         .def_readonly("weight", &genulens::Event::weight)
