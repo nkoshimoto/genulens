@@ -34,11 +34,22 @@ std::filesystem::path InputDataRepository::resolve(const std::string &filename) 
         return direct;
     }
 
-    auto basename = direct;
-    if (direct.parent_path().filename() == "input_files") {
-        basename = direct.filename();
+    auto relative = direct;
+    if (!relative.empty() && *relative.begin() == "input_files") {
+        std::filesystem::path stripped;
+        auto it = relative.begin();
+        ++it;
+        for (; it != relative.end(); ++it) stripped /= *it;
+        relative = stripped;
     }
 
+    for (const auto &root : search_roots()) {
+        const auto candidate = root / relative;
+        if (std::filesystem::exists(candidate)) {
+            return candidate;
+        }
+    }
+    const auto basename = direct.filename();
     for (const auto &root : search_roots()) {
         const auto candidate = root / basename;
         if (std::filesystem::exists(candidate)) {

@@ -51,3 +51,21 @@ def test_python_typed_model_config():
 def test_python_ruc_alias():
     result = genulens.ruc(l=0.0, b=0.0, n_simu=3, seed=1)
     assert result.to_numpy().shape[0] == 3
+
+
+def test_python_isochrone_grid_lookup():
+    grid = genulens.IsochroneGrid.load_default_roman()
+    assert grid.row_count == 14723
+    assert grid.sequence_count == 41
+    assert "F146mag" in grid.bands
+
+    query = genulens.IsochroneQuery()
+    query.component = "thin1"
+    query.log_age = 8.0
+    query.metallicity_mh = -0.5
+    query.initial_mass_msun = 0.1000000015
+
+    star = grid.lookup(query)
+    assert star.component == "thin1"
+    assert np.isclose(star.teff_k, 2886.02441)
+    assert np.isclose(star.absolute_magnitudes["F146mag"], 9.251)

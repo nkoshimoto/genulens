@@ -1,4 +1,5 @@
 #include "genulens/options.hpp"
+#include "genulens/model/isochrone_grid.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/simulation/simulator.hpp"
 
@@ -237,6 +238,36 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("kinematics", &genulens::model::ModelParameters::kinematics)
         .def_readwrite("nsd", &genulens::model::ModelParameters::nsd)
         .def_readwrite("bh_kick", &genulens::model::ModelParameters::bh_kick);
+
+    py::class_<genulens::model::IsochroneQuery>(m, "IsochroneQuery")
+        .def(py::init<>())
+        .def_readwrite("log_age", &genulens::model::IsochroneQuery::log_age)
+        .def_readwrite("metallicity_mh", &genulens::model::IsochroneQuery::metallicity_mh)
+        .def_readwrite("initial_mass_msun", &genulens::model::IsochroneQuery::initial_mass_msun)
+        .def_readwrite("component", &genulens::model::IsochroneQuery::component);
+
+    py::class_<genulens::model::StellarProperties>(m, "StellarProperties")
+        .def_readonly("component", &genulens::model::StellarProperties::component)
+        .def_readonly("component_index", &genulens::model::StellarProperties::component_index)
+        .def_readonly("family", &genulens::model::StellarProperties::family)
+        .def_readonly("log_age", &genulens::model::StellarProperties::log_age)
+        .def_readonly("metallicity_mh", &genulens::model::StellarProperties::metallicity_mh)
+        .def_readonly("zini", &genulens::model::StellarProperties::zini)
+        .def_readonly("initial_mass_msun", &genulens::model::StellarProperties::initial_mass_msun)
+        .def_readonly("current_mass_msun", &genulens::model::StellarProperties::current_mass_msun)
+        .def_readonly("radius_rsun", &genulens::model::StellarProperties::radius_rsun)
+        .def_readonly("teff_k", &genulens::model::StellarProperties::teff_k)
+        .def_readonly("logg", &genulens::model::StellarProperties::logg)
+        .def_readonly("absolute_magnitudes", &genulens::model::StellarProperties::absolute_magnitudes);
+
+    py::class_<genulens::model::IsochroneGrid>(m, "IsochroneGrid")
+        .def_static("load", &genulens::model::IsochroneGrid::load, py::arg("path"))
+        .def_static("load_default_roman", &genulens::model::IsochroneGrid::load_default_roman)
+        .def_static("load_default_prime", &genulens::model::IsochroneGrid::load_default_prime)
+        .def_property_readonly("bands", &genulens::model::IsochroneGrid::bands)
+        .def_property_readonly("row_count", &genulens::model::IsochroneGrid::row_count)
+        .def_property_readonly("sequence_count", &genulens::model::IsochroneGrid::sequence_count)
+        .def("lookup", &genulens::model::IsochroneGrid::lookup, py::arg("query"));
 
     py::class_<genulens::Event>(m, "Event")
         .def_readonly("weight", &genulens::Event::weight)

@@ -1,6 +1,7 @@
 #include "genulens/io/input_data.hpp"
 #include "genulens/math/quadrature.hpp"
 #include "genulens/model/coordinates.hpp"
+#include "genulens/model/isochrone_grid.hpp"
 #include "genulens/model/kinematics.hpp"
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
@@ -70,12 +71,18 @@ int main()
     genulens::InputDataRepository repo;
     require(repo.resolve("Minidie.dat").filename() == "Minidie.dat", "input file resolution failed");
     require(repo.resolve("input_files/Minidie.dat").filename() == "Minidie.dat", "prefixed input file resolution failed");
+    require(repo.resolve("source_photometry/parsec_cmd/metallicity_grid/normalized/all_roman_parsec.dat").filename() ==
+                "all_roman_parsec.dat",
+            "nested input file resolution failed");
 
     const auto cwd = std::filesystem::current_path();
     std::filesystem::current_path(std::filesystem::temp_directory_path());
     try {
         require(genulens::resolve_input_file("Minidie.dat").filename() == "Minidie.dat",
                 "input file resolution from another cwd failed");
+        require(genulens::resolve_input_file("input_files/source_photometry/parsec_cmd/metallicity_grid/normalized/all_roman_parsec.dat")
+                    .filename() == "all_roman_parsec.dat",
+                "prefixed nested input file resolution from another cwd failed");
         require(genulens::open_input_file("input_files/Minidie.dat", "r") != nullptr,
                 "input fopen compatibility from another cwd failed");
     } catch (...) {
@@ -83,6 +90,35 @@ int main()
         throw;
     }
     std::filesystem::current_path(cwd);
+
+    const auto roman_isochrones = genulens::model::IsochroneGrid::load_default_roman();
+    require(roman_isochrones.row_count() == 14723, "Roman isochrone row count changed");
+    require(roman_isochrones.sequence_count() == 41, "Roman isochrone sequence count changed");
+    require(roman_isochrones.bands().size() == 6, "Roman isochrone band count changed");
+
+    genulens::model::IsochroneQuery iso_query;
+    iso_query.component = "thin1";
+    iso_query.log_age = 8.0;
+    iso_query.metallicity_mh = -0.5;
+    iso_query.initial_mass_msun = 0.1000000015;
+    const auto roman_star = roman_isochrones.lookup(iso_query);
+    require(roman_star.component == "thin1", "isochrone component lookup failed");
+    require(std::abs(roman_star.metallicity_mh + 0.5) < 1e-12, "isochrone metallicity lookup failed");
+    require(std::abs(roman_star.initial_mass_msun - 0.1000000015) < 1e-9, "isochrone mass lookup failed");
+    require(std::abs(roman_star.teff_k - 2886.02441) < 1e-5, "isochrone Teff lookup failed");
+    require(roman_star.absolute_magnitudes.count("F146mag") == 1, "Roman isochrone F146 band missing");
+    require(std::abs(roman_star.absolute_magnitudes.at("F146mag") - 9.251) < 1e-12,
+            "Roman isochrone F146 lookup failed");
+
+    iso_query.metallicity_mh = -0.45;
+    const auto nearest_mh_star = roman_isochrones.lookup(iso_query);
+    require(std::abs(nearest_mh_star.metallicity_mh + 0.5) < 1e-12,
+            "isochrone nearest metallicity lookup failed");
+
+    const auto prime_isochrones = genulens::model::IsochroneGrid::load_default_prime();
+    const auto prime_star = prime_isochrones.lookup(iso_query);
+    require(prime_star.absolute_magnitudes.count("Vmag") == 1, "prime isochrone V band missing");
+    require(prime_star.absolute_magnitudes.count("Imag") == 1, "prime isochrone I band missing");
 
     genulens::GenulensConfig cfg;
     cfg.n_simu = 5;
