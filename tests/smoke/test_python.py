@@ -10,9 +10,9 @@ def test_python_binding():
     arr = result.to_numpy()
     assert isinstance(arr, np.ndarray)
     assert arr.shape[0] == 10
-    assert "tE" in result.columns
-    assert "piEN" in result.columns
-    assert "mu_rel_N_masyr" in result.columns
+    assert "t_E" in result.columns
+    assert "pi_EN" in result.columns
+    assert "mu_rel_N" in result.columns
 
 
 def test_python_callable_likelihood():
@@ -24,7 +24,7 @@ def test_python_callable_likelihood():
     result = genulens.simulate(cfg, likelihood=my_like)
     arr = result.to_numpy()
     assert arr.shape[0] == 10
-    assert np.all(arr[:, result.columns.index("tE")] > 10.0)
+    assert np.all(arr[:, result.columns.index("t_E")] > 10.0)
 
 
 def test_python_typed_observation_config():
@@ -34,7 +34,7 @@ def test_python_typed_observation_config():
 
     result = genulens.simulate(cfg)
     arr = result.to_numpy()
-    tE = arr[:, result.columns.index("tE")]
+    tE = arr[:, result.columns.index("t_E")]
     assert tE.size > 0
     assert np.all((tE > 19.0) & (tE < 21.0))
 
@@ -127,7 +127,6 @@ def test_python_simulation_forward_source_mode():
 
 def test_python_simulation_cli_verbosity_columns():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
-    cfg.sampling.verbosity = 3
     result = genulens.simulate(cfg)
     assert result.columns[:19] == [
         "wtj",
@@ -153,3 +152,24 @@ def test_python_simulation_cli_verbosity_columns():
     arr = result.to_numpy()
     assert arr.shape == (5, 19)
     assert np.all(np.isfinite(arr[:, result.columns.index("mu_rel_N")]))
+
+
+def test_python_simulation_verbosity_1_columns():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
+    cfg.sampling.verbosity = 1
+    result = genulens.simulate(cfg)
+    assert result.columns == [
+        "wtj",
+        "tE",
+        "thetaE",
+        "piE",
+        "M_L",
+        "D_S",
+        "D_L",
+        "mu_rel",
+        "iS",
+        "iL",
+        "tau_s",
+        "tau_l",
+        "fREM",
+    ]

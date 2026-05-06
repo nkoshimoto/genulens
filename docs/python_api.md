@@ -62,22 +62,27 @@ fixed when `n_like_min > 0`.
 
 ## Result columns
 
-The default event result contains:
+The default event result uses the `VERBOSITY=3` style layout:
 
-- `weight`
-- `tE`
-- `thetaE`
-- `piE`
-- `piEN`
-- `piEE`
-- `lens_distance_pc`
-- `source_distance_pc`
-- `lens_mass_msun`
-- `mu_rel_masyr`
-- `mu_rel_N_masyr`
-- `mu_rel_E_masyr`
-- `lens_component`
-- `source_component`
+- `wtj`
+- `M_L`
+- `D_L`
+- `D_S`
+- `t_E`
+- `theta_E`
+- `pi_E`
+- `pi_EN`
+- `pi_EE`
+- `mu_rel`
+- `mu_rel_N`
+- `mu_rel_E`
+- `mu_Sl`
+- `mu_Sb`
+- `I_L`
+- `K_L`
+- `iS`
+- `iL`
+- `fREM`
 
 Example conversion to pandas:
 
@@ -87,9 +92,9 @@ import pandas as pd
 df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 ```
 
-Use the `weight` column for histograms, quantiles, and population fractions.
+Use the `wtj` column for histograms, quantiles, and population fractions.
 
-The Python API can also request a CLI-like event layout:
+`cfg.sampling.verbosity` selects the event layout:
 
 ```python
 cfg.sampling.verbosity = 3
@@ -97,12 +102,12 @@ result = genulens.simulate(cfg)
 print(result.columns)
 ```
 
-With `verbosity = 3`, the first columns follow the CLI `VERBOSITY=3` labels:
-`wtj`, `M_L`, `D_L`, `D_S`, `t_E`, `theta_E`, `pi_E`, `pi_EN`, `pi_EE`,
-`mu_rel`, `mu_Sl`, `mu_Sb`, `I_L`, `K_L`, `iS`, `iL`, and `fREM`.
-The Python result additionally includes `mu_rel_N` and `mu_rel_E`, so callers do
-not need to reconstruct the relative proper-motion components from parallax
-components.
+When left at the Python default, the result uses the same layout as
+`verbosity = 3`. The Python result includes `mu_rel_N` and `mu_rel_E` directly,
+so callers do not need to reconstruct the relative proper-motion components from
+parallax components. The older descriptive result labels such as
+`lens_mass_msun`, `lens_distance_pc`, and `source_distance_pc` are not part of
+the public result table.
 
 ## Observation constraints
 
@@ -222,6 +227,11 @@ result = genulens.simulate(cfg, likelihood=likelihood)
 
 The callable receives an `Event` object and returns a multiplicative likelihood.
 A return value less than or equal to zero rejects the event.
+
+The `Event` object uses typed attribute names such as `event.tE`,
+`event.lens_mass_msun`, and `event.source_distance_pc`. These callback
+attributes are separate from the `SimulationResult.columns` labels used for the
+NumPy result table.
 
 Avoid extremely narrow hard cuts unless you also understand the runtime
 implications. The sampler will keep drawing until it has enough accepted events,

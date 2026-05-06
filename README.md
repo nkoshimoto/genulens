@@ -131,11 +131,11 @@ arr = result.to_numpy()
 ```
 
 `result.columns` gives the column order of the returned NumPy array. The default
-Python result includes the event weight, `tE`, `thetaE`, `piE`, `piEN`, `piEE`,
-lens/source distances, lens mass, relative proper motion, relative
-proper-motion components, and lens/source component IDs. Set
-`cfg.sampling.verbosity = 3` to request a CLI-like `VERBOSITY=3` layout; the
-Python result also adds `mu_rel_N` and `mu_rel_E` in that mode.
+Python result uses the `VERBOSITY=3` style event layout:
+`wtj`, `M_L`, `D_L`, `D_S`, `t_E`, `theta_E`, `pi_E`, `pi_EN`, `pi_EE`,
+`mu_rel`, `mu_rel_N`, `mu_rel_E`, `mu_Sl`, `mu_Sb`, `I_L`, `K_L`, `iS`, `iL`,
+and `fREM`. The Python result includes `mu_rel_N` and `mu_rel_E` directly, so
+callers do not need to reconstruct them from parallax components.
 
 Observation constraints, source selection, model parameters, and sampling
 options are exposed as typed nested config objects:

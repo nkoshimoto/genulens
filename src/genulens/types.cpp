@@ -18,7 +18,7 @@ std::vector<std::string> SimulationResult::columns() const
     } else if (verbosity == 2) {
         out = {"wtj", "tE", "thetaE", "piEN", "piEE", "D_S",
                "muSl", "muSb", "iS", "iL", "fREM"};
-    } else if (verbosity == 3) {
+    } else if (verbosity == 3 || verbosity == 0) {
         out = {"wtj", "M_L", "D_L", "D_S", "t_E", "theta_E",
                "pi_E", "pi_EN", "pi_EE", "mu_rel", "mu_rel_N", "mu_rel_E",
                "mu_Sl", "mu_Sb", "I_L", "K_L", "iS", "iL", "fREM"};
@@ -30,23 +30,6 @@ std::vector<std::string> SimulationResult::columns() const
         out = {"wtj", "M_L", "D_L", "D_S", "t_E", "theta_E",
                "pi_E", "pi_EN", "pi_EE", "mu_rel", "mu_rel_N", "mu_rel_E",
                "mu_Sl", "mu_Sb", "I_L", "K_L", "iS", "iL", "fREM"};
-    } else {
-        out = {
-        "weight",
-        "tE",
-        "thetaE",
-        "piE",
-        "piEN",
-        "piEE",
-        "lens_distance_pc",
-        "source_distance_pc",
-        "lens_mass_msun",
-        "mu_rel_masyr",
-        "mu_rel_N_masyr",
-        "mu_rel_E_masyr",
-        "lens_component",
-        "source_component",
-        };
     }
     if (include_source_properties) {
         out.push_back("source_log_age");
@@ -96,7 +79,7 @@ std::vector<double> SimulationResult::flattened_rows() const
             rows.push_back(static_cast<double>(event.source_component));
             rows.push_back(static_cast<double>(event.lens_component));
             rows.push_back(static_cast<double>(event.remnant_flag));
-        } else if (verbosity >= 3) {
+        } else if (verbosity >= 3 || verbosity == 0) {
             rows.push_back(event.weight);
             rows.push_back(event.lens_mass_msun);
             rows.push_back(event.lens_distance_pc);
@@ -116,21 +99,6 @@ std::vector<double> SimulationResult::flattened_rows() const
             rows.push_back(static_cast<double>(event.source_component));
             rows.push_back(static_cast<double>(event.lens_component));
             rows.push_back(static_cast<double>(event.remnant_flag));
-        } else {
-            rows.push_back(event.weight);
-            rows.push_back(event.tE);
-            rows.push_back(event.thetaE);
-            rows.push_back(event.piE);
-            rows.push_back(event.piEN);
-            rows.push_back(event.piEE);
-            rows.push_back(event.lens_distance_pc);
-            rows.push_back(event.source_distance_pc);
-            rows.push_back(event.lens_mass_msun);
-            rows.push_back(event.mu_rel_masyr);
-            rows.push_back(event.mu_rel_N_masyr);
-            rows.push_back(event.mu_rel_E_masyr);
-            rows.push_back(static_cast<double>(event.lens_component));
-            rows.push_back(static_cast<double>(event.source_component));
         }
         if (include_source_properties) {
             rows.push_back(event.source_log_age);
