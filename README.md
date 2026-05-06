@@ -130,9 +130,15 @@ result = genulens.simulate(cfg)
 arr = result.to_numpy()
 ```
 
-`result.columns` gives the column order of the returned NumPy array. Observation
-constraints, source selection, model parameters, and sampling options are exposed
-as typed nested config objects:
+`result.columns` gives the column order of the returned NumPy array. The default
+Python result includes the event weight, `tE`, `thetaE`, `piE`, `piEN`, `piEE`,
+lens/source distances, lens mass, relative proper motion, relative
+proper-motion components, and lens/source component IDs. Set
+`cfg.sampling.verbosity = 3` to request a CLI-like `VERBOSITY=3` layout; the
+Python result also adds `mu_rel_N` and `mu_rel_E` in that mode.
+
+Observation constraints, source selection, model parameters, and sampling
+options are exposed as typed nested config objects:
 
 ```python
 cfg.observation.tE_obs = 54.5
@@ -140,6 +146,17 @@ cfg.observation.tE_err = 5.0
 cfg.sampling.small_gamma = 1
 cfg.model.imf.alpha2 = -1.35
 ```
+
+Forward source annotations can be appended without replacing the legacy LF/CMF
+source-selection machinery:
+
+```python
+cfg.forward_source.enabled = 1
+cfg.forward_source.photometry = "roman"
+```
+
+This adds source age/metallicity metadata, mass, radius, `Teff`, `logg`,
+angular radius, and absolute magnitudes from the shared isochrone lookup.
 
 Python callables can be passed as custom likelihoods and are evaluated inside the
 Monte Carlo event loop:

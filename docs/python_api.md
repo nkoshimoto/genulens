@@ -68,10 +68,14 @@ The default event result contains:
 - `tE`
 - `thetaE`
 - `piE`
+- `piEN`
+- `piEE`
 - `lens_distance_pc`
 - `source_distance_pc`
 - `lens_mass_msun`
 - `mu_rel_masyr`
+- `mu_rel_N_masyr`
+- `mu_rel_E_masyr`
 - `lens_component`
 - `source_component`
 
@@ -84,6 +88,21 @@ df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 ```
 
 Use the `weight` column for histograms, quantiles, and population fractions.
+
+The Python API can also request a CLI-like event layout:
+
+```python
+cfg.sampling.verbosity = 3
+result = genulens.simulate(cfg)
+print(result.columns)
+```
+
+With `verbosity = 3`, the first columns follow the CLI `VERBOSITY=3` labels:
+`wtj`, `M_L`, `D_L`, `D_S`, `t_E`, `theta_E`, `pi_E`, `pi_EN`, `pi_EE`,
+`mu_rel`, `mu_Sl`, `mu_Sb`, `I_L`, `K_L`, `iS`, `iL`, and `fREM`.
+The Python result additionally includes `mu_rel_N` and `mu_rel_E`, so callers do
+not need to reconstruct the relative proper-motion components from parallax
+components.
 
 ## Observation constraints
 
@@ -120,6 +139,7 @@ cfg.model.kinematics.omega_p = 45.0
 cfg.sampling.binary = 1
 cfg.sampling.remnant = 1
 cfg.sampling.small_gamma = 1
+cfg.sampling.verbosity = 3
 ```
 
 Important sampling option mappings:
@@ -136,10 +156,53 @@ Important sampling option mappings:
 | `cfg.sampling.remnant` | `REMNANT` |
 | `cfg.sampling.only_white_dwarf` | `onlyWD` |
 | `cfg.sampling.uniform_likelihood` | `UNIFORM` |
+| `cfg.sampling.verbosity` | `VERBOSITY` |
 
 `small_gamma = 1` keeps low-Gamma events and carries Gamma through the event
 weight. With `small_gamma = 0`, low-Gamma events can be rejected by the usual
 Gamma rejection step.
+
+## Forward source annotations
+
+The default simulator keeps the historical LF/CMF source-selection and
+event-rate weighting. To append stellar properties drawn from the shared
+isochrone lookup as annotations, enable forward source mode:
+
+```python
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10_000, seed=42)
+cfg.forward_source.enabled = 1
+cfg.forward_source.photometry = "roman"
+cfg.forward_source.min_initial_mass_msun = 0.1
+cfg.forward_source.max_initial_mass_msun = 1.0
+
+result = genulens.simulate(cfg)
+df = pd.DataFrame(result.to_numpy(), columns=result.columns)
+```
+
+This mode appends source-property columns after the event columns:
+
+- `source_log_age`
+- `source_metallicity_mh`
+- `source_zini`
+- `source_initial_mass_msun`
+- `source_current_mass_msun`
+- `source_radius_rsun`
+- `source_teff_k`
+- `source_logg`
+- `source_angular_radius_microarcsec`
+- `source_abs_<band>mag`
+
+These columns are annotations for forward-prior studies. They do not yet replace
+the legacy LF/CMF source-selection machinery used by the event sampler. Rows
+without a matched stellar source entry can contain `NaN` source annotations.
+
+For standalone source-population tests, use `ForwardSourceGenerator` directly:
+
+```python
+generator = genulens.ForwardSourceGenerator()
+samples = generator.sample_many(n=1000, component=8, distance_pc=8000.0, seed=3)
+source_df = pd.DataFrame(samples.to_numpy(), columns=samples.columns)
+```
 
 ## Custom likelihood
 
