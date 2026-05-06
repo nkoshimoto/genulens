@@ -108,17 +108,11 @@ model::ForwardSource sample_matched_source(const model::ForwardSourceGenerator &
                                            const model::ForwardSourceQuery &query,
                                            const EventSampler::Config &cfg)
 {
-    const int max_attempts = cfg.max_source_selection_attempts > 0
-                                 ? cfg.max_source_selection_attempts
-                                 : 1;
-    model::ForwardSource last_source;
-    for (int attempt = 0; attempt < max_attempts; ++attempt) {
-        last_source = generator.sample(query, *cfg.forward_source_rng);
-        if (passes_source_selection(last_source, cfg.extinction, cfg)) {
-            return last_source;
-        }
+    const auto source = generator.sample(query, *cfg.forward_source_rng);
+    if (passes_source_selection(source, cfg.extinction, cfg)) {
+        return source;
     }
-    throw std::runtime_error("forward source sampling could not match source selection");
+    throw std::runtime_error("forward source did not pass source selection");
 }
 
 } // namespace
@@ -695,11 +689,8 @@ int EventSampler::run(RunContext &ctx,
                                 : found->second);
                     }
                 } catch (const std::exception &) {
-                    if (cfg.forward_source_generator) {
-                        event.source_absolute_magnitudes.assign(
-                            cfg.forward_source_generator->bands().size(),
-                            std::numeric_limits<double>::quiet_NaN());
-                    }
+                    j--;
+                    continue;
                 }
             }
 	        if (custom_likelihood) {

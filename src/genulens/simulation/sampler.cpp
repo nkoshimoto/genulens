@@ -588,8 +588,6 @@ int run_sampler_impl(RunContext &context,
             typed_config->forward_source.max_initial_mass_msun;
         prepared.event_config.match_source_selection =
             typed_config->forward_source.match_source_selection != 0;
-        prepared.event_config.max_source_selection_attempts =
-            typed_config->forward_source.max_selection_attempts;
         prepared.event_config.source_i_min = Isst;
         prepared.event_config.source_i_max = Isen;
         prepared.event_config.source_vi_min = VIsst;

@@ -51,7 +51,6 @@ public:
         double source_min_initial_mass_msun = 0.09;
         double source_max_initial_mass_msun = 1.0;
         bool match_source_selection = true;
-        int max_source_selection_attempts = 200;
         double source_i_min = 14.0;
         double source_i_max = 21.0;
         double source_vi_min = 0.0;

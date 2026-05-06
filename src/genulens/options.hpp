@@ -26,7 +26,6 @@ struct ForwardSourceConfig {
     double min_initial_mass_msun = 0.09;
     double max_initial_mass_msun = 1.0;
     int match_source_selection = 1;
-    int max_selection_attempts = 200;
     std::vector<std::string> selection_bands;
     std::vector<double> selection_min_magnitudes;
     std::vector<double> selection_max_magnitudes;
