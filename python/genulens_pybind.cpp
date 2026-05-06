@@ -309,6 +309,24 @@ PYBIND11_MODULE(genulens, m)
         .def_readonly("distance_pc", &genulens::model::ForwardSource::distance_pc)
         .def_readonly("angular_radius_microarcsec", &genulens::model::ForwardSource::angular_radius_microarcsec);
 
+    py::class_<genulens::model::ForwardSourceResult>(m, "ForwardSourceResult")
+        .def_property_readonly("columns", &genulens::model::ForwardSourceResult::columns)
+        .def_property_readonly("bands", [](const genulens::model::ForwardSourceResult &result) {
+            return result.bands;
+        })
+        .def_property_readonly("row_count", &genulens::model::ForwardSourceResult::row_count)
+        .def("to_numpy", [](const genulens::model::ForwardSourceResult &result) {
+            auto rows = result.flattened_rows();
+            py::array_t<double> array({result.row_count(), result.column_count()});
+            auto mutable_array = array.mutable_unchecked<2>();
+            for (py::ssize_t r = 0; r < static_cast<py::ssize_t>(result.row_count()); ++r) {
+                for (py::ssize_t c = 0; c < static_cast<py::ssize_t>(result.column_count()); ++c) {
+                    mutable_array(r, c) = rows[static_cast<std::size_t>(r * result.column_count() + c)];
+                }
+            }
+            return array;
+        });
+
     py::class_<genulens::model::ForwardSourceGenerator>(m, "ForwardSourceGenerator")
         .def_static("load_default_roman", &genulens::model::ForwardSourceGenerator::load_default_roman,
                     py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
@@ -319,7 +337,14 @@ PYBIND11_MODULE(genulens, m)
                           unsigned long seed) {
             genulens::RandomEngine rng(seed);
             return generator.sample(query, rng);
-        }, py::arg("query"), py::arg("seed") = 12304357UL);
+        }, py::arg("query"), py::arg("seed") = 12304357UL)
+        .def("sample_many", [](const genulens::model::ForwardSourceGenerator &generator,
+                               const genulens::model::ForwardSourceQuery &query,
+                               std::size_t n_sources,
+                               unsigned long seed) {
+            genulens::RandomEngine rng(seed);
+            return generator.sample_many(query, n_sources, rng);
+        }, py::arg("query"), py::arg("n_sources"), py::arg("seed") = 12304357UL);
     m.def("angular_radius_microarcsec", &genulens::model::angular_radius_microarcsec,
           py::arg("radius_rsun"), py::arg("distance_pc"));
 

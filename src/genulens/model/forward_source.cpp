@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -78,6 +79,19 @@ ForwardSource ForwardSourceGenerator::sample(const ForwardSourceQuery &query, ge
     return source;
 }
 
+ForwardSourceResult ForwardSourceGenerator::sample_many(const ForwardSourceQuery &query,
+                                                        std::size_t n_sources,
+                                                        genulens::RandomEngine &rng) const
+{
+    ForwardSourceResult result;
+    result.bands = population_model_.isochrones().bands();
+    result.sources.reserve(n_sources);
+    for (std::size_t i = 0; i < n_sources; ++i) {
+        result.sources.push_back(sample(query, rng));
+    }
+    return result;
+}
+
 double ForwardSourceGenerator::sample_initial_mass(double min_mass_msun,
                                                   double max_mass_msun,
                                                   genulens::RandomEngine &rng) const
@@ -104,6 +118,55 @@ double angular_radius_microarcsec(double radius_rsun, double distance_pc)
     constexpr double kSolarRadiusAu = 0.004650467260962157;
     constexpr double kArcsecToMicroarcsec = 1.0e6;
     return radius_rsun * kSolarRadiusAu / distance_pc * kArcsecToMicroarcsec;
+}
+
+std::vector<std::string> ForwardSourceResult::columns() const
+{
+    std::vector<std::string> out = {
+        "component_index",
+        "distance_pc",
+        "log_age",
+        "metallicity_mh",
+        "zini",
+        "initial_mass_msun",
+        "current_mass_msun",
+        "radius_rsun",
+        "teff_k",
+        "logg",
+        "angular_radius_microarcsec",
+    };
+    out.reserve(out.size() + bands.size());
+    for (const auto &band : bands) {
+        out.push_back("abs_" + band);
+    }
+    return out;
+}
+
+std::vector<double> ForwardSourceResult::flattened_rows() const
+{
+    std::vector<double> rows;
+    const auto cols = columns();
+    rows.reserve(sources.size() * cols.size());
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    for (const auto &source : sources) {
+        const auto &stellar = source.stellar;
+        rows.push_back(static_cast<double>(stellar.component_index));
+        rows.push_back(source.distance_pc);
+        rows.push_back(stellar.log_age);
+        rows.push_back(stellar.metallicity_mh);
+        rows.push_back(stellar.zini);
+        rows.push_back(stellar.initial_mass_msun);
+        rows.push_back(stellar.current_mass_msun);
+        rows.push_back(stellar.radius_rsun);
+        rows.push_back(stellar.teff_k);
+        rows.push_back(stellar.logg);
+        rows.push_back(source.angular_radius_microarcsec);
+        for (const auto &band : bands) {
+            const auto found = stellar.absolute_magnitudes.find(band);
+            rows.push_back(found == stellar.absolute_magnitudes.end() ? nan : found->second);
+        }
+    }
+    return rows;
 }
 
 } // namespace genulens::model

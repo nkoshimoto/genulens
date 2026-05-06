@@ -4,7 +4,9 @@
 #include "genulens/model/stellar_population_model.hpp"
 #include "genulens/rng.hpp"
 
+#include <cstddef>
 #include <string>
+#include <vector>
 
 namespace genulens::model {
 
@@ -26,6 +28,16 @@ struct ForwardSource {
     double angular_radius_microarcsec = 0.0;
 };
 
+struct ForwardSourceResult {
+    std::vector<ForwardSource> sources;
+    std::vector<std::string> bands;
+
+    std::vector<std::string> columns() const;
+    std::vector<double> flattened_rows() const;
+    std::size_t row_count() const { return sources.size(); }
+    std::size_t column_count() const { return columns().size(); }
+};
+
 class ForwardSourceGenerator {
 public:
     ForwardSourceGenerator(StellarPopulationModel population_model, IMFParameters imf_parameters);
@@ -34,6 +46,8 @@ public:
     static ForwardSourceGenerator load_default_prime(IMFParameters imf_parameters = default_model_parameters().imf);
 
     ForwardSource sample(const ForwardSourceQuery &query, genulens::RandomEngine &rng) const;
+    ForwardSourceResult sample_many(const ForwardSourceQuery &query, std::size_t n_sources,
+                                    genulens::RandomEngine &rng) const;
 
 private:
     StellarPopulationModel population_model_;
