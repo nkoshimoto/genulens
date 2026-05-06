@@ -6,6 +6,8 @@
 #include "genulens/simulation/observation_config.hpp"
 #include "genulens/simulation/internal/runtime.hpp"
 
+#include <memory>
+
 namespace genulens {
 
 struct PreparedSimulation {
@@ -14,6 +16,8 @@ struct PreparedSimulation {
     NsdMomentRuntime nsd_moments;
     LineOfSightDensityGrid grid;
     MassFunction mass_function;
+    std::unique_ptr<model::ForwardSourceGenerator> forward_source_generator;
+    std::unique_ptr<RandomEngine> forward_source_rng;
     EventSampler::Config event_config;
     ObservationConfig observation;
 

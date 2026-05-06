@@ -49,6 +49,7 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("model", &genulens::GenulensConfig::model)
         .def_readwrite("observation", &genulens::GenulensConfig::observation)
         .def_readwrite("source", &genulens::GenulensConfig::source)
+        .def_readwrite("forward_source", &genulens::GenulensConfig::forward_source)
         .def_readwrite("sampling", &genulens::GenulensConfig::sampling)
         .def_readwrite("runtime", &genulens::GenulensConfig::runtime)
         .def_readwrite("input_dir", &genulens::GenulensConfig::input_dir);
@@ -64,6 +65,13 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("dm_rc", &genulens::SourceSelectionConfig::dm_rc)
         .def_readwrite("ak_rc", &genulens::SourceSelectionConfig::ak_rc)
         .def_readwrite("dust_scale_height_pc", &genulens::SourceSelectionConfig::dust_scale_height_pc);
+
+    py::class_<genulens::ForwardSourceConfig>(m, "ForwardSourceConfig")
+        .def(py::init<>())
+        .def_readwrite("enabled", &genulens::ForwardSourceConfig::enabled)
+        .def_readwrite("photometry", &genulens::ForwardSourceConfig::photometry)
+        .def_readwrite("min_initial_mass_msun", &genulens::ForwardSourceConfig::min_initial_mass_msun)
+        .def_readwrite("max_initial_mass_msun", &genulens::ForwardSourceConfig::max_initial_mass_msun);
 
     py::class_<genulens::SamplingConfig>(m, "SamplingConfig")
         .def(py::init<>())
@@ -358,7 +366,17 @@ PYBIND11_MODULE(genulens, m)
         .def_readonly("lens_mass_msun", &genulens::Event::lens_mass_msun)
         .def_readonly("mu_rel_masyr", &genulens::Event::mu_rel_masyr)
         .def_readonly("lens_component", &genulens::Event::lens_component)
-        .def_readonly("source_component", &genulens::Event::source_component);
+        .def_readonly("source_component", &genulens::Event::source_component)
+        .def_readonly("source_log_age", &genulens::Event::source_log_age)
+        .def_readonly("source_metallicity_mh", &genulens::Event::source_metallicity_mh)
+        .def_readonly("source_zini", &genulens::Event::source_zini)
+        .def_readonly("source_initial_mass_msun", &genulens::Event::source_initial_mass_msun)
+        .def_readonly("source_current_mass_msun", &genulens::Event::source_current_mass_msun)
+        .def_readonly("source_radius_rsun", &genulens::Event::source_radius_rsun)
+        .def_readonly("source_teff_k", &genulens::Event::source_teff_k)
+        .def_readonly("source_logg", &genulens::Event::source_logg)
+        .def_readonly("source_angular_radius_microarcsec", &genulens::Event::source_angular_radius_microarcsec)
+        .def_readonly("source_absolute_magnitudes", &genulens::Event::source_absolute_magnitudes);
 
     py::class_<genulens::SimulationResult>(m, "SimulationResult")
         .def_property_readonly("columns", &genulens::SimulationResult::columns)

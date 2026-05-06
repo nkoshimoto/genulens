@@ -45,6 +45,7 @@ public:
     static ForwardSourceGenerator load_default_roman(IMFParameters imf_parameters = default_model_parameters().imf);
     static ForwardSourceGenerator load_default_prime(IMFParameters imf_parameters = default_model_parameters().imf);
 
+    const std::vector<std::string> &bands() const { return population_model_.isochrones().bands(); }
     ForwardSource sample(const ForwardSourceQuery &query, genulens::RandomEngine &rng) const;
     ForwardSourceResult sample_many(const ForwardSourceQuery &query, std::size_t n_sources,
                                     genulens::RandomEngine &rng) const;

@@ -2,6 +2,7 @@
 
 #include <functional>
 #include "genulens/model/extinction.hpp"
+#include "genulens/model/forward_source.hpp"
 #include "genulens/simulation/likelihood.hpp"
 #include "genulens/simulation/los_density_grid.hpp"
 #include "genulens/simulation/mass_function.hpp"
@@ -40,6 +41,13 @@ public:
 
         // Reference distance for musRCG correction
         double Dmean = 0.0;
+
+        // Optional source-star annotation. This does not replace legacy LF/CMF
+        // source-selection weighting.
+        const model::ForwardSourceGenerator *forward_source_generator = nullptr;
+        RandomEngine *forward_source_rng = nullptr;
+        double source_min_initial_mass_msun = 0.09;
+        double source_max_initial_mass_msun = 1.0;
     };
 
     // Run the Monte Carlo loop. CLI output is controlled by emit_cli_output.

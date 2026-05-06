@@ -105,3 +105,19 @@ def test_python_forward_source_generator():
     assert arr.shape == (4, len(result.columns))
     assert "abs_F146mag" in result.columns
     assert "F146mag" in result.bands
+
+
+def test_python_simulation_forward_source_mode():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
+    cfg.forward_source.enabled = 1
+    cfg.forward_source.photometry = "roman"
+    cfg.forward_source.min_initial_mass_msun = 0.1
+    cfg.forward_source.max_initial_mass_msun = 0.2
+
+    result = genulens.simulate(cfg)
+    arr = result.to_numpy()
+    assert arr.shape[0] == 5
+    assert "source_teff_k" in result.columns
+    assert "source_abs_F146mag" in result.columns
+    teff = arr[:, result.columns.index("source_teff_k")]
+    assert np.all(np.isfinite(teff))

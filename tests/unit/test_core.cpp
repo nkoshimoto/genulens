@@ -159,11 +159,11 @@ int main()
     require(source_star.angular_radius_microarcsec > 0.0, "forward source angular radius failed");
     require(source_star.stellar.absolute_magnitudes.count("F146mag") == 1,
             "forward source absolute F146 missing");
-    const auto source_result = source_generator.sample_many(source_query, 4, source_rng);
-    require(source_result.row_count() == 4, "forward source result row count failed");
-    require(source_result.column_count() == 17, "forward source result column count failed");
-    require(source_result.columns().back() == "abs_F213mag", "forward source result band columns failed");
-    require(source_result.flattened_rows().size() == source_result.row_count() * source_result.column_count(),
+    const auto source_batch = source_generator.sample_many(source_query, 4, source_rng);
+    require(source_batch.row_count() == 4, "forward source result row count failed");
+    require(source_batch.column_count() == 17, "forward source result column count failed");
+    require(source_batch.columns().back() == "abs_F213mag", "forward source result band columns failed");
+    require(source_batch.flattened_rows().size() == source_batch.row_count() * source_batch.column_count(),
             "forward source result flattening failed");
 
     genulens::GenulensConfig cfg;
@@ -173,6 +173,24 @@ int main()
     });
     require(result.events.size() == 5, "simulator result size failed");
     require(result.column_count() == 10, "result column count failed");
+
+    genulens::GenulensConfig source_cfg;
+    source_cfg.n_simu = 5;
+    source_cfg.forward_source.enabled = 1;
+    source_cfg.forward_source.photometry = "roman";
+    source_cfg.forward_source.min_initial_mass_msun = 0.1;
+    source_cfg.forward_source.max_initial_mass_msun = 0.2;
+    const auto source_result = genulens::simulate(source_cfg, [](const genulens::Event &e) {
+        return std::isfinite(e.source_teff_k) && e.source_teff_k > 0.0 ? 1.0 : 0.0;
+    });
+    require(source_result.events.size() == 5, "forward source simulator result size failed");
+    require(source_result.include_source_properties, "forward source result flag failed");
+    require(source_result.column_count() == 25, "forward source result column count failed");
+    require(source_result.columns().back() == "source_abs_F213mag", "forward source result band columns failed");
+    require(std::isfinite(source_result.events.front().source_teff_k),
+            "forward source event Teff missing");
+    require(source_result.flattened_rows().size() == source_result.row_count() * source_result.column_count(),
+            "forward source result flattening failed");
 
     std::cout << "core unit tests passed\n";
     return 0;

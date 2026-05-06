@@ -11,6 +11,7 @@
 #include "genulens/io/input_data.hpp"
 #include "genulens/model/coordinates.hpp"
 #include "genulens/model/extinction.hpp"
+#include "genulens/model/forward_source.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/initialize.hpp"
@@ -31,6 +32,23 @@ namespace gmodel = genulens::model;
 namespace genulens {
 
 namespace {
+
+gmodel::ForwardSourceGenerator make_forward_source_generator(const GenulensConfig &config)
+{
+    if (config.forward_source.photometry == "prime") {
+        return gmodel::ForwardSourceGenerator::load_default_prime(config.model.imf);
+    }
+    if (config.forward_source.photometry == "roman") {
+        return gmodel::ForwardSourceGenerator::load_default_roman(config.model.imf);
+    }
+    throw std::runtime_error("unknown forward source photometry: " + config.forward_source.photometry);
+}
+
+std::vector<std::string> forward_source_bands_for_config(const GenulensConfig &config)
+{
+    if (config.forward_source.enabled == 0) return {};
+    return make_forward_source_generator(config).bands();
+}
 
 void apply_typed_model_parameters(RunContext &context, const model::ModelParameters &model)
 {
@@ -557,6 +575,18 @@ int run_sampler_impl(RunContext &context,
     prepared.event_config.Nsall   = Nsall;
     prepared.event_config.tauall  = tauall;
     prepared.event_config.Dmean   = Dmean;
+    if (typed_config && typed_config->forward_source.enabled != 0) {
+        prepared.forward_source_generator =
+            std::make_unique<gmodel::ForwardSourceGenerator>(make_forward_source_generator(*typed_config));
+        prepared.forward_source_rng =
+            std::make_unique<RandomEngine>(typed_config->seed + 0x9e3779b9UL);
+        prepared.event_config.forward_source_generator = prepared.forward_source_generator.get();
+        prepared.event_config.forward_source_rng = prepared.forward_source_rng.get();
+        prepared.event_config.source_min_initial_mass_msun =
+            typed_config->forward_source.min_initial_mass_msun;
+        prepared.event_config.source_max_initial_mass_msun =
+            typed_config->forward_source.max_initial_mass_msun;
+    }
 
     const int code = run_prepared_events(context, prepared, std::move(custom_likelihood),
                                          std::move(event_sink), emit_cli_output);
@@ -592,6 +622,8 @@ SimulationResult Sampler::simulate(RunContext &context, const GenulensConfig &co
                                    LikelihoodFunction likelihood)
 {
     SimulationResult result;
+    result.include_source_properties = config.forward_source.enabled != 0;
+    result.source_property_bands = forward_source_bands_for_config(config);
     const int code = run_sampler_impl(
         context, &config, argc, argv, std::move(likelihood),
         [&result](const Event &event) {

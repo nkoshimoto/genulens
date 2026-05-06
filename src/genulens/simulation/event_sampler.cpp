@@ -5,6 +5,8 @@
 
 #include "genulens/simulation/event_reporter.hpp"
 #include "genulens/simulation/internal/runtime.hpp"
+
+#include <limits>
 #define MINSIGLOGA 0.3
 #define MAXMEANLOGA 1.7
 #define MINMEANLOGA 0.6
@@ -80,6 +82,8 @@ int EventSampler::run(RunContext &ctx,
     const int    MXDkick = cfg.MXDkick;
     const double betaBH  = cfg.betaBH;
     const double Dmean   = cfg.Dmean;
+    const bool attach_source_properties =
+        cfg.forward_source_generator != nullptr && cfg.forward_source_rng != nullptr;
 
     // PopulationRuntime raw pointers (still used directly)
     double *logMass_B        = pop.log_mass;
@@ -540,6 +544,42 @@ int EventSampler::run(RunContext &ctx,
 	        event.mu_rel_masyr = murel;
 	        event.lens_component = i_l;
 	        event.source_component = i_s;
+            if (attach_source_properties) {
+                try {
+                    model::ForwardSourceQuery source_query;
+                    source_query.component_index = i_s;
+                    source_query.distance_pc = D_s;
+                    source_query.min_initial_mass_msun = cfg.source_min_initial_mass_msun;
+                    source_query.max_initial_mass_msun = cfg.source_max_initial_mass_msun;
+                    source_query.use_default_log_age = !(tau_s > 0.0);
+                    source_query.log_age = (tau_s > 0.0) ? 9.0 + std::log10(tau_s) : 0.0;
+                    source_query.use_default_metallicity = true;
+                    const auto source = cfg.forward_source_generator->sample(source_query,
+                                                                            *cfg.forward_source_rng);
+                    event.source_log_age = source.stellar.log_age;
+                    event.source_metallicity_mh = source.stellar.metallicity_mh;
+                    event.source_zini = source.stellar.zini;
+                    event.source_initial_mass_msun = source.stellar.initial_mass_msun;
+                    event.source_current_mass_msun = source.stellar.current_mass_msun;
+                    event.source_radius_rsun = source.stellar.radius_rsun;
+                    event.source_teff_k = source.stellar.teff_k;
+                    event.source_logg = source.stellar.logg;
+                    event.source_angular_radius_microarcsec = source.angular_radius_microarcsec;
+                    for (const auto &band : cfg.forward_source_generator->bands()) {
+                        const auto found = source.stellar.absolute_magnitudes.find(band);
+                        event.source_absolute_magnitudes.push_back(
+                            found == source.stellar.absolute_magnitudes.end()
+                                ? std::numeric_limits<double>::quiet_NaN()
+                                : found->second);
+                    }
+                } catch (const std::exception &) {
+                    if (cfg.forward_source_generator) {
+                        event.source_absolute_magnitudes.assign(
+                            cfg.forward_source_generator->bands().size(),
+                            std::numeric_limits<double>::quiet_NaN());
+                    }
+                }
+            }
 	        if (custom_likelihood) {
 	            double cl = custom_likelihood(event);
 	            if (cl <= 0) { j--; continue; }

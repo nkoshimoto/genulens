@@ -20,6 +20,13 @@ struct SourceSelectionConfig {
     double dust_scale_height_pc = 164.0;
 };
 
+struct ForwardSourceConfig {
+    int enabled = 0;
+    std::string photometry = "roman";
+    double min_initial_mass_msun = 0.09;
+    double max_initial_mass_msun = 1.0;
+};
+
 struct SamplingConfig {
     long n_like_min = 0;
     double v_earth_l = 11.9392;
@@ -54,6 +61,7 @@ struct GenulensConfig {
     model::ModelParameters model;
     ObservationConfig observation;
     SourceSelectionConfig source;
+    ForwardSourceConfig forward_source;
     SamplingConfig sampling;
     RuntimeConfig runtime;
     std::string input_dir;
