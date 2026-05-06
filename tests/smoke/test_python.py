@@ -105,7 +105,7 @@ def test_python_forward_source_generator():
     result = generator.sample_many(query, n_sources=4, seed=123)
     arr = result.to_numpy()
     assert arr.shape == (4, len(result.columns))
-    assert "abs_F146mag" in result.columns
+    assert "M_F146mag" in result.columns
     assert "F146mag" in result.bands
 
 
@@ -119,9 +119,9 @@ def test_python_simulation_forward_source_mode():
     result = genulens.simulate(cfg)
     arr = result.to_numpy()
     assert arr.shape[0] == 5
-    assert "source_teff_k" in result.columns
-    assert "source_abs_F146mag" in result.columns
-    teff = arr[:, result.columns.index("source_teff_k")]
+    assert "teff_S" in result.columns
+    assert "M_F146mag_S" in result.columns
+    teff = arr[:, result.columns.index("teff_S")]
     assert np.all(np.isfinite(teff))
 
 

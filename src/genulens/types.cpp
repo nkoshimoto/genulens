@@ -32,17 +32,17 @@ std::vector<std::string> SimulationResult::columns() const
                "mu_Sl", "mu_Sb", "I_L", "K_L", "iS", "iL", "fREM"};
     }
     if (include_source_properties) {
-        out.push_back("source_log_age");
-        out.push_back("source_metallicity_mh");
-        out.push_back("source_zini");
-        out.push_back("source_initial_mass_msun");
-        out.push_back("source_current_mass_msun");
-        out.push_back("source_radius_rsun");
-        out.push_back("source_teff_k");
-        out.push_back("source_logg");
-        out.push_back("source_angular_radius_microarcsec");
+        out.push_back("logage_S");
+        out.push_back("MH_S");
+        out.push_back("Zini_S");
+        out.push_back("M_S_ini");
+        out.push_back("M_S");
+        out.push_back("R_S");
+        out.push_back("teff_S");
+        out.push_back("logg_S");
+        out.push_back("theta_S");
         for (const auto &band : source_property_bands) {
-            out.push_back("source_abs_" + band);
+            out.push_back("M_" + band + "_S");
         }
     }
     return out;

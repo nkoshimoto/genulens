@@ -162,7 +162,7 @@ int main()
     const auto source_batch = source_generator.sample_many(source_query, 4, source_rng);
     require(source_batch.row_count() == 4, "forward source result row count failed");
     require(source_batch.column_count() == 17, "forward source result column count failed");
-    require(source_batch.columns().back() == "abs_F213mag", "forward source result band columns failed");
+    require(source_batch.columns().back() == "M_F213mag", "forward source result band columns failed");
     require(source_batch.flattened_rows().size() == source_batch.row_count() * source_batch.column_count(),
             "forward source result flattening failed");
 
@@ -189,7 +189,7 @@ int main()
     require(source_result.events.size() == 5, "forward source simulator result size failed");
     require(source_result.include_source_properties, "forward source result flag failed");
     require(source_result.column_count() == 34, "forward source result column count failed");
-    require(source_result.columns().back() == "source_abs_F213mag", "forward source result band columns failed");
+    require(source_result.columns().back() == "M_F213mag_S", "forward source result band columns failed");
     require(std::isfinite(source_result.events.front().source_teff_k),
             "forward source event Teff missing");
     require(source_result.flattened_rows().size() == source_result.row_count() * source_result.column_count(),

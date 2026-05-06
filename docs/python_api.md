@@ -186,16 +186,16 @@ df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 
 This mode appends source-property columns after the event columns:
 
-- `source_log_age`
-- `source_metallicity_mh`
-- `source_zini`
-- `source_initial_mass_msun`
-- `source_current_mass_msun`
-- `source_radius_rsun`
-- `source_teff_k`
-- `source_logg`
-- `source_angular_radius_microarcsec`
-- `source_abs_<band>mag`
+- `logage_S`
+- `MH_S`
+- `Zini_S`
+- `M_S_ini`
+- `M_S`
+- `R_S`
+- `teff_S`
+- `logg_S`
+- `theta_S`
+- `M_<band>_S`
 
 These columns are annotations for forward-prior studies. They do not yet replace
 the legacy LF/CMF source-selection machinery used by the event sampler. Rows

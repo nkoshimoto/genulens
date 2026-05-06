@@ -125,19 +125,19 @@ std::vector<std::string> ForwardSourceResult::columns() const
     std::vector<std::string> out = {
         "component_index",
         "distance_pc",
-        "log_age",
-        "metallicity_mh",
-        "zini",
-        "initial_mass_msun",
-        "current_mass_msun",
-        "radius_rsun",
-        "teff_k",
+        "logage",
+        "MH",
+        "Zini",
+        "M_ini",
+        "M",
+        "R",
+        "teff",
         "logg",
-        "angular_radius_microarcsec",
+        "theta",
     };
     out.reserve(out.size() + bands.size());
     for (const auto &band : bands) {
-        out.push_back("abs_" + band);
+        out.push_back("M_" + band);
     }
     return out;
 }
