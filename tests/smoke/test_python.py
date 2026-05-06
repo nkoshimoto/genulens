@@ -69,3 +69,18 @@ def test_python_isochrone_grid_lookup():
     assert star.component == "thin1"
     assert np.isclose(star.teff_k, 2886.02441)
     assert np.isclose(star.absolute_magnitudes["F146mag"], 9.251)
+
+
+def test_python_stellar_population_lookup():
+    population = genulens.StellarPopulationModel.load_default_roman()
+    assert genulens.StellarPopulationModel.component_name(7) == "thick"
+    assert genulens.StellarPopulationModel.component_index("NSD") == 9
+
+    query = genulens.StellarPopulationQuery()
+    query.component_index = 7
+    query.initial_mass_msun = 0.1000000015
+
+    star = population.lookup(query)
+    assert star.component == "thick"
+    assert np.isclose(star.log_age, 10.07918)
+    assert np.isclose(star.metallicity_mh, -0.8)

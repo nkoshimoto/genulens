@@ -5,6 +5,7 @@
 #include "genulens/model/kinematics.hpp"
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
+#include "genulens/model/stellar_population_model.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/likelihood.hpp"
 #include "genulens/simulation/observation_likelihood.hpp"
@@ -119,6 +120,28 @@ int main()
     const auto prime_star = prime_isochrones.lookup(iso_query);
     require(prime_star.absolute_magnitudes.count("Vmag") == 1, "prime isochrone V band missing");
     require(prime_star.absolute_magnitudes.count("Imag") == 1, "prime isochrone I band missing");
+
+    const auto population = genulens::model::StellarPopulationModel::load_default_roman();
+    genulens::model::StellarPopulationQuery pop_query;
+    pop_query.component_index = 7;
+    pop_query.initial_mass_msun = 0.1000000015;
+    const auto thick_star = population.lookup(pop_query);
+    require(thick_star.component == "thick", "population component-index lookup failed");
+    require(std::abs(thick_star.log_age - 10.07918) < 1e-12, "population default thick age failed");
+    require(std::abs(thick_star.metallicity_mh + 0.8) < 1e-12, "population default thick metallicity failed");
+
+    pop_query.component = "thin1";
+    pop_query.component_index = -1;
+    const auto thin_star = population.lookup(pop_query);
+    require(thin_star.component == "thin1", "population component-name lookup failed");
+    require(std::abs(thin_star.log_age - 8.0) < 1e-12, "population default thin age failed");
+    require(std::abs(thin_star.metallicity_mh) < 1e-12, "population default thin metallicity failed");
+
+    pop_query.use_default_metallicity = false;
+    pop_query.metallicity_mh = -0.5;
+    const auto metal_poor_thin = population.lookup(pop_query);
+    require(std::abs(metal_poor_thin.metallicity_mh + 0.5) < 1e-12,
+            "population explicit metallicity failed");
 
     genulens::GenulensConfig cfg;
     cfg.n_simu = 5;

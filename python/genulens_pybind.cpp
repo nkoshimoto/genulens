@@ -1,6 +1,7 @@
 #include "genulens/options.hpp"
 #include "genulens/model/isochrone_grid.hpp"
 #include "genulens/model/parameters.hpp"
+#include "genulens/model/stellar_population_model.hpp"
 #include "genulens/simulation/simulator.hpp"
 
 #include <pybind11/functional.h>
@@ -268,6 +269,27 @@ PYBIND11_MODULE(genulens, m)
         .def_property_readonly("row_count", &genulens::model::IsochroneGrid::row_count)
         .def_property_readonly("sequence_count", &genulens::model::IsochroneGrid::sequence_count)
         .def("lookup", &genulens::model::IsochroneGrid::lookup, py::arg("query"));
+
+    py::class_<genulens::model::StellarPopulationQuery>(m, "StellarPopulationQuery")
+        .def(py::init<>())
+        .def_readwrite("component", &genulens::model::StellarPopulationQuery::component)
+        .def_readwrite("component_index", &genulens::model::StellarPopulationQuery::component_index)
+        .def_readwrite("initial_mass_msun", &genulens::model::StellarPopulationQuery::initial_mass_msun)
+        .def_readwrite("log_age", &genulens::model::StellarPopulationQuery::log_age)
+        .def_readwrite("metallicity_mh", &genulens::model::StellarPopulationQuery::metallicity_mh)
+        .def_readwrite("use_default_log_age", &genulens::model::StellarPopulationQuery::use_default_log_age)
+        .def_readwrite("use_default_metallicity", &genulens::model::StellarPopulationQuery::use_default_metallicity);
+
+    py::class_<genulens::model::StellarPopulationModel>(m, "StellarPopulationModel")
+        .def_static("load_default_roman", &genulens::model::StellarPopulationModel::load_default_roman)
+        .def_static("load_default_prime", &genulens::model::StellarPopulationModel::load_default_prime)
+        .def("lookup", &genulens::model::StellarPopulationModel::lookup, py::arg("query"))
+        .def_static("component_name", &genulens::model::StellarPopulationModel::component_name, py::arg("component_index"))
+        .def_static("component_index", &genulens::model::StellarPopulationModel::component_index, py::arg("component"))
+        .def_static("default_log_age", &genulens::model::StellarPopulationModel::default_log_age,
+                    py::arg("component"))
+        .def_static("default_metallicity_mh", &genulens::model::StellarPopulationModel::default_metallicity_mh,
+                    py::arg("component"));
 
     py::class_<genulens::Event>(m, "Event")
         .def_readonly("weight", &genulens::Event::weight)
