@@ -105,7 +105,7 @@ def test_python_forward_source_generator():
     result = generator.sample_many(query, n_sources=4, seed=123)
     arr = result.to_numpy()
     assert arr.shape == (4, len(result.columns))
-    assert "M_F146mag" in result.columns
+    assert "M_F146mag_S" in result.columns
     assert "F146mag" in result.bands
 
 

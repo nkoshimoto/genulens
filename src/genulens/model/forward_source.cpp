@@ -123,21 +123,21 @@ double angular_radius_microarcsec(double radius_rsun, double distance_pc)
 std::vector<std::string> ForwardSourceResult::columns() const
 {
     std::vector<std::string> out = {
-        "component_index",
-        "distance_pc",
-        "logage",
-        "MH",
-        "Zini",
-        "M_ini",
-        "M",
-        "R",
-        "teff",
-        "logg",
-        "theta",
+        "iS",
+        "D_S",
+        "logage_S",
+        "MH_S",
+        "Zini_S",
+        "M_S_ini",
+        "M_S",
+        "R_S",
+        "teff_S",
+        "logg_S",
+        "theta_S",
     };
     out.reserve(out.size() + bands.size());
     for (const auto &band : bands) {
-        out.push_back("M_" + band);
+        out.push_back("M_" + band + "_S");
     }
     return out;
 }

@@ -209,6 +209,10 @@ samples = generator.sample_many(n=1000, component=8, distance_pc=8000.0, seed=3)
 source_df = pd.DataFrame(samples.to_numpy(), columns=samples.columns)
 ```
 
+`ForwardSourceResult` uses the same source labels as the appended simulation
+columns, with `iS` and `D_S` prepended for the sampled source component and
+distance.
+
 ## Custom likelihood
 
 Pass a Python callable as `likelihood=`:
