@@ -217,9 +217,9 @@ Pass a Python callable as `likelihood=`:
 import math
 
 def likelihood(event):
-    if event.lens_distance_pc >= event.source_distance_pc:
+    if event.D_L >= event.D_S:
         return 0.0
-    z = (event.tE - 54.5) / 8.0
+    z = (event.t_E - 54.5) / 8.0
     return math.exp(-0.5 * z * z)
 
 result = genulens.simulate(cfg, likelihood=likelihood)
@@ -228,10 +228,9 @@ result = genulens.simulate(cfg, likelihood=likelihood)
 The callable receives an `Event` object and returns a multiplicative likelihood.
 A return value less than or equal to zero rejects the event.
 
-The `Event` object uses typed attribute names such as `event.tE`,
-`event.lens_mass_msun`, and `event.source_distance_pc`. These callback
-attributes are separate from the `SimulationResult.columns` labels used for the
-NumPy result table.
+The `Event` object uses the same event labels as the default result table, such
+as `event.t_E`, `event.M_L`, `event.D_L`, `event.D_S`, `event.pi_EN`, and
+`event.mu_rel_N`.
 
 Avoid extremely narrow hard cuts unless you also understand the runtime
 implications. The sampler will keep drawing until it has enough accepted events,

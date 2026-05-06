@@ -19,7 +19,7 @@ def test_python_callable_likelihood():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10, seed=1234)
 
     def my_like(event):
-        return 1.0 if event.tE > 10 else 0.0
+        return 1.0 if event.t_E > 10 else 0.0
 
     result = genulens.simulate(cfg, likelihood=my_like)
     arr = result.to_numpy()

@@ -163,7 +163,7 @@ Monte Carlo event loop:
 
 ```python
 def likelihood(event):
-    return 1.0 if event.tE > 10.0 else 0.0
+    return 1.0 if event.t_E > 10.0 else 0.0
 
 result = genulens.simulate(cfg, likelihood=likelihood)
 ```
