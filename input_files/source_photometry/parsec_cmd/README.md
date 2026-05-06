@@ -25,10 +25,11 @@ choices are:
 - thick-disk metallicity selected from compatibility checks against the existing
   `genstars` thick tables
 
-This import is the `genstars`-compatibility anchor: it uses one representative
-metallicity per component to reproduce the current fixed-table behavior as
-closely as possible. The new source-prior design should generalize this into a
-metallicity grid rather than keep metallicity fixed.
+This root import is the `genstars`-compatibility anchor: it uses one
+representative metallicity per component to reproduce the current fixed-table
+behavior as closely as possible.
+
+The new source-prior metallicity grid is stored in `metallicity_grid/`.
 
 ## Photometric Systems
 
@@ -64,7 +65,7 @@ Normalized columns include:
 Mini  Mass  radius_rsun  Teff_K  logg  ...
 ```
 
-Future grid tables should also retain explicit component/age/metallicity
+The `metallicity_grid/` tables retain explicit component/age/metallicity
 metadata in normalized outputs:
 
 ```text
@@ -97,10 +98,10 @@ table-processing choices.
 `genstars` treats age and metallicity as properties baked into one preprocessed
 mass-luminosity table per component. It does not sample metallicity at runtime.
 
-The `genulens` source-prior layer should keep that behavior available as a
-compatibility mode, then add a new mode where metallicity is sampled or
-conditioned explicitly and the stellar properties are read from a PARSEC/CMD
-grid.
+The `genulens` source-prior layer keeps that behavior available as a
+compatibility mode, and adds a new mode where metallicity is sampled or
+conditioned explicitly and the stellar properties are read from
+`metallicity_grid/`.
 
 ## Citations
 

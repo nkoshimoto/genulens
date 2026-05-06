@@ -1,0 +1,60 @@
+{
+  "cmd_service": "https://stev.oapd.inaf.it/cgi-bin/cmd",
+  "cmd_version_observed": "3.9",
+  "import_role": "parsec_metallicity_grid",
+  "base_import": "../requests.json",
+  "metallicity_policy": {
+    "current": "finite MH grid per component family with MH/Zini retained in normalized tables",
+    "sampling_note": "The sampler should draw an intrinsic MH from a component prior, then use nearest-neighbor or interpolation across this finite table grid."
+  },
+  "generated_with": {
+    "tool": "ezpadova",
+    "source": "https://github.com/mfouesneau/ezpadova",
+    "commit": "f39625883e22a619b180c73b290a46a2a137f05e"
+  },
+  "defaults": {
+    "track_parsec": "parsec_CAF09_v1.2S",
+    "track_colibri": "parsec_CAF09_v1.2S_S_LMC_08_web",
+    "photsys_version": "YBCnewVega",
+    "kind_interp": "1",
+    "kind_mag": "2",
+    "output_kind": "0",
+    "output_evstage": "1"
+  },
+  "components": [
+    {"name": "thin1", "family": "thin_disk", "component_index": 0, "logAge": 8.0, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thin2", "family": "thin_disk", "component_index": 1, "logAge": 8.778151250383644, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thin3", "family": "thin_disk", "component_index": 2, "logAge": 9.176091259055681, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thin4", "family": "thin_disk", "component_index": 3, "logAge": 9.397940008672037, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thin5", "family": "thin_disk", "component_index": 4, "logAge": 9.60745502321467, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thin6", "family": "thin_disk", "component_index": 5, "logAge": 9.78175537465247, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thin7", "family": "thin_disk", "component_index": 6, "logAge": 9.937016107464814, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "thick", "family": "thick_disk", "component_index": 7, "logAge": 10.07918, "mh_grid": [-1.2, -1.0, -0.8, -0.6, -0.4], "legacy_name": "thick2"},
+    {"name": "bar", "family": "bar", "component_index": 8, "logAge": 9.95424, "mh_grid": [-0.5, -0.25, 0.0, 0.25]},
+    {"name": "NSD", "family": "NSD", "component_index": 9, "logAge": 9.8451, "mh_grid": [-0.5, -0.25, 0.0, 0.25]}
+  ],
+  "photometric_systems": {
+    "ubvrijhk": {
+      "photsys_file": "YBC_tab_mag_odfnew/tab_mag_ubvrijhk.dat",
+      "used_for": ["V", "I"]
+    },
+    "twomass": {
+      "photsys_file": "YBC_tab_mag_odfnew/tab_mag_2mass.dat",
+      "used_for": ["J_2MASS", "H_2MASS", "Ks_2MASS"]
+    },
+    "roman2021": {
+      "photsys_file": "tab_mag_odfnew/tab_mag_Roman2021.dat",
+      "used_for": ["F087", "F146", "F213"]
+    }
+  },
+  "normalized_tables": {
+    "prime_parsec": {
+      "sources": ["ubvrijhk", "twomass"],
+      "columns": ["component", "component_index", "family", "logAge", "MH", "Zini", "Mini", "Mass", "radius_rsun", "Teff_K", "logg", "Vmag", "Imag", "Jmag_2mass", "Hmag_2mass", "Ksmag_2mass"]
+    },
+    "roman_parsec": {
+      "sources": ["twomass", "roman2021"],
+      "columns": ["component", "component_index", "family", "logAge", "MH", "Zini", "Mini", "Mass", "radius_rsun", "Teff_K", "logg", "Jmag_2mass", "Hmag_2mass", "Ksmag_2mass", "F087mag", "F146mag", "F213mag"]
+    }
+  }
+}

@@ -28,9 +28,10 @@ metallicity an explicit source-prior dimension.
 Regenerated PARSEC/CMD tables with raw downloads, normalized source-prior
 tables, checksums, request settings, and compatibility checks.
 
-The current committed `parsec_cmd/` import is a compatibility anchor with one
-representative metallicity per component. Future imports should expand this to a
-finite `[M/H]` grid and keep `[M/H]`/`Zini` explicit in the normalized tables.
+The root `parsec_cmd/normalized` import is a compatibility anchor with one
+representative metallicity per component. `parsec_cmd/metallicity_grid/` stores
+the new-mode finite `[M/H]` grid with `[M/H]`/`Zini` explicit in the normalized
+tables.
 
 Normalized table families:
 
