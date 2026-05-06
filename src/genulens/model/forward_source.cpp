@@ -127,7 +127,6 @@ std::vector<std::string> ForwardSourceResult::columns() const
         "D_S",
         "logage_S",
         "MH_S",
-        "Zini_S",
         "M_S_ini",
         "M_S",
         "R_S",
@@ -154,7 +153,6 @@ std::vector<double> ForwardSourceResult::flattened_rows() const
         rows.push_back(source.distance_pc);
         rows.push_back(stellar.log_age);
         rows.push_back(stellar.metallicity_mh);
-        rows.push_back(stellar.zini);
         rows.push_back(stellar.initial_mass_msun);
         rows.push_back(stellar.current_mass_msun);
         rows.push_back(stellar.radius_rsun);

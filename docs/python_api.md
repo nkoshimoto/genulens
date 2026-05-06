@@ -188,7 +188,6 @@ This mode appends source-property columns after the event columns:
 
 - `logage_S`
 - `MH_S`
-- `Zini_S`
 - `M_S_ini`
 - `M_S`
 - `R_S`

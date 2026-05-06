@@ -34,7 +34,6 @@ std::vector<std::string> SimulationResult::columns() const
     if (include_source_properties) {
         out.push_back("logage_S");
         out.push_back("MH_S");
-        out.push_back("Zini_S");
         out.push_back("M_S_ini");
         out.push_back("M_S");
         out.push_back("R_S");
@@ -103,7 +102,6 @@ std::vector<double> SimulationResult::flattened_rows() const
         if (include_source_properties) {
             rows.push_back(event.source_log_age);
             rows.push_back(event.source_metallicity_mh);
-            rows.push_back(event.source_zini);
             rows.push_back(event.source_initial_mass_msun);
             rows.push_back(event.source_current_mass_msun);
             rows.push_back(event.source_radius_rsun);
