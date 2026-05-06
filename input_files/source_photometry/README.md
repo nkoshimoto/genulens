@@ -5,6 +5,42 @@ source-star priors without depending on a sibling checkout of `genstars`.
 
 The tables are grouped by photometry relation, not only by output band set.
 
+The production source-prior work should use `parsec_cmd/` as the canonical
+external table family because it includes `Teff_K` and `logg`. The copied
+`prime_hybrid/` and `roman_isochrone/` tables are retained as compatibility
+references for the current `genstars` behavior.
+
+The intended extension path is:
+
+```text
+genstars-compatible:
+  component -> one fixed source-photometry table
+
+new source-prior:
+  component -> metallicity prior -> PARSEC/CMD table grid
+```
+
+This keeps the current `genstars` behavior reproducible while making
+metallicity an explicit source-prior dimension.
+
+## `parsec_cmd/`
+
+Regenerated PARSEC/CMD tables with raw downloads, normalized source-prior
+tables, checksums, request settings, and compatibility checks.
+
+The current committed `parsec_cmd/` import is a compatibility anchor with one
+representative metallicity per component. Future imports should expand this to a
+finite `[M/H]` grid and keep `[M/H]`/`Zini` explicit in the normalized tables.
+
+Normalized table families:
+
+```text
+<component>_prime_parsec.dat
+<component>_roman_parsec.dat
+```
+
+See `parsec_cmd/README.md` for the acquisition settings and citation notes.
+
 ## `prime_hybrid/`
 
 Files:
