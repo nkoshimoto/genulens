@@ -307,8 +307,7 @@ PYBIND11_MODULE(genulens, m)
     py::class_<genulens::model::ForwardSource>(m, "ForwardSource")
         .def_readonly("stellar", &genulens::model::ForwardSource::stellar)
         .def_readonly("distance_pc", &genulens::model::ForwardSource::distance_pc)
-        .def_readonly("angular_radius_microarcsec", &genulens::model::ForwardSource::angular_radius_microarcsec)
-        .def_readonly("apparent_magnitudes", &genulens::model::ForwardSource::apparent_magnitudes);
+        .def_readonly("angular_radius_microarcsec", &genulens::model::ForwardSource::angular_radius_microarcsec);
 
     py::class_<genulens::model::ForwardSourceGenerator>(m, "ForwardSourceGenerator")
         .def_static("load_default_roman", &genulens::model::ForwardSourceGenerator::load_default_roman,
@@ -321,7 +320,6 @@ PYBIND11_MODULE(genulens, m)
             genulens::RandomEngine rng(seed);
             return generator.sample(query, rng);
         }, py::arg("query"), py::arg("seed") = 12304357UL);
-    m.def("distance_modulus", &genulens::model::distance_modulus, py::arg("distance_pc"));
     m.def("angular_radius_microarcsec", &genulens::model::angular_radius_microarcsec,
           py::arg("radius_rsun"), py::arg("distance_pc"));
 

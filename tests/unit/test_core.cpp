@@ -157,11 +157,8 @@ int main()
                 source_star.stellar.initial_mass_msun <= 0.11,
             "forward source mass range failed");
     require(source_star.angular_radius_microarcsec > 0.0, "forward source angular radius failed");
-    require(source_star.apparent_magnitudes.count("F146mag") == 1, "forward source apparent F146 missing");
-    require(std::abs(source_star.apparent_magnitudes.at("F146mag") -
-                     source_star.stellar.absolute_magnitudes.at("F146mag") -
-                     genulens::model::distance_modulus(8000.0)) < 1e-12,
-            "forward source apparent magnitude failed");
+    require(source_star.stellar.absolute_magnitudes.count("F146mag") == 1,
+            "forward source absolute F146 missing");
 
     genulens::GenulensConfig cfg;
     cfg.n_simu = 5;

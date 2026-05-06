@@ -4,7 +4,6 @@
 #include "genulens/model/stellar_population_model.hpp"
 #include "genulens/rng.hpp"
 
-#include <map>
 #include <string>
 
 namespace genulens::model {
@@ -25,7 +24,6 @@ struct ForwardSource {
     StellarProperties stellar;
     double distance_pc = 0.0;
     double angular_radius_microarcsec = 0.0;
-    std::map<std::string, double> apparent_magnitudes;
 };
 
 class ForwardSourceGenerator {
@@ -44,7 +42,6 @@ private:
     double sample_initial_mass(double min_mass_msun, double max_mass_msun, genulens::RandomEngine &rng) const;
 };
 
-double distance_modulus(double distance_pc);
 double angular_radius_microarcsec(double radius_rsun, double distance_pc);
 
 } // namespace genulens::model

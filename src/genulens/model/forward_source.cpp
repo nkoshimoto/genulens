@@ -75,10 +75,6 @@ ForwardSource ForwardSourceGenerator::sample(const ForwardSourceQuery &query, ge
     source.distance_pc = query.distance_pc;
     source.angular_radius_microarcsec =
         angular_radius_microarcsec(source.stellar.radius_rsun, query.distance_pc);
-    const double dm = distance_modulus(query.distance_pc);
-    for (const auto &entry : source.stellar.absolute_magnitudes) {
-        source.apparent_magnitudes[entry.first] = entry.second + dm;
-    }
     return source;
 }
 
@@ -98,14 +94,6 @@ double ForwardSourceGenerator::sample_initial_mass(double min_mass_msun,
     const double cmax = interpolate_cumulative(mass_grid_, std::log10(hi));
     const double draw = cmin + (cmax - cmin) * rng.uniform();
     return invert_cumulative(mass_grid_, draw);
-}
-
-double distance_modulus(double distance_pc)
-{
-    if (!(distance_pc > 0.0)) {
-        throw std::runtime_error("distance modulus requires positive distance");
-    }
-    return 5.0 * std::log10(0.1 * distance_pc);
 }
 
 double angular_radius_microarcsec(double radius_rsun, double distance_pc)
