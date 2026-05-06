@@ -71,7 +71,13 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("enabled", &genulens::ForwardSourceConfig::enabled)
         .def_readwrite("photometry", &genulens::ForwardSourceConfig::photometry)
         .def_readwrite("min_initial_mass_msun", &genulens::ForwardSourceConfig::min_initial_mass_msun)
-        .def_readwrite("max_initial_mass_msun", &genulens::ForwardSourceConfig::max_initial_mass_msun);
+        .def_readwrite("max_initial_mass_msun", &genulens::ForwardSourceConfig::max_initial_mass_msun)
+        .def_readwrite("match_source_selection", &genulens::ForwardSourceConfig::match_source_selection)
+        .def_readwrite("max_selection_attempts", &genulens::ForwardSourceConfig::max_selection_attempts)
+        .def_readwrite("selection_bands", &genulens::ForwardSourceConfig::selection_bands)
+        .def_readwrite("selection_min_magnitudes", &genulens::ForwardSourceConfig::selection_min_magnitudes)
+        .def_readwrite("selection_max_magnitudes", &genulens::ForwardSourceConfig::selection_max_magnitudes)
+        .def_readwrite("selection_apparent_magnitudes", &genulens::ForwardSourceConfig::selection_apparent_magnitudes);
 
     py::class_<genulens::SamplingConfig>(m, "SamplingConfig")
         .def(py::init<>())

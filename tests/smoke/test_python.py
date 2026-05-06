@@ -125,6 +125,26 @@ def test_python_simulation_forward_source_mode():
     assert np.all(np.isfinite(teff))
 
 
+def test_python_simulation_forward_source_matches_source_selection():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
+    cfg.forward_source.enabled = 1
+    cfg.forward_source.photometry = "roman"
+    cfg.forward_source.min_initial_mass_msun = 0.1
+    cfg.forward_source.max_initial_mass_msun = 1.0
+    cfg.forward_source.match_source_selection = 1
+    cfg.forward_source.selection_bands = ["F146mag"]
+    cfg.forward_source.selection_min_magnitudes = [17.0]
+    cfg.forward_source.selection_max_magnitudes = [24.0]
+
+    result = genulens.simulate(cfg)
+    arr = result.to_numpy()
+    assert arr.shape[0] == 5
+    f146 = arr[:, result.columns.index("M_F146mag_S")]
+    ds = arr[:, result.columns.index("D_S")]
+    apparent_f146 = f146 + 5.0 * np.log10(ds) - 5.0
+    assert np.all((apparent_f146 >= 17.0) & (apparent_f146 <= 24.0))
+
+
 def test_python_simulation_cli_verbosity_columns():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
     result = genulens.simulate(cfg)

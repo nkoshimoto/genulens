@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <stdexcept>
 
 #include "genulens/simulation/event_reporter.hpp"
 #include "genulens/simulation/internal/runtime.hpp"
@@ -12,6 +13,115 @@
 #define MINMEANLOGA 0.6
 
 namespace genulens {
+namespace {
+
+bool has_magnitude(const model::ForwardSource &source, const std::string &band)
+{
+    return source.stellar.absolute_magnitudes.find(band) != source.stellar.absolute_magnitudes.end();
+}
+
+double magnitude_or_nan(const model::ForwardSource &source, const std::string &band)
+{
+    const auto found = source.stellar.absolute_magnitudes.find(band);
+    return found == source.stellar.absolute_magnitudes.end()
+               ? std::numeric_limits<double>::quiet_NaN()
+               : found->second;
+}
+
+double extinction_for_band(const model::BandExtinction &dust,
+                           const std::string &band)
+{
+    if (band == "Imag") return dust.i_band;
+    if (band == "Ksmag_2mass" || band == "Kmag" || band == "K_L") return dust.k_band;
+    if (band == "Vmag") return dust.i_band + dust.color_vi;
+    return 0.0;
+}
+
+double selected_magnitude(const model::ForwardSource &source,
+                          const model::ExponentialDustExtinction *extinction,
+                          const std::string &band,
+                          bool apparent)
+{
+    double mag = magnitude_or_nan(source, band);
+    if (apparent && extinction != nullptr) {
+        const auto dust = extinction->at_distance(source.distance_pc);
+        mag += extinction->distance_modulus_term(source.distance_pc);
+        mag += extinction_for_band(dust, band);
+    }
+    return mag;
+}
+
+bool passes_source_selection(const model::ForwardSource &source,
+                             const model::ExponentialDustExtinction *extinction,
+                             const EventSampler::Config &cfg)
+{
+    if (!cfg.match_source_selection) return true;
+
+    if (!cfg.source_selection_bands.empty()) {
+        const std::size_t n = cfg.source_selection_bands.size();
+        if (cfg.source_selection_min_magnitudes.size() != n ||
+            cfg.source_selection_max_magnitudes.size() != n) {
+            throw std::runtime_error("forward source selection band/range length mismatch");
+        }
+        if (!cfg.source_selection_apparent_magnitudes.empty() &&
+            cfg.source_selection_apparent_magnitudes.size() != n) {
+            throw std::runtime_error("forward source apparent-selection flag length mismatch");
+        }
+        for (std::size_t i = 0; i < n; ++i) {
+            if (!has_magnitude(source, cfg.source_selection_bands[i])) return false;
+            const bool apparent = cfg.source_selection_apparent_magnitudes.empty() ||
+                                  cfg.source_selection_apparent_magnitudes[i] != 0;
+            const double mag = selected_magnitude(source, extinction,
+                                                  cfg.source_selection_bands[i],
+                                                  apparent);
+            if (!(mag >= cfg.source_selection_min_magnitudes[i] &&
+                  mag <= cfg.source_selection_max_magnitudes[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    if (extinction == nullptr) return true;
+
+    const bool use_i = cfg.AI0 > 0.0 && cfg.source_i_max > cfg.source_i_min;
+    if (!use_i) return true;
+    if (!has_magnitude(source, "Imag")) return true;
+
+    const auto dust = extinction->at_distance(source.distance_pc);
+    const double apparent_i = magnitude_or_nan(source, "Imag") +
+                              extinction->distance_modulus_term(source.distance_pc) +
+                              dust.i_band;
+    if (!(apparent_i >= cfg.source_i_min && apparent_i <= cfg.source_i_max)) return false;
+
+    const bool use_vi = cfg.source_vi_max > cfg.source_vi_min && has_magnitude(source, "Vmag");
+    if (use_vi) {
+        const double vi = magnitude_or_nan(source, "Vmag") -
+                          magnitude_or_nan(source, "Imag") +
+                          dust.color_vi;
+        if (!(vi >= cfg.source_vi_min && vi <= cfg.source_vi_max)) return false;
+    }
+    return true;
+}
+
+model::ForwardSource sample_matched_source(const model::ForwardSourceGenerator &generator,
+                                           const model::ForwardSourceQuery &query,
+                                           const EventSampler::Config &cfg)
+{
+    const int max_attempts = cfg.max_source_selection_attempts > 0
+                                 ? cfg.max_source_selection_attempts
+                                 : 1;
+    model::ForwardSource last_source;
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        last_source = generator.sample(query, *cfg.forward_source_rng);
+        if (passes_source_selection(last_source, cfg.extinction, cfg)) {
+            return last_source;
+        }
+    }
+    throw std::runtime_error("forward source sampling could not match source selection");
+}
+
+} // namespace
 
 int EventSampler::run(RunContext &ctx,
 	                           LineOfSightDensityGrid &grid,
@@ -565,8 +675,9 @@ int EventSampler::run(RunContext &ctx,
                     source_query.use_default_log_age = !(tau_s > 0.0);
                     source_query.log_age = (tau_s > 0.0) ? 9.0 + std::log10(tau_s) : 0.0;
                     source_query.use_default_metallicity = true;
-                    const auto source = cfg.forward_source_generator->sample(source_query,
-                                                                            *cfg.forward_source_rng);
+                    const auto source = sample_matched_source(*cfg.forward_source_generator,
+                                                              source_query,
+                                                              cfg);
                     event.source_log_age = source.stellar.log_age;
                     event.source_metallicity_mh = source.stellar.metallicity_mh;
                     event.source_zini = source.stellar.zini;

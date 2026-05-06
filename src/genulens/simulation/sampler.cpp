@@ -586,6 +586,22 @@ int run_sampler_impl(RunContext &context,
             typed_config->forward_source.min_initial_mass_msun;
         prepared.event_config.source_max_initial_mass_msun =
             typed_config->forward_source.max_initial_mass_msun;
+        prepared.event_config.match_source_selection =
+            typed_config->forward_source.match_source_selection != 0;
+        prepared.event_config.max_source_selection_attempts =
+            typed_config->forward_source.max_selection_attempts;
+        prepared.event_config.source_i_min = Isst;
+        prepared.event_config.source_i_max = Isen;
+        prepared.event_config.source_vi_min = VIsst;
+        prepared.event_config.source_vi_max = VIsen;
+        prepared.event_config.source_selection_bands =
+            typed_config->forward_source.selection_bands;
+        prepared.event_config.source_selection_min_magnitudes =
+            typed_config->forward_source.selection_min_magnitudes;
+        prepared.event_config.source_selection_max_magnitudes =
+            typed_config->forward_source.selection_max_magnitudes;
+        prepared.event_config.source_selection_apparent_magnitudes =
+            typed_config->forward_source.selection_apparent_magnitudes;
     }
 
     const int code = run_prepared_events(context, prepared, std::move(custom_likelihood),

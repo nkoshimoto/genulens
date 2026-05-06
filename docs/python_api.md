@@ -179,6 +179,12 @@ cfg.forward_source.enabled = 1
 cfg.forward_source.photometry = "roman"
 cfg.forward_source.min_initial_mass_msun = 0.1
 cfg.forward_source.max_initial_mass_msun = 1.0
+cfg.forward_source.match_source_selection = 1
+cfg.forward_source.selection_bands = ["F146mag"]
+cfg.forward_source.selection_min_magnitudes = [17.0]
+cfg.forward_source.selection_max_magnitudes = [24.0]
+# Optional: set to [0] to interpret the ranges as absolute magnitudes.
+cfg.forward_source.selection_apparent_magnitudes = [1]
 
 result = genulens.simulate(cfg)
 df = pd.DataFrame(result.to_numpy(), columns=result.columns)
@@ -199,6 +205,14 @@ This mode appends source-property columns after the event columns:
 These columns are annotations for forward-prior studies. They do not yet replace
 the legacy LF/CMF source-selection machinery used by the event sampler. Rows
 without a matched stellar source entry can contain `NaN` source annotations.
+When `match_source_selection = 1`, source stars are sampled with rejection
+against the configured source-forward cuts. Use `selection_bands` with matching
+minimum and maximum magnitude arrays to select any band available in the active
+photometry table, for example `F146mag` for Roman or `Imag` for PRIME. These
+cuts are interpreted as apparent magnitudes by default. Set
+`selection_apparent_magnitudes = [0, ...]` to use absolute magnitudes for
+specific bands. If no explicit band cuts are provided, `Imag`/`Vmag` tables can
+fall back to the active legacy `cfg.source` `I` and `V-I` selection.
 
 For standalone source-population tests, use `ForwardSourceGenerator` directly:
 

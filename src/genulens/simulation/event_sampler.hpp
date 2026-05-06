@@ -1,6 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <string>
+#include <vector>
 #include "genulens/model/extinction.hpp"
 #include "genulens/model/forward_source.hpp"
 #include "genulens/simulation/likelihood.hpp"
@@ -48,6 +50,16 @@ public:
         RandomEngine *forward_source_rng = nullptr;
         double source_min_initial_mass_msun = 0.09;
         double source_max_initial_mass_msun = 1.0;
+        bool match_source_selection = true;
+        int max_source_selection_attempts = 200;
+        double source_i_min = 14.0;
+        double source_i_max = 21.0;
+        double source_vi_min = 0.0;
+        double source_vi_max = 0.0;
+        std::vector<std::string> source_selection_bands;
+        std::vector<double> source_selection_min_magnitudes;
+        std::vector<double> source_selection_max_magnitudes;
+        std::vector<int> source_selection_apparent_magnitudes;
     };
 
     // Run the Monte Carlo loop. CLI output is controlled by emit_cli_output.
