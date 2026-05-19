@@ -1,5 +1,7 @@
 #include "genulens/simulation/event_sampler.hpp"
 
+#include "genulens/model/source_population_prior.hpp"
+
 #include <cmath>
 #include <cstdio>
 #include <stdexcept>
@@ -31,10 +33,16 @@ double magnitude_or_nan(const model::ForwardSource &source, const std::string &b
 double extinction_for_band(const model::BandExtinction &dust,
                            const std::string &band)
 {
+    if (band == "Vmag") return dust.v_band;
     if (band == "Imag") return dust.i_band;
+    if (band == "Jmag_2mass" || band == "Jmag") return dust.j_band;
+    if (band == "Hmag_2mass" || band == "Hmag") return dust.h_band;
     if (band == "Ksmag_2mass" || band == "Kmag" || band == "K_L") return dust.k_band;
-    if (band == "Vmag") return dust.i_band + dust.color_vi;
-    return 0.0;
+    if (band == "F087mag") return dust.f087_band;
+    if (band == "F146mag") return dust.f146_band;
+    if (band == "F213mag") return dust.f213_band;
+    throw std::runtime_error("apparent magnitude selection has no extinction coefficient for band: " +
+                             band);
 }
 
 double selected_magnitude(const model::ForwardSource &source,
@@ -43,7 +51,10 @@ double selected_magnitude(const model::ForwardSource &source,
                           bool apparent)
 {
     double mag = magnitude_or_nan(source, band);
-    if (apparent && extinction != nullptr) {
+    if (apparent) {
+        if (extinction == nullptr) {
+            throw std::runtime_error("apparent magnitude selection requires an extinction model");
+        }
         const auto dust = extinction->at_distance(source.distance_pc);
         mag += extinction->distance_modulus_term(source.distance_pc);
         mag += extinction_for_band(dust, band);
@@ -51,12 +62,91 @@ double selected_magnitude(const model::ForwardSource &source,
     return mag;
 }
 
+std::vector<model::MagnitudeSelection> source_magnitude_selections(
+    double distance_pc,
+    const model::ExponentialDustExtinction *extinction,
+    const EventSampler::Config &cfg)
+{
+    std::vector<model::MagnitudeSelection> selections;
+    const std::size_t n = cfg.source_selection_bands.size();
+    selections.reserve(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const bool apparent = cfg.source_selection_apparent_magnitudes.empty() ||
+                              cfg.source_selection_apparent_magnitudes[i] != 0;
+        double offset = 0.0;
+        if (apparent) {
+            if (extinction == nullptr) {
+                throw std::runtime_error("apparent magnitude selection requires an extinction model");
+            }
+            const auto dust = extinction->at_distance(distance_pc);
+            offset = extinction->distance_modulus_term(distance_pc) +
+                     extinction_for_band(dust, cfg.source_selection_bands[i]);
+        }
+        selections.push_back({cfg.source_selection_bands[i],
+                              cfg.source_selection_min_magnitudes[i],
+                              cfg.source_selection_max_magnitudes[i],
+                              offset});
+    }
+    return selections;
+}
+
+double source_selection_proposal_distance(double distance_pc,
+                                          const EventSampler::Config &cfg)
+{
+    if (!(cfg.source_selection_distance_bin_pc > 0.0)) return distance_pc;
+    const double bin = cfg.source_selection_distance_bin_pc;
+    return std::max(0.0, std::round(distance_pc / bin) * bin);
+}
+
+std::vector<model::MagnitudeSelection> source_magnitude_proposal_selections(
+    double distance_pc,
+    const model::ExponentialDustExtinction *extinction,
+    const EventSampler::Config &cfg)
+{
+    if (!(cfg.source_selection_distance_bin_pc > 0.0)) {
+        return source_magnitude_selections(distance_pc, extinction, cfg);
+    }
+
+    const double bin = cfg.source_selection_distance_bin_pc;
+    const double center = source_selection_proposal_distance(distance_pc, cfg);
+    const double lo_distance = std::max(1.0e-6, center - 0.5 * bin);
+    const double hi_distance = std::max(lo_distance, center + 0.5 * bin);
+
+    std::vector<model::MagnitudeSelection> selections;
+    const std::size_t n = cfg.source_selection_bands.size();
+    selections.reserve(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        const bool apparent = cfg.source_selection_apparent_magnitudes.empty() ||
+                              cfg.source_selection_apparent_magnitudes[i] != 0;
+        double min_absolute = cfg.source_selection_min_magnitudes[i];
+        double max_absolute = cfg.source_selection_max_magnitudes[i];
+        if (apparent) {
+            if (extinction == nullptr) {
+                throw std::runtime_error("apparent magnitude selection requires an extinction model");
+            }
+            const auto lo_dust = extinction->at_distance(lo_distance);
+            const auto hi_dust = extinction->at_distance(hi_distance);
+            const double lo_offset = extinction->distance_modulus_term(lo_distance) +
+                                     extinction_for_band(lo_dust, cfg.source_selection_bands[i]);
+            const double hi_offset = extinction->distance_modulus_term(hi_distance) +
+                                     extinction_for_band(hi_dust, cfg.source_selection_bands[i]);
+            const double min_offset = std::min(lo_offset, hi_offset);
+            const double max_offset = std::max(lo_offset, hi_offset);
+            min_absolute = cfg.source_selection_min_magnitudes[i] - max_offset;
+            max_absolute = cfg.source_selection_max_magnitudes[i] - min_offset;
+        }
+        selections.push_back({cfg.source_selection_bands[i],
+                              min_absolute,
+                              max_absolute,
+                              0.0});
+    }
+    return selections;
+}
+
 bool passes_source_selection(const model::ForwardSource &source,
                              const model::ExponentialDustExtinction *extinction,
                              const EventSampler::Config &cfg)
 {
-    if (!cfg.match_source_selection) return true;
-
     if (!cfg.source_selection_bands.empty()) {
         const std::size_t n = cfg.source_selection_bands.size();
         if (cfg.source_selection_min_magnitudes.size() != n ||
@@ -82,25 +172,6 @@ bool passes_source_selection(const model::ForwardSource &source,
         return true;
     }
 
-    if (extinction == nullptr) return true;
-
-    const bool use_i = cfg.AI0 > 0.0 && cfg.source_i_max > cfg.source_i_min;
-    if (!use_i) return true;
-    if (!has_magnitude(source, "Imag")) return true;
-
-    const auto dust = extinction->at_distance(source.distance_pc);
-    const double apparent_i = magnitude_or_nan(source, "Imag") +
-                              extinction->distance_modulus_term(source.distance_pc) +
-                              dust.i_band;
-    if (!(apparent_i >= cfg.source_i_min && apparent_i <= cfg.source_i_max)) return false;
-
-    const bool use_vi = cfg.source_vi_max > cfg.source_vi_min && has_magnitude(source, "Vmag");
-    if (use_vi) {
-        const double vi = magnitude_or_nan(source, "Vmag") -
-                          magnitude_or_nan(source, "Imag") +
-                          dust.color_vi;
-        if (!(vi >= cfg.source_vi_min && vi <= cfg.source_vi_max)) return false;
-    }
     return true;
 }
 
@@ -108,11 +179,63 @@ model::ForwardSource sample_matched_source(const model::ForwardSourceGenerator &
                                            const model::ForwardSourceQuery &query,
                                            const EventSampler::Config &cfg)
 {
-    const auto source = generator.sample(query, *cfg.forward_source_rng);
-    if (passes_source_selection(source, cfg.extinction, cfg)) {
-        return source;
+    auto selected_query = query;
+    if (!cfg.source_selection_bands.empty()) {
+        selected_query.magnitude_selections =
+            source_magnitude_proposal_selections(query.distance_pc, cfg.extinction, cfg);
     }
-    throw std::runtime_error("forward source did not pass source selection");
+    const int max_attempts = cfg.source_selection_bands.empty() ? 1 : 16;
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        const auto source = generator.sample(selected_query, *cfg.forward_source_rng);
+        if (passes_source_selection(source, cfg.extinction, cfg)) {
+            return source;
+        }
+    }
+    throw std::runtime_error("forward source did not pass exact source selection");
+}
+
+model::AgeMetallicityPoint sample_source_population_point(
+    const model::ForwardSourceGenerator &generator,
+    int component,
+    double distance_pc,
+    const EventSampler::Config &cfg)
+{
+    const int prior_component = (component == 10) ? 7 : component;
+    const auto points = model::SourcePopulationPrior::points_for_component(prior_component);
+    std::vector<double> cumulative;
+    cumulative.reserve(points.size());
+    double total = 0.0;
+    const auto selections = source_magnitude_proposal_selections(distance_pc, cfg.extinction, cfg);
+    for (const auto &point : points) {
+        if (!(point.weight > 0.0)) {
+            cumulative.push_back(total);
+            continue;
+        }
+        double weight = point.weight;
+        if (!selections.empty()) {
+            model::ForwardSourceQuery query;
+            query.component_index = prior_component;
+            query.distance_pc = distance_pc;
+            query.min_initial_mass_msun = cfg.source_min_initial_mass_msun;
+            query.max_initial_mass_msun = cfg.source_max_initial_mass_msun;
+            query.use_default_log_age = false;
+            query.log_age = point.log_age;
+            query.use_default_metallicity = false;
+            query.metallicity_mh = point.metallicity_mh;
+            query.magnitude_selections = selections;
+            weight *= generator.selection_probability(query);
+        }
+        total += weight;
+        cumulative.push_back(total);
+    }
+    if (!(total > 0.0)) {
+        throw std::runtime_error("forward-source population prior has zero selected probability");
+    }
+    const double draw = cfg.forward_source_rng->uniform() * total;
+    for (std::size_t i = 0; i < cumulative.size(); ++i) {
+        if (draw <= cumulative[i]) return points[i];
+    }
+    return points.back();
 }
 
 } // namespace
@@ -662,13 +785,20 @@ int EventSampler::run(RunContext &ctx,
             if (attach_source_properties) {
                 try {
                     model::ForwardSourceQuery source_query;
-                    source_query.component_index = i_s;
+                    // The current PARSEC source tables do not include a
+                    // stellar-halo sequence. Keep the event component label as
+                    // halo, but use the old, metal-poor thick-disk sequence as
+                    // a conservative source-property proxy.
+                    source_query.component_index = (i_s == 10) ? 7 : i_s;
                     source_query.distance_pc = D_s;
                     source_query.min_initial_mass_msun = cfg.source_min_initial_mass_msun;
                     source_query.max_initial_mass_msun = cfg.source_max_initial_mass_msun;
-                    source_query.use_default_log_age = !(tau_s > 0.0);
-                    source_query.log_age = (tau_s > 0.0) ? 9.0 + std::log10(tau_s) : 0.0;
-                    source_query.use_default_metallicity = true;
+                    const auto population_point = sample_source_population_point(
+                        *cfg.forward_source_generator, i_s, D_s, cfg);
+                    source_query.use_default_log_age = false;
+                    source_query.log_age = population_point.log_age;
+                    source_query.use_default_metallicity = false;
+                    source_query.metallicity_mh = population_point.metallicity_mh;
                     const auto source = sample_matched_source(*cfg.forward_source_generator,
                                                               source_query,
                                                               cfg);

@@ -3,6 +3,7 @@
 #include "genulens/model/isochrone_grid.hpp"
 
 #include <string>
+#include <vector>
 
 namespace genulens::model {
 
@@ -25,6 +26,9 @@ public:
 
     const IsochroneGrid &isochrones() const { return isochrones_; }
     StellarProperties lookup(const StellarPopulationQuery &query) const;
+    std::vector<MassInterval> matching_initial_mass_intervals(
+        const StellarPopulationQuery &query,
+        const std::vector<MagnitudeSelection> &selection) const;
 
     static std::string component_name(int component_index);
     static int component_index(const std::string &component);

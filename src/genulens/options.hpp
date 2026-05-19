@@ -9,23 +9,64 @@
 namespace genulens {
 
 struct SourceSelectionConfig {
+    std::string mode = "classic";
+    std::string photometry = "prime";
+    std::string band = "Imag";
+    double min_magnitude = 14.0;
+    double max_magnitude = 21.0;
+    int apparent_magnitude = 1;
+    int use_magnitude_selection = 1;
+
     double i_min = 14.0;
     double i_max = 21.0;
     double vi_min = 0.0;
     double vi_max = 0.0;
+    double av_rc = 0.0;
     double ai_rc = 0.0;
+    double aj_rc = 0.0;
+    double ah_rc = 0.0;
     double evi_rc = 0.0;
     double dm_rc = 0.0;
     double ak_rc = 0.0;
+    std::string extinction_mode = "manual";
+    double ejk_rc = 0.0;
+    int extinction_law = 1;
     double dust_scale_height_pc = 164.0;
+
+    double min_initial_mass_msun = 0.09;
+    double max_initial_mass_msun = 1.0;
+    std::string isochrone_model = "parsec_solar_scaled";
+    std::string isochrone_family = "parsec";
+    std::string isochrone_abundance = "solar_scaled";
+    double isochrone_alpha_fe = 0.0;
+    std::string isochrone_table_path;
+    std::string secondary_isochrone_family = "mist";
+    std::string secondary_isochrone_abundance = "alpha_enhanced";
+    double secondary_isochrone_alpha_fe = 0.4;
+    std::string secondary_isochrone_table_path;
+    double alpha_enhanced_fraction = 0.0;
+    std::vector<int> alpha_enhanced_components;
+    std::vector<double> alpha_enhanced_component_fractions;
 };
 
 struct ForwardSourceConfig {
     int enabled = 0;
     std::string photometry = "roman";
+    std::string isochrone_model = "parsec_solar_scaled";
+    std::string isochrone_family = "parsec";
+    std::string isochrone_abundance = "solar_scaled";
+    double isochrone_alpha_fe = 0.0;
+    std::string isochrone_table_path;
+    std::string secondary_isochrone_family = "mist";
+    std::string secondary_isochrone_abundance = "alpha_enhanced";
+    double secondary_isochrone_alpha_fe = 0.4;
+    std::string secondary_isochrone_table_path;
+    std::string alpha_enhanced_table_path;
+    double alpha_enhanced_fraction = 0.0;
+    std::vector<int> alpha_enhanced_components;
+    std::vector<double> alpha_enhanced_component_fractions;
     double min_initial_mass_msun = 0.09;
     double max_initial_mass_msun = 1.0;
-    int match_source_selection = 1;
     std::vector<std::string> selection_bands;
     std::vector<double> selection_min_magnitudes;
     std::vector<double> selection_max_magnitudes;

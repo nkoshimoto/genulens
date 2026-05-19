@@ -21,3 +21,7 @@ refactored `genulens` codebase.
   notebook for the direct Python API.
 - [`examples/cli_examples.ipynb`](../examples/cli_examples.ipynb): examples for
   the command-line program.
+- [`examples/source_isochrone_systematics.ipynb`](../examples/source_isochrone_systematics.ipynb):
+  comparison of PARSEC and MIST source-forward predictions for
+  alpha-enhancement systematics, with a configurable PRIME `Imag` source range
+  source-property plots, and an HR-diagram scatter.

@@ -1,7 +1,9 @@
 #include "genulens/options.hpp"
 #include "genulens/model/forward_source.hpp"
 #include "genulens/model/isochrone_grid.hpp"
+#include "genulens/model/isochrone_library.hpp"
 #include "genulens/model/parameters.hpp"
+#include "genulens/model/source_population_prior.hpp"
 #include "genulens/model/stellar_population_model.hpp"
 #include "genulens/simulation/simulator.hpp"
 
@@ -9,11 +11,22 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 
 namespace py = pybind11;
 
 PYBIND11_MODULE(genulens, m)
 {
+    py::class_<genulens::model::IsochroneLibrarySpec>(m, "IsochroneLibrarySpec")
+        .def(py::init<>())
+        .def_readwrite("family", &genulens::model::IsochroneLibrarySpec::family)
+        .def_readwrite("photometry", &genulens::model::IsochroneLibrarySpec::photometry)
+        .def_readwrite("abundance", &genulens::model::IsochroneLibrarySpec::abundance)
+        .def_readwrite("alpha_fe", &genulens::model::IsochroneLibrarySpec::alpha_fe);
+    m.def("default_isochrone_table_path",
+          &genulens::model::default_isochrone_table_path,
+          py::arg("spec"));
+
     auto run_simulation = [](const genulens::GenulensConfig &cfg, py::object likelihood) {
         genulens::LikelihoodFunction fn;
         if (!likelihood.is_none()) {
@@ -52,27 +65,204 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("forward_source", &genulens::GenulensConfig::forward_source)
         .def_readwrite("sampling", &genulens::GenulensConfig::sampling)
         .def_readwrite("runtime", &genulens::GenulensConfig::runtime)
-        .def_readwrite("input_dir", &genulens::GenulensConfig::input_dir);
+        .def_readwrite("input_dir", &genulens::GenulensConfig::input_dir)
+        .def("use_classic_source",
+             [](genulens::GenulensConfig &cfg,
+                double i_min,
+                double i_max,
+                double vi_min,
+                double vi_max) -> genulens::GenulensConfig & {
+                 cfg.source.mode = "classic";
+                 cfg.source.band = "Imag";
+                 cfg.source.min_magnitude = i_min;
+                 cfg.source.max_magnitude = i_max;
+                 cfg.source.use_magnitude_selection = 1;
+                 cfg.source.i_min = i_min;
+                 cfg.source.i_max = i_max;
+                 cfg.source.vi_min = vi_min;
+                 cfg.source.vi_max = vi_max;
+                 return cfg;
+             },
+             py::arg("i_min") = 14.0,
+             py::arg("i_max") = 21.0,
+             py::arg("vi_min") = 0.0,
+             py::arg("vi_max") = 0.0,
+             py::return_value_policy::reference_internal,
+             "Use the legacy luminosity-function source selection.")
+        .def("use_isochrone_source",
+             [](genulens::GenulensConfig &cfg,
+                double i_min,
+                double i_max,
+                const std::string &band,
+                const std::string &photometry,
+                bool apparent,
+                double min_mass,
+                double max_mass,
+                const std::string &family,
+                const std::string &abundance,
+                double alpha_fe) -> genulens::GenulensConfig & {
+                 cfg.source.i_min = i_min;
+                 cfg.source.i_max = i_max;
+                 cfg.source.vi_min = 0.0;
+                 cfg.source.vi_max = 0.0;
+                 cfg.source.mode = "isochrone";
+                 cfg.source.photometry = photometry;
+                 cfg.source.band = band;
+                 cfg.source.min_magnitude = i_min;
+                 cfg.source.max_magnitude = i_max;
+                 cfg.source.apparent_magnitude = apparent ? 1 : 0;
+                 cfg.source.use_magnitude_selection = 1;
+                 cfg.source.isochrone_model = "parsec_solar_scaled";
+                 cfg.source.isochrone_family = family;
+                 cfg.source.isochrone_abundance = abundance;
+                 cfg.source.isochrone_alpha_fe = alpha_fe;
+                 cfg.source.min_initial_mass_msun = min_mass;
+                 cfg.source.max_initial_mass_msun = max_mass;
+                 return cfg;
+             },
+             py::arg("i_min") = 14.0,
+             py::arg("i_max") = 21.0,
+             py::arg("band") = "Imag",
+             py::arg("photometry") = "prime",
+             py::arg("apparent") = true,
+             py::arg("min_mass") = 0.09,
+             py::arg("max_mass") = 1.0,
+             py::arg("family") = "parsec",
+             py::arg("abundance") = "solar_scaled",
+             py::arg("alpha_fe") = 0.0,
+             py::return_value_policy::reference_internal,
+             "Use isochrone/IMF source selection and source-property output.")
+        .def("use_alpha_mixture",
+             [](genulens::GenulensConfig &cfg,
+                double fraction,
+                const std::string &secondary_family,
+                const std::string &secondary_abundance,
+                double secondary_alpha_fe,
+                 const std::vector<int> &components,
+                 const std::vector<double> &component_fractions) -> genulens::GenulensConfig & {
+                 cfg.source.mode = "isochrone";
+                 cfg.source.isochrone_model = "alpha_mixture";
+                 cfg.source.secondary_isochrone_family = secondary_family;
+                 cfg.source.secondary_isochrone_abundance = secondary_abundance;
+                 cfg.source.secondary_isochrone_alpha_fe = secondary_alpha_fe;
+                 cfg.source.alpha_enhanced_fraction = fraction;
+                 cfg.source.alpha_enhanced_components = components;
+                 cfg.source.alpha_enhanced_component_fractions = component_fractions;
+                 return cfg;
+             },
+             py::arg("fraction") = 0.5,
+             py::arg("secondary_family") = "mist",
+             py::arg("secondary_abundance") = "alpha_enhanced",
+             py::arg("secondary_alpha_fe") = 0.4,
+             py::arg("components") = std::vector<int>{},
+             py::arg("component_fractions") = std::vector<double>{},
+             py::return_value_policy::reference_internal,
+             "Mix a secondary isochrone table into source-property sampling.")
+        .def("use_genstars_extinction",
+             [](genulens::GenulensConfig &cfg,
+                double dm_rc,
+                double ejk_rc,
+                int extinction_law,
+                double dust_scale_height_pc) -> genulens::GenulensConfig & {
+                 cfg.source.extinction_mode = "genstars";
+                 cfg.source.dm_rc = dm_rc;
+                 cfg.source.ejk_rc = ejk_rc;
+                 cfg.source.extinction_law = extinction_law;
+                 cfg.source.dust_scale_height_pc = dust_scale_height_pc;
+                 return cfg;
+             },
+             py::arg("dm_rc") = 14.5,
+             py::arg("ejk_rc") = 1.0,
+             py::arg("extinction_law") = 1,
+             py::arg("dust_scale_height_pc") = 164.0,
+             py::return_value_policy::reference_internal,
+             "Use the genstars-style extinction law for apparent source cuts.")
+        .def("use_manual_extinction",
+             [](genulens::GenulensConfig &cfg,
+                double dm_rc,
+                double av_rc,
+                double ai_rc,
+                double aj_rc,
+                double ah_rc,
+                double ak_rc) -> genulens::GenulensConfig & {
+                 cfg.source.extinction_mode = "manual";
+                 cfg.source.dm_rc = dm_rc;
+                 cfg.source.av_rc = av_rc;
+                 cfg.source.ai_rc = ai_rc;
+                 cfg.source.aj_rc = aj_rc;
+                 cfg.source.ah_rc = ah_rc;
+                 cfg.source.ak_rc = ak_rc;
+                 return cfg;
+             },
+             py::arg("dm_rc") = 14.5,
+             py::arg("av_rc") = 0.0,
+             py::arg("ai_rc") = 0.0,
+             py::arg("aj_rc") = 0.0,
+             py::arg("ah_rc") = 0.0,
+             py::arg("ak_rc") = 0.0,
+             py::return_value_policy::reference_internal,
+             "Use direct band extinctions at the reference red-clump distance.");
 
     py::class_<genulens::SourceSelectionConfig>(m, "SourceSelectionConfig")
         .def(py::init<>())
+        .def_readwrite("mode", &genulens::SourceSelectionConfig::mode)
+        .def_readwrite("photometry", &genulens::SourceSelectionConfig::photometry)
+        .def_readwrite("band", &genulens::SourceSelectionConfig::band)
+        .def_readwrite("min_magnitude", &genulens::SourceSelectionConfig::min_magnitude)
+        .def_readwrite("max_magnitude", &genulens::SourceSelectionConfig::max_magnitude)
+        .def_readwrite("apparent_magnitude", &genulens::SourceSelectionConfig::apparent_magnitude)
+        .def_readwrite("use_magnitude_selection", &genulens::SourceSelectionConfig::use_magnitude_selection)
         .def_readwrite("i_min", &genulens::SourceSelectionConfig::i_min)
         .def_readwrite("i_max", &genulens::SourceSelectionConfig::i_max)
         .def_readwrite("vi_min", &genulens::SourceSelectionConfig::vi_min)
         .def_readwrite("vi_max", &genulens::SourceSelectionConfig::vi_max)
+        .def_readwrite("av_rc", &genulens::SourceSelectionConfig::av_rc)
         .def_readwrite("ai_rc", &genulens::SourceSelectionConfig::ai_rc)
+        .def_readwrite("aj_rc", &genulens::SourceSelectionConfig::aj_rc)
+        .def_readwrite("ah_rc", &genulens::SourceSelectionConfig::ah_rc)
         .def_readwrite("evi_rc", &genulens::SourceSelectionConfig::evi_rc)
         .def_readwrite("dm_rc", &genulens::SourceSelectionConfig::dm_rc)
         .def_readwrite("ak_rc", &genulens::SourceSelectionConfig::ak_rc)
-        .def_readwrite("dust_scale_height_pc", &genulens::SourceSelectionConfig::dust_scale_height_pc);
+        .def_readwrite("extinction_mode", &genulens::SourceSelectionConfig::extinction_mode)
+        .def_readwrite("ejk_rc", &genulens::SourceSelectionConfig::ejk_rc)
+        .def_readwrite("extinction_law", &genulens::SourceSelectionConfig::extinction_law)
+        .def_readwrite("dust_scale_height_pc", &genulens::SourceSelectionConfig::dust_scale_height_pc)
+        .def_readwrite("min_initial_mass_msun", &genulens::SourceSelectionConfig::min_initial_mass_msun)
+        .def_readwrite("max_initial_mass_msun", &genulens::SourceSelectionConfig::max_initial_mass_msun)
+        .def_readwrite("isochrone_model", &genulens::SourceSelectionConfig::isochrone_model)
+        .def_readwrite("isochrone_family", &genulens::SourceSelectionConfig::isochrone_family)
+        .def_readwrite("isochrone_abundance", &genulens::SourceSelectionConfig::isochrone_abundance)
+        .def_readwrite("isochrone_alpha_fe", &genulens::SourceSelectionConfig::isochrone_alpha_fe)
+        .def_readwrite("isochrone_table_path", &genulens::SourceSelectionConfig::isochrone_table_path)
+        .def_readwrite("secondary_isochrone_family", &genulens::SourceSelectionConfig::secondary_isochrone_family)
+        .def_readwrite("secondary_isochrone_abundance", &genulens::SourceSelectionConfig::secondary_isochrone_abundance)
+        .def_readwrite("secondary_isochrone_alpha_fe", &genulens::SourceSelectionConfig::secondary_isochrone_alpha_fe)
+        .def_readwrite("secondary_isochrone_table_path", &genulens::SourceSelectionConfig::secondary_isochrone_table_path)
+        .def_readwrite("alpha_enhanced_fraction", &genulens::SourceSelectionConfig::alpha_enhanced_fraction)
+        .def_readwrite("alpha_enhanced_components", &genulens::SourceSelectionConfig::alpha_enhanced_components)
+        .def_readwrite("alpha_enhanced_component_fractions",
+                       &genulens::SourceSelectionConfig::alpha_enhanced_component_fractions);
 
     py::class_<genulens::ForwardSourceConfig>(m, "ForwardSourceConfig")
         .def(py::init<>())
         .def_readwrite("enabled", &genulens::ForwardSourceConfig::enabled)
         .def_readwrite("photometry", &genulens::ForwardSourceConfig::photometry)
+        .def_readwrite("isochrone_model", &genulens::ForwardSourceConfig::isochrone_model)
+        .def_readwrite("isochrone_family", &genulens::ForwardSourceConfig::isochrone_family)
+        .def_readwrite("isochrone_abundance", &genulens::ForwardSourceConfig::isochrone_abundance)
+        .def_readwrite("isochrone_alpha_fe", &genulens::ForwardSourceConfig::isochrone_alpha_fe)
+        .def_readwrite("isochrone_table_path", &genulens::ForwardSourceConfig::isochrone_table_path)
+        .def_readwrite("secondary_isochrone_family", &genulens::ForwardSourceConfig::secondary_isochrone_family)
+        .def_readwrite("secondary_isochrone_abundance", &genulens::ForwardSourceConfig::secondary_isochrone_abundance)
+        .def_readwrite("secondary_isochrone_alpha_fe", &genulens::ForwardSourceConfig::secondary_isochrone_alpha_fe)
+        .def_readwrite("secondary_isochrone_table_path", &genulens::ForwardSourceConfig::secondary_isochrone_table_path)
+        .def_readwrite("alpha_enhanced_table_path", &genulens::ForwardSourceConfig::alpha_enhanced_table_path)
+        .def_readwrite("alpha_enhanced_fraction", &genulens::ForwardSourceConfig::alpha_enhanced_fraction)
+        .def_readwrite("alpha_enhanced_components", &genulens::ForwardSourceConfig::alpha_enhanced_components)
+        .def_readwrite("alpha_enhanced_component_fractions",
+                       &genulens::ForwardSourceConfig::alpha_enhanced_component_fractions)
         .def_readwrite("min_initial_mass_msun", &genulens::ForwardSourceConfig::min_initial_mass_msun)
         .def_readwrite("max_initial_mass_msun", &genulens::ForwardSourceConfig::max_initial_mass_msun)
-        .def_readwrite("match_source_selection", &genulens::ForwardSourceConfig::match_source_selection)
         .def_readwrite("selection_bands", &genulens::ForwardSourceConfig::selection_bands)
         .def_readwrite("selection_min_magnitudes", &genulens::ForwardSourceConfig::selection_min_magnitudes)
         .def_readwrite("selection_max_magnitudes", &genulens::ForwardSourceConfig::selection_max_magnitudes)
@@ -275,6 +465,27 @@ PYBIND11_MODULE(genulens, m)
         .def_readonly("logg", &genulens::model::StellarProperties::logg)
         .def_readonly("absolute_magnitudes", &genulens::model::StellarProperties::absolute_magnitudes);
 
+    py::class_<genulens::model::MagnitudeSelection>(m, "MagnitudeSelection")
+        .def(py::init<>())
+        .def_readwrite("band", &genulens::model::MagnitudeSelection::band)
+        .def_readwrite("min_magnitude", &genulens::model::MagnitudeSelection::min_magnitude)
+        .def_readwrite("max_magnitude", &genulens::model::MagnitudeSelection::max_magnitude)
+        .def_readwrite("magnitude_offset", &genulens::model::MagnitudeSelection::magnitude_offset);
+
+    py::class_<genulens::model::MassInterval>(m, "MassInterval")
+        .def_readonly("min_mass_msun", &genulens::model::MassInterval::min_mass_msun)
+        .def_readonly("max_mass_msun", &genulens::model::MassInterval::max_mass_msun);
+
+    py::class_<genulens::model::AgeMetallicityPoint>(m, "AgeMetallicityPoint")
+        .def_readonly("log_age", &genulens::model::AgeMetallicityPoint::log_age)
+        .def_readonly("metallicity_mh", &genulens::model::AgeMetallicityPoint::metallicity_mh)
+        .def_readonly("weight", &genulens::model::AgeMetallicityPoint::weight);
+
+    py::class_<genulens::model::SourcePopulationPrior>(m, "SourcePopulationPrior")
+        .def_static("points_for_component",
+                    &genulens::model::SourcePopulationPrior::points_for_component,
+                    py::arg("component_index"));
+
     py::class_<genulens::model::IsochroneGrid>(m, "IsochroneGrid")
         .def_static("load", &genulens::model::IsochroneGrid::load, py::arg("path"))
         .def_static("load_default_roman", &genulens::model::IsochroneGrid::load_default_roman)
@@ -282,7 +493,10 @@ PYBIND11_MODULE(genulens, m)
         .def_property_readonly("bands", &genulens::model::IsochroneGrid::bands)
         .def_property_readonly("row_count", &genulens::model::IsochroneGrid::row_count)
         .def_property_readonly("sequence_count", &genulens::model::IsochroneGrid::sequence_count)
-        .def("lookup", &genulens::model::IsochroneGrid::lookup, py::arg("query"));
+        .def("lookup", &genulens::model::IsochroneGrid::lookup, py::arg("query"))
+        .def("matching_initial_mass_intervals",
+             &genulens::model::IsochroneGrid::matching_initial_mass_intervals,
+             py::arg("query"), py::arg("selection"));
 
     py::class_<genulens::model::StellarPopulationQuery>(m, "StellarPopulationQuery")
         .def(py::init<>())
@@ -315,7 +529,8 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("log_age", &genulens::model::ForwardSourceQuery::log_age)
         .def_readwrite("metallicity_mh", &genulens::model::ForwardSourceQuery::metallicity_mh)
         .def_readwrite("use_default_log_age", &genulens::model::ForwardSourceQuery::use_default_log_age)
-        .def_readwrite("use_default_metallicity", &genulens::model::ForwardSourceQuery::use_default_metallicity);
+        .def_readwrite("use_default_metallicity", &genulens::model::ForwardSourceQuery::use_default_metallicity)
+        .def_readwrite("magnitude_selections", &genulens::model::ForwardSourceQuery::magnitude_selections);
 
     py::class_<genulens::model::ForwardSource>(m, "ForwardSource")
         .def_readonly("stellar", &genulens::model::ForwardSource::stellar)
@@ -345,6 +560,18 @@ PYBIND11_MODULE(genulens, m)
                     py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
         .def_static("load_default_prime", &genulens::model::ForwardSourceGenerator::load_default_prime,
                     py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
+        .def_static("load_roman", &genulens::model::ForwardSourceGenerator::load_roman,
+                    py::arg("primary_table_path"),
+                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
+        .def_static("load_prime", &genulens::model::ForwardSourceGenerator::load_prime,
+                    py::arg("primary_table_path"),
+                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
+        .def_static("load_mixture", &genulens::model::ForwardSourceGenerator::load_mixture,
+                    py::arg("primary_table_path"),
+                    py::arg("secondary_table_path"),
+                    py::arg("secondary_fraction"),
+                    py::arg("secondary_fraction_by_component") = std::vector<double>{},
+                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
         .def("sample", [](const genulens::model::ForwardSourceGenerator &generator,
                           const genulens::model::ForwardSourceQuery &query,
                           unsigned long seed) {
@@ -357,7 +584,13 @@ PYBIND11_MODULE(genulens, m)
                                unsigned long seed) {
             genulens::RandomEngine rng(seed);
             return generator.sample_many(query, n_sources, rng);
-        }, py::arg("query"), py::arg("n_sources"), py::arg("seed") = 12304357UL);
+        }, py::arg("query"), py::arg("n_sources"), py::arg("seed") = 12304357UL)
+        .def("selection_probability",
+             [](const genulens::model::ForwardSourceGenerator &generator,
+                const genulens::model::ForwardSourceQuery &query) {
+                 return generator.selection_probability(query);
+             },
+             py::arg("query"));
     m.def("angular_radius_microarcsec", &genulens::model::angular_radius_microarcsec,
           py::arg("radius_rsun"), py::arg("distance_pc"));
 

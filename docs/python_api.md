@@ -131,6 +131,7 @@ option strings.
 Common configuration groups are exposed as nested objects:
 
 ```python
+cfg.source.mode = "classic"
 cfg.source.i_min = 14.0
 cfg.source.i_max = 21.0
 cfg.source.ai_rc = 1.5
@@ -167,31 +168,53 @@ Important sampling option mappings:
 weight. With `small_gamma = 0`, low-Gamma events can be rejected by the usual
 Gamma rejection step.
 
-## Forward source annotations
+## Source Modes
 
-The default simulator keeps the historical LF/CMF source-selection and
-event-rate weighting. To append stellar properties drawn from the shared
-isochrone lookup as annotations, enable forward source mode:
+The Python API exposes two source-selection modes through `cfg.source`.
+
+Classic mode keeps the historical luminosity-function/color-magnitude-function
+source selection:
 
 ```python
 cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10_000, seed=42)
-cfg.forward_source.enabled = 1
-cfg.forward_source.photometry = "roman"
-cfg.forward_source.min_initial_mass_msun = 0.1
-cfg.forward_source.max_initial_mass_msun = 1.0
-cfg.forward_source.match_source_selection = 1
-cfg.forward_source.selection_bands = ["F146mag"]
-cfg.forward_source.selection_min_magnitudes = [17.0]
-cfg.forward_source.selection_max_magnitudes = [24.0]
-# Optional: set to [0] to interpret the ranges as absolute magnitudes.
-cfg.forward_source.selection_apparent_magnitudes = [1]
+cfg.source.mode = "classic"
+cfg.source.i_min = 14.0
+cfg.source.i_max = 21.0
+```
+
+Isochrone mode uses the shared isochrone/IMF source prior and appends source
+stellar properties to each simulated event:
+
+```python
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10_000, seed=42)
+cfg.source.mode = "isochrone"
+cfg.source.photometry = "prime"
+cfg.source.band = "Imag"
+cfg.source.min_magnitude = 12.0
+cfg.source.max_magnitude = 21.0
+cfg.source.min_initial_mass_msun = 0.1
+cfg.source.max_initial_mass_msun = 2.0
+cfg.source.extinction_mode = "genstars"
+cfg.source.extinction_law = 1
+cfg.source.ejk_rc = 1.0
+cfg.source.dm_rc = 14.5
 
 result = genulens.simulate(cfg)
 df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 ```
 
-This mode appends source-property columns after the event columns:
+Convenience methods are available for common setup:
 
+```python
+cfg.use_classic_source(i_min=14.0, i_max=21.0)
+cfg.use_isochrone_source(i_min=12.0, i_max=21.0, band="Imag", photometry="prime")
+cfg.use_genstars_extinction(dm_rc=14.5, ejk_rc=1.0)
+```
+
+Isochrone mode appends source-property columns after the event columns:
+
+- `iS`
+- `D_S`
 - `logage_S`
 - `MH_S`
 - `M_S_ini`
@@ -202,17 +225,161 @@ This mode appends source-property columns after the event columns:
 - `theta_S`
 - `M_<band>_S`
 
-These columns are annotations for forward-prior studies. They do not yet replace
-the legacy LF/CMF source-selection machinery used by the event sampler. Rows
-without a matched stellar source entry can contain `NaN` source annotations.
-When `match_source_selection = 1`, source stars are sampled with rejection
-against the configured source-forward cuts. Use `selection_bands` with matching
-minimum and maximum magnitude arrays to select any band available in the active
-photometry table, for example `F146mag` for Roman or `Imag` for PRIME. These
-cuts are interpreted as apparent magnitudes by default. Set
-`selection_apparent_magnitudes = [0, ...]` to use absolute magnitudes for
-specific bands. If no explicit band cuts are provided, `Imag`/`Vmag` tables can
-fall back to the active legacy `cfg.source` `I` and `V-I` selection.
+With `cfg.source.use_magnitude_selection = 1`, the simulator folds the
+isochrone/IMF selection probability into the source-distance density grid
+before sampling events. It then samples a concrete source star from the
+selected initial-mass intervals for the sampled source distance and component.
+For speed, the event-level source-star proposal reuses conservative
+source-distance bins when finding allowed initial-mass intervals, then applies
+the exact apparent or absolute magnitude cut at the sampled `D_S` before
+accepting the source. This keeps large `n_simu` runs from repeating the same
+isochrone interval search for every event while preserving the requested
+selection support.
+Set `cfg.source.use_magnitude_selection = 0` to append source properties
+without conditioning the source-distance prior on a magnitude cut.
+
+`cfg.source.min_initial_mass_msun` and `cfg.source.max_initial_mass_msun`
+define the source-star IMF range used both for the selected source-density
+normalization and for drawing the concrete source star. Treat them as part of
+the physical source prior, not only as proposal bounds.
+
+Cuts are interpreted as apparent magnitudes by default. Set
+`cfg.source.apparent_magnitude = 0` for absolute-magnitude cuts. Apparent cuts
+require extinction for the selected band. Manual mode uses direct band
+extinctions at the reference red-clump distance:
+
+```python
+cfg.source.extinction_mode = "manual"
+cfg.source.dm_rc = 14.5
+cfg.source.av_rc = 2.0   # Vmag
+cfg.source.ai_rc = 1.4   # Imag
+cfg.source.aj_rc = 0.5   # Jmag / Jmag_2mass
+cfg.source.ah_rc = 0.2   # Hmag / Hmag_2mass
+cfg.source.ak_rc = 0.1   # Kmag / Ksmag_2mass / K_L
+```
+
+Automatic extinction follows the `genstars` law from `E(J-K)`:
+
+```python
+cfg.source.extinction_mode = "genstars"
+cfg.source.extinction_law = 1
+cfg.source.ejk_rc = 1.0
+cfg.source.dm_rc = 14.5
+```
+
+This mode supports `Vmag`, `Imag`, `Jmag_2mass`, `Hmag_2mass`,
+`Ksmag_2mass`, and the Roman bands `F087mag`, `F146mag`, and `F213mag`.
+`evi_rc` is retained for the legacy `V-I` source-selection path. For
+isochrone source cuts, prefer direct band extinctions or
+`extinction_mode = "genstars"`.
+
+Age and metallicity are represented by a conservative discrete source-population
+prior. The simulator marginalizes source-selection probability over the
+component's `(logAge, [M/H])` prior points, then draws the concrete source star
+from the same selected mixture. `IsochroneGrid` currently uses nearest-grid
+sequence lookup; it does not interpolate in age or metallicity.
+
+The older `cfg.forward_source` object still exists as an internal compatibility
+layer, but new Python examples should use `cfg.source`.
+
+### Isochrone Systematics
+
+The default source-property tables are solar-scaled PARSEC/CMD tables. The
+active library can be selected by family and abundance:
+
+```python
+cfg.source.mode = "isochrone"
+cfg.source.photometry = "roman"  # "roman" or "prime"
+cfg.source.isochrone_family = "parsec"  # "parsec" or "mist"
+cfg.source.isochrone_abundance = "solar_scaled"
+```
+
+The built-in resolver returns the normalized table path expected by genulens:
+
+```python
+spec = genulens.IsochroneLibrarySpec()
+spec.family = "mist"
+spec.photometry = "roman"
+spec.abundance = "alpha_enhanced"
+spec.alpha_fe = 0.4
+path = genulens.default_isochrone_table_path(spec)
+```
+
+The checked-in normalized external tables include the PARSEC solar-scaled
+baseline plus MIST solar-scaled and alpha-enhanced systematics tables. MIST
+currently covers all source components (`0-10`). PARSEC alpha-enhanced tables
+are not available; selecting PARSEC with `alpha_enhanced` raises an explicit
+error. Use MIST for alpha systematics. Raw MIST archives are intentionally not
+required in the repository; recreate them with:
+
+```bash
+python tools/source_photometry/fetch_isochrone_assets.py
+python tools/source_photometry/build_external_isochrone_aggregates.py
+```
+
+`tools/source_photometry/normalize_isochrone_table.py` remains available for
+one-off conversion of additional upstream tables.
+
+For bulge-systematics tests, isochrone mode can mix a second normalized
+isochrone table, for example an alpha-enhanced table converted to the same
+schema and photometric bands:
+
+```python
+cfg.source.mode = "isochrone"
+cfg.source.photometry = "roman"
+cfg.source.isochrone_model = "alpha_mixture"
+cfg.source.secondary_isochrone_family = "mist"
+cfg.source.secondary_isochrone_abundance = "alpha_enhanced"
+cfg.source.secondary_isochrone_alpha_fe = 0.4
+cfg.source.alpha_enhanced_fraction = 0.5
+```
+
+The primary table remains the default solar-scaled table unless
+`isochrone_table_path` is set. `alpha_enhanced_fraction` is interpreted as the
+global prior fraction of the secondary table in the source-population model.
+If source-selection cuts are active, the mixture is folded into the selected
+source-density grid, so both `D_S` sampling and emitted source properties use
+the same isochrone mixture. Building this selected source-density grid can take
+tens of seconds for MIST tables; genulens prints progress messages to `stderr`
+while the grid is being built. Selection probabilities are cached in memory
+within the current process, so repeated simulations with the same isochrone,
+IMF, extinction, mass range, and selection cuts reuse the expensive part of the
+grid build. The secondary table must have the same normalized columns and
+magnitude bands as the active primary table. Use
+`secondary_isochrone_table_path` or the legacy alias `alpha_enhanced_table_path`
+to point at a specific converted table.
+
+For component-specific experiments, override the mixture fraction for selected
+Galactic components:
+
+```python
+# Mix alpha-enhanced tables only for bar and NSD sources.
+cfg.source.isochrone_model = "alpha_mixture"
+cfg.source.alpha_enhanced_fraction = 0.0
+cfg.source.alpha_enhanced_components = [8, 9]
+cfg.source.alpha_enhanced_component_fractions = [1.0, 1.0]
+```
+
+Component indices follow the event output convention: `0-6` thin disk, `7`
+thick disk, `8` bar, `9` NSD, and `10` stellar halo. Halo source properties
+currently use the thick-disk isochrone proxy internally, so component `10` maps
+to the thick sequence for source-property lookup.
+
+Scientific caveats:
+
+- `alpha_enhanced_fraction` is a systematics knob, not a chemical-evolution
+  model.
+- MIST and PARSEC differ in stellar physics, bolometric corrections,
+  passbands, and zero-points; differences should not be interpreted as only
+  `[alpha/Fe]` effects.
+
+The source-isochrone systematics example defaults to a fast annotation-only
+comparison. Add `--use-selection` to fold a band cut into the source-distance
+prior:
+
+```bash
+PYTHONPATH=build python examples/source_isochrone_systematics.py --use-selection
+```
 
 For standalone source-population tests, use `ForwardSourceGenerator` directly:
 

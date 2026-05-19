@@ -29,6 +29,18 @@ struct StellarProperties {
     std::map<std::string, double> absolute_magnitudes;
 };
 
+struct MagnitudeSelection {
+    std::string band;
+    double min_magnitude = 0.0;
+    double max_magnitude = 0.0;
+    double magnitude_offset = 0.0;
+};
+
+struct MassInterval {
+    double min_mass_msun = 0.0;
+    double max_mass_msun = 0.0;
+};
+
 class IsochroneGrid {
 public:
     static IsochroneGrid load(const std::filesystem::path &path);
@@ -40,6 +52,9 @@ public:
     std::size_t sequence_count() const { return sequences_.size(); }
 
     StellarProperties lookup(const IsochroneQuery &query) const;
+    std::vector<MassInterval> matching_initial_mass_intervals(
+        const IsochroneQuery &query,
+        const std::vector<MagnitudeSelection> &selection) const;
 
 private:
     struct Row {

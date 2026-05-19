@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "genulens/model/extinction.hpp"
+#include "genulens/model/forward_source.hpp"
 #include "genulens/simulation/run_context.hpp"
 
 namespace genulens {
@@ -22,8 +23,17 @@ struct LineOfSightDensityGridConfig {
     int npri = 10;
     bool printBHfac = false;
     bool printrhoS = false;
+    bool progress_messages = false;
 
     const model::ExponentialDustExtinction *extinction = nullptr;
+
+    const model::ForwardSourceGenerator *forward_source_generator = nullptr;
+    double source_min_initial_mass_msun = 0.09;
+    double source_max_initial_mass_msun = 1.0;
+    std::vector<std::string> source_selection_bands;
+    std::vector<double> source_selection_min_magnitudes;
+    std::vector<double> source_selection_max_magnitudes;
+    std::vector<int> source_selection_apparent_magnitudes;
 };
 
 class LineOfSightDensityGrid {
@@ -46,6 +56,7 @@ public:
     int ncomp() const { return ncomp_; }
     double dD() const { return dD_; }
     double total_source_count() const { return nallS_; }
+    bool uses_forward_source_selection() const { return uses_forward_source_selection_; }
 
     const double *D_data() const { return D_.data(); }
     const double *cumu_rho_all_S_data() const { return cumu_rho_all_S_.data(); }
@@ -59,6 +70,7 @@ private:
     int nbin_ = 0, ncomp_ = 0;
     double dD_ = 0.0;
     double nallS_ = 0.0;
+    bool uses_forward_source_selection_ = false;
 
     std::vector<double> D_;
     std::vector<double> cumu_rho_all_S_, cumu_rho_all_L_;

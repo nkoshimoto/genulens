@@ -16,4 +16,11 @@ __pycache__/
 build/
 backup/
 nunulog
+nunolog
 .note/
+.gaplan/
+gapmoe_src/
+scripts/
+input_files/source_photometry/basti/raw/
+input_files/source_photometry/mist/v2.5/raw/
+input_files/source_photometry/parsec_cmd/metallicity_grid/raw/grid/

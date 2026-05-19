@@ -1,0 +1,12 @@
+{
+  "schema": "genulens.source_photometry.download_manifest.v1",
+  "records": [
+    {
+      "url": "https://mist.science/data/tarballs_v2.5/isos/UBVRIplus.txz",
+      "path": "input_files/source_photometry/mist/v2.5/raw/isos/UBVRIplus.txz",
+      "bytes": 1580963916,
+      "sha256": "abf4c89c9091ca14f6c4d595d2c533cf1f240346ebb45532c3763ff53aa69543",
+      "status": "downloaded"
+    }
+  ]
+}

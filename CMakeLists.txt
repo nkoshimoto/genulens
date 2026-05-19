@@ -57,8 +57,10 @@ add_library(genulens_core
     src/genulens/model/density.cpp
     src/genulens/model/forward_source.cpp
     src/genulens/model/isochrone_grid.cpp
+    src/genulens/model/isochrone_library.cpp
     src/genulens/model/kinematics.cpp
     src/genulens/model/mass_function.cpp
+    src/genulens/model/source_population_prior.cpp
     src/genulens/model/stellar_population_model.cpp
     src/genulens/model/extinction.cpp
     src/genulens/simulation/initialize.cpp

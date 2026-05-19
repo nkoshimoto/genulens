@@ -45,6 +45,49 @@ double lerp(double a, double b, double t)
     return a + (b - a) * t;
 }
 
+template <typename Row>
+bool continuous_isochrone_segment(const Row &lo, const Row &hi)
+{
+    if (!(hi.initial_mass_msun > lo.initial_mass_msun)) return false;
+    if (!(lo.teff_k > 0.0 && hi.teff_k > 0.0)) return false;
+    if (!(lo.radius_rsun > 0.0 && hi.radius_rsun > 0.0)) return false;
+
+    const double dlog_teff = std::abs(std::log10(hi.teff_k) - std::log10(lo.teff_k));
+    const double dlog_radius = std::abs(std::log10(hi.radius_rsun) - std::log10(lo.radius_rsun));
+    const double dlogg = std::abs(hi.logg - lo.logg);
+    if (dlog_teff > 0.12 || dlog_radius > 0.45 || dlogg > 0.75) return false;
+
+    const std::size_t nmag = std::min(lo.magnitudes.size(), hi.magnitudes.size());
+    for (std::size_t i = 0; i < nmag; ++i) {
+        if (!std::isfinite(lo.magnitudes[i]) || !std::isfinite(hi.magnitudes[i])) {
+            return false;
+        }
+        if (std::abs(hi.magnitudes[i] - lo.magnitudes[i]) > 2.0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void intersect_linear_constraint(double y0, double y1, double ymin, double ymax,
+                                 double &tlo, double &thi)
+{
+    const double dy = y1 - y0;
+    if (dy == 0.0) {
+        if (!(y0 >= ymin && y0 <= ymax)) {
+            tlo = 1.0;
+            thi = 0.0;
+        }
+        return;
+    }
+
+    double a = (ymin - y0) / dy;
+    double b = (ymax - y0) / dy;
+    if (a > b) std::swap(a, b);
+    tlo = std::max(tlo, a);
+    thi = std::min(thi, b);
+}
+
 } // namespace
 
 IsochroneGrid IsochroneGrid::load_default_roman()
@@ -152,7 +195,12 @@ void IsochroneGrid::build_sequences()
             seq.metallicity_mh = row.metallicity_mh;
             sequences_.push_back(std::move(seq));
         }
-        sequences_.back().rows.push_back(row);
+        auto &rows = sequences_.back().rows;
+        if (!rows.empty() &&
+            std::abs(rows.back().initial_mass_msun - row.initial_mass_msun) < 1.0e-12) {
+            continue;
+        }
+        rows.push_back(row);
     }
 }
 
@@ -201,6 +249,9 @@ StellarProperties IsochroneGrid::lookup(const IsochroneQuery &query) const
         t = (query.initial_mass_msun - lo->initial_mass_msun) /
             (hi->initial_mass_msun - lo->initial_mass_msun);
     }
+    if (!continuous_isochrone_segment(*lo, *hi)) {
+        t = (t < 0.5) ? 0.0 : 1.0;
+    }
 
     StellarProperties props;
     props.component = lo->component;
@@ -218,6 +269,62 @@ StellarProperties IsochroneGrid::lookup(const IsochroneQuery &query) const
         props.absolute_magnitudes[bands_[i]] = lerp(lo->magnitudes[i], hi->magnitudes[i], t);
     }
     return props;
+}
+
+std::vector<MassInterval> IsochroneGrid::matching_initial_mass_intervals(
+    const IsochroneQuery &query,
+    const std::vector<MagnitudeSelection> &selection) const
+{
+    const auto &seq = select_sequence(query);
+    if (seq.rows.size() < 2 || selection.empty()) return {};
+
+    std::vector<std::size_t> band_indices;
+    band_indices.reserve(selection.size());
+    for (const auto &cut : selection) {
+        const auto found = std::find(bands_.begin(), bands_.end(), cut.band);
+        if (found == bands_.end()) {
+            throw std::runtime_error("isochrone band is not available: " + cut.band);
+        }
+        band_indices.push_back(static_cast<std::size_t>(found - bands_.begin()));
+    }
+
+    std::vector<MassInterval> intervals;
+    for (std::size_t i = 0; i + 1 < seq.rows.size(); ++i) {
+        const auto &lo = seq.rows[i];
+        const auto &hi = seq.rows[i + 1];
+        if (!continuous_isochrone_segment(lo, hi)) continue;
+
+        double tlo = 0.0;
+        double thi = 1.0;
+        for (std::size_t j = 0; j < selection.size(); ++j) {
+            const auto &cut = selection[j];
+            const std::size_t band_index = band_indices[j];
+            const double mag0 = lo.magnitudes[band_index] + cut.magnitude_offset;
+            const double mag1 = hi.magnitudes[band_index] + cut.magnitude_offset;
+            if (!std::isfinite(mag0) || !std::isfinite(mag1)) {
+                tlo = 1.0;
+                thi = 0.0;
+                break;
+            }
+            intersect_linear_constraint(mag0, mag1, cut.min_magnitude,
+                                        cut.max_magnitude, tlo, thi);
+            if (tlo > thi) break;
+        }
+        if (tlo > thi) continue;
+
+        MassInterval interval;
+        interval.min_mass_msun = lerp(lo.initial_mass_msun, hi.initial_mass_msun, tlo);
+        interval.max_mass_msun = lerp(lo.initial_mass_msun, hi.initial_mass_msun, thi);
+        if (!(interval.max_mass_msun > interval.min_mass_msun)) continue;
+        if (!intervals.empty() &&
+            interval.min_mass_msun <= intervals.back().max_mass_msun * (1.0 + 1e-12)) {
+            intervals.back().max_mass_msun =
+                std::max(intervals.back().max_mass_msun, interval.max_mass_msun);
+        } else {
+            intervals.push_back(interval);
+        }
+    }
+    return intervals;
 }
 
 } // namespace genulens::model

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 #include "genulens/cli/option.h"
@@ -12,6 +13,7 @@
 #include "genulens/model/coordinates.hpp"
 #include "genulens/model/extinction.hpp"
 #include "genulens/model/forward_source.hpp"
+#include "genulens/model/isochrone_library.hpp"
 #include "genulens/model/parameters.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/initialize.hpp"
@@ -35,6 +37,92 @@ namespace {
 
 gmodel::ForwardSourceGenerator make_forward_source_generator(const GenulensConfig &config)
 {
+    const auto &source = config.forward_source;
+    const bool custom_model = source.isochrone_model == "custom";
+    const bool solar_model = source.isochrone_model == "parsec_solar_scaled";
+    const bool alpha_mixture_model = source.isochrone_model == "alpha_mixture";
+    if (!solar_model && !custom_model && !alpha_mixture_model) {
+        throw std::runtime_error(
+            "unknown forward_source.isochrone_model: " + source.isochrone_model +
+            " (expected parsec_solar_scaled, custom, or alpha_mixture)");
+    }
+    if (custom_model && source.isochrone_table_path.empty()) {
+        throw std::runtime_error("forward_source.isochrone_model='custom' requires isochrone_table_path");
+    }
+    if (!(source.alpha_enhanced_fraction >= 0.0 && source.alpha_enhanced_fraction <= 1.0)) {
+        throw std::runtime_error("forward_source.alpha_enhanced_fraction must be in [0, 1]");
+    }
+    if (source.alpha_enhanced_components.size() !=
+        source.alpha_enhanced_component_fractions.size()) {
+        throw std::runtime_error(
+            "forward_source.alpha_enhanced_components and "
+            "alpha_enhanced_component_fractions must have the same length");
+    }
+    std::vector<double> component_alpha_fractions(11, source.alpha_enhanced_fraction);
+    bool has_positive_component_alpha = false;
+    for (std::size_t i = 0; i < source.alpha_enhanced_components.size(); ++i) {
+        const int component = source.alpha_enhanced_components[i];
+        const double fraction = source.alpha_enhanced_component_fractions[i];
+        if (component < 0 || component > 10) {
+            throw std::runtime_error("forward_source.alpha_enhanced_components must be in [0, 10]");
+        }
+        if (!(fraction >= 0.0 && fraction <= 1.0)) {
+            throw std::runtime_error("forward_source.alpha_enhanced_component_fractions must be in [0, 1]");
+        }
+        component_alpha_fractions[static_cast<std::size_t>(component)] = fraction;
+        if (fraction > 0.0) has_positive_component_alpha = true;
+    }
+    const bool has_component_alpha = !source.alpha_enhanced_components.empty();
+    const bool uses_alpha_table =
+        source.alpha_enhanced_fraction > 0.0 || has_positive_component_alpha;
+    auto primary_default_table_path = [&]() -> std::string {
+        return gmodel::default_isochrone_table_path({
+            source.isochrone_family,
+            source.photometry,
+            source.isochrone_abundance,
+            source.isochrone_alpha_fe,
+        });
+    };
+
+    auto secondary_default_table_path = [&]() -> std::string {
+        const std::string family = source.secondary_isochrone_family.empty()
+                                       ? source.isochrone_family
+                                       : source.secondary_isochrone_family;
+        return gmodel::default_isochrone_table_path({
+            family,
+            source.photometry,
+            source.secondary_isochrone_abundance,
+            source.secondary_isochrone_alpha_fe,
+        });
+    };
+
+    const std::string primary_path = source.isochrone_table_path.empty()
+                                         ? primary_default_table_path()
+                                         : source.isochrone_table_path;
+    if (uses_alpha_table) {
+        std::string secondary_path = source.secondary_isochrone_table_path;
+        if (secondary_path.empty()) secondary_path = source.alpha_enhanced_table_path;
+        if (secondary_path.empty()) secondary_path = secondary_default_table_path();
+        return gmodel::ForwardSourceGenerator::load_mixture(
+            primary_path,
+            secondary_path,
+            source.alpha_enhanced_fraction,
+            has_component_alpha ? component_alpha_fractions : std::vector<double>{},
+            config.model.imf);
+    }
+    const bool resolved_primary_is_default_parsec =
+        gmodel::normalize_isochrone_family(source.isochrone_family) == "parsec" &&
+        gmodel::normalize_isochrone_abundance(source.isochrone_abundance, source.isochrone_alpha_fe) == "solar_scaled" &&
+        source.isochrone_alpha_fe == 0.0 &&
+        source.isochrone_table_path.empty();
+    if (!resolved_primary_is_default_parsec || !source.isochrone_table_path.empty()) {
+        if (source.photometry == "prime") {
+            return gmodel::ForwardSourceGenerator::load_prime(primary_path, config.model.imf);
+        }
+        if (source.photometry == "roman") {
+            return gmodel::ForwardSourceGenerator::load_roman(primary_path, config.model.imf);
+        }
+    }
     if (config.forward_source.photometry == "prime") {
         return gmodel::ForwardSourceGenerator::load_default_prime(config.model.imf);
     }
@@ -48,6 +136,131 @@ std::vector<std::string> forward_source_bands_for_config(const GenulensConfig &c
 {
     if (config.forward_source.enabled == 0) return {};
     return make_forward_source_generator(config).bands();
+}
+
+gmodel::ReferenceBandExtinction make_reference_extinction(const GenulensConfig *typed_config,
+                                                          double l_deg,
+                                                          double b_deg,
+                                                          double av_rc,
+                                                          double ai_rc,
+                                                          double aj_rc,
+                                                          double ah_rc,
+                                                          double ak_rc,
+                                                          double evi_rc)
+{
+    if (typed_config && typed_config->source.extinction_mode == "genstars") {
+        if (typed_config->source.ejk_rc <= 0.0) {
+            throw std::runtime_error("source extinction_mode='genstars' requires ejk_rc > 0");
+        }
+        return gmodel::genstars_reference_extinction(l_deg, b_deg,
+                                                     typed_config->source.ejk_rc,
+                                                     typed_config->source.extinction_law);
+    }
+    if (typed_config && typed_config->source.extinction_mode != "manual") {
+        throw std::runtime_error("unknown source extinction_mode: " +
+                                 typed_config->source.extinction_mode);
+    }
+    gmodel::ReferenceBandExtinction ref;
+    ref.v_band = av_rc;
+    ref.i_band = ai_rc;
+    ref.j_band = aj_rc;
+    ref.h_band = ah_rc;
+    ref.k_band = ak_rc;
+    ref.color_vi = (evi_rc > 0.0) ? evi_rc : std::max(0.0, av_rc - ai_rc);
+    return ref;
+}
+
+bool source_selection_is_apparent(const ForwardSourceConfig &config, std::size_t i)
+{
+    return config.selection_apparent_magnitudes.empty() ||
+           config.selection_apparent_magnitudes[i] != 0;
+}
+
+bool has_forward_source_band(const gmodel::ForwardSourceGenerator &generator,
+                             const std::string &band)
+{
+    const auto bands = generator.bands();
+    return std::find(bands.begin(), bands.end(), band) != bands.end();
+}
+
+void validate_apparent_source_band(const gmodel::ExponentialDustExtinction &extinction,
+                                   const std::string &band)
+{
+    if (band == "Vmag") {
+        if (extinction.av0() <= 0.0) {
+            throw std::runtime_error("apparent source selection for Vmag requires AVrc > 0 or auto extinction");
+        }
+        return;
+    }
+    if (band == "Imag") {
+        if (extinction.ai0() <= 0.0) {
+            throw std::runtime_error("apparent source selection for Imag requires AIrc > 0 or auto extinction");
+        }
+        return;
+    }
+    if (band == "Jmag_2mass" || band == "Jmag") {
+        if (extinction.aj0() <= 0.0) {
+            throw std::runtime_error("apparent source selection for J band requires AJrc > 0 or auto extinction");
+        }
+        return;
+    }
+    if (band == "Hmag_2mass" || band == "Hmag") {
+        if (extinction.ah0() <= 0.0) {
+            throw std::runtime_error("apparent source selection for H band requires AHrc > 0 or auto extinction");
+        }
+        return;
+    }
+    if (band == "Ksmag_2mass" || band == "Kmag" || band == "K_L") {
+        if (extinction.ak0() <= 0.0) {
+            throw std::runtime_error("apparent source selection for K band requires AKrc > 0 or auto extinction");
+        }
+        return;
+    }
+    if (band == "F087mag") {
+        if (extinction.f0870() <= 0.0) {
+            throw std::runtime_error("apparent source selection for F087mag requires auto extinction");
+        }
+        return;
+    }
+    if (band == "F146mag") {
+        if (extinction.f1460() <= 0.0) {
+            throw std::runtime_error("apparent source selection for F146mag requires auto extinction");
+        }
+        return;
+    }
+    if (band == "F213mag") {
+        if (extinction.f2130() <= 0.0) {
+            throw std::runtime_error("apparent source selection for F213mag requires auto extinction");
+        }
+        return;
+    }
+    throw std::runtime_error("apparent source selection has no extinction coefficient for band: " +
+                             band + "; use selection_apparent_magnitudes=[0] for absolute cuts");
+}
+
+void validate_forward_source_selection(const GenulensConfig &config,
+                                       const gmodel::ForwardSourceGenerator &generator,
+                                       const gmodel::ExponentialDustExtinction &extinction)
+{
+    const auto &source = config.forward_source;
+    const std::size_t n = source.selection_bands.size();
+    if (source.selection_min_magnitudes.size() != n ||
+        source.selection_max_magnitudes.size() != n) {
+        throw std::runtime_error("forward source selection band/range length mismatch");
+    }
+    if (!source.selection_apparent_magnitudes.empty() &&
+        source.selection_apparent_magnitudes.size() != n) {
+        throw std::runtime_error("forward source apparent-selection flag length mismatch");
+    }
+    for (std::size_t i = 0; i < n; ++i) {
+        const auto &band = source.selection_bands[i];
+        if (!has_forward_source_band(generator, band)) {
+            throw std::runtime_error("forward source selection band is not available: " + band);
+        }
+        if (source_selection_is_apparent(source, i)) {
+            validate_apparent_source_band(extinction, band);
+        }
+    }
 }
 
 void apply_typed_model_parameters(RunContext &context, const model::ModelParameters &model)
@@ -180,7 +393,10 @@ int run_sampler_impl(RunContext &context,
     double Isen  = getOptiond(argc, argv, "Isrange",  2, 21.0);
     double VIsst = getOptiond(argc, argv, "VIsrange", 1,  0.0);
     double VIsen = getOptiond(argc, argv, "VIsrange", 2,  0.0);
+    double AVrc  = getOptiond(argc, argv, "AVrc",     1,  0);
     double AIrc  = getOptiond(argc, argv, "AIrc",     1,  0);
+    double AJrc  = getOptiond(argc, argv, "AJrc",     1,  0);
+    double AHrc  = getOptiond(argc, argv, "AHrc",     1,  0);
     double EVIrc = getOptiond(argc, argv, "EVIrc",    1,  0);
     double DMrc  = getOptiond(argc, argv, "DMrc",     1,  0);
     double AKrc  = getOptiond(argc, argv, "AKrc",     1,  0);
@@ -189,10 +405,32 @@ int run_sampler_impl(RunContext &context,
         Isen = typed_config->source.i_max;
         VIsst = typed_config->source.vi_min;
         VIsen = typed_config->source.vi_max;
+        AVrc = typed_config->source.av_rc;
         AIrc = typed_config->source.ai_rc;
+        AJrc = typed_config->source.aj_rc;
+        AHrc = typed_config->source.ah_rc;
         EVIrc = typed_config->source.evi_rc;
         DMrc = typed_config->source.dm_rc;
         AKrc = typed_config->source.ak_rc;
+        const SourceSelectionConfig default_source;
+        const bool legacy_i_selection_requested =
+            typed_config->source.i_min != default_source.i_min ||
+            typed_config->source.i_max != default_source.i_max;
+        const bool legacy_vi_selection_requested =
+            typed_config->source.vi_min != default_source.vi_min ||
+            typed_config->source.vi_max != default_source.vi_max;
+        if (typed_config->source.extinction_mode == "genstars" &&
+            (legacy_i_selection_requested || legacy_vi_selection_requested)) {
+            const auto reference_extinction =
+                make_reference_extinction(typed_config, lSIMU, bSIMU,
+                                          AVrc, AIrc, AJrc, AHrc, AKrc, EVIrc);
+            if (legacy_i_selection_requested) {
+                AIrc = reference_extinction.i_band;
+            }
+            if (legacy_vi_selection_requested) {
+                EVIrc = reference_extinction.color_vi;
+            }
+        }
     }
     if (emit_cli_output && (fabs(lSIMU) > 10 || fabs(bSIMU) > 7 || fabs(bSIMU) < 1.5))
         printf("# WARNING: genulens is designed for |l| < ~10 and ~1.5 < |b| < ~7"
@@ -409,10 +647,18 @@ int run_sampler_impl(RunContext &context,
     double cosl   = cos(lSIMU/180.0*PI), sinl = sin(lSIMU/180.0*PI);
     double hscale = hdust / (fabs(sinb) + 0.0001);
     double Dmean  = (DMrc > 0) ? pow(10, 0.2*DMrc) * 10 : -9.99;
-    gmodel::ExponentialDustExtinction extinction(hscale, Dmean, AIrc, AKrc, EVIrc);
-    double AI0  = extinction.ai0();
-    double AK0  = extinction.ak0();
-    double EVI0 = extinction.evi0();
+    const bool legacy_ai_extinction_enabled = AIrc > 0.0;
+    const bool legacy_ak_extinction_enabled = AKrc > 0.0;
+    const bool legacy_evi_extinction_enabled = EVIrc > 0.0;
+    const auto reference_extinction = make_reference_extinction(typed_config, lSIMU, bSIMU,
+                                                                AVrc, AIrc, AJrc, AHrc, AKrc, EVIrc);
+    AIrc = reference_extinction.i_band;
+    EVIrc = reference_extinction.color_vi;
+    AKrc = reference_extinction.k_band;
+    gmodel::ExponentialDustExtinction extinction(hscale, Dmean, reference_extinction);
+    double AI0  = legacy_ai_extinction_enabled ? extinction.ai0() : 0.0;
+    double AK0  = legacy_ak_extinction_enabled ? extinction.ak0() : 0.0;
+    double EVI0 = legacy_evi_extinction_enabled ? extinction.evi0() : 0.0;
 
     if (emit_cli_output) {
     printf("#---------- Input parameters ----------\n");
@@ -457,6 +703,15 @@ int run_sampler_impl(RunContext &context,
     }
 
     // ------- Density grid -------
+    if (typed_config && typed_config->forward_source.enabled != 0) {
+        auto forward_source_generator = make_forward_source_generator(*typed_config);
+        validate_forward_source_selection(*typed_config, forward_source_generator, extinction);
+        prepared.forward_source_generator =
+            std::make_unique<gmodel::ForwardSourceGenerator>(std::move(forward_source_generator));
+        prepared.forward_source_rng =
+            std::make_unique<RandomEngine>(typed_config->seed + 0x9e3779b9UL);
+    }
+
     int Dmax = getOptiond(argc, argv, "Dmax", 1, 16000);
     if (typed_config) {
         Dmax = typed_config->runtime.max_distance_pc;
@@ -494,12 +749,36 @@ int run_sampler_impl(RunContext &context,
     grid_cfg.npri      = npri;
     grid_cfg.printBHfac = (printBHfac != 0);
     grid_cfg.printrhoS = (printrhoS != 0);
+    grid_cfg.progress_messages =
+        typed_config && typed_config->forward_source.enabled != 0 &&
+        !typed_config->forward_source.selection_bands.empty();
     grid_cfg.extinction = &extinction;
+    if (typed_config && prepared.forward_source_generator) {
+        grid_cfg.forward_source_generator = prepared.forward_source_generator.get();
+        grid_cfg.source_min_initial_mass_msun =
+            typed_config->forward_source.min_initial_mass_msun;
+        grid_cfg.source_max_initial_mass_msun =
+            typed_config->forward_source.max_initial_mass_msun;
+        grid_cfg.source_selection_bands =
+            typed_config->forward_source.selection_bands;
+        grid_cfg.source_selection_min_magnitudes =
+            typed_config->forward_source.selection_min_magnitudes;
+        grid_cfg.source_selection_max_magnitudes =
+            typed_config->forward_source.selection_max_magnitudes;
+        grid_cfg.source_selection_apparent_magnitudes =
+            typed_config->forward_source.selection_apparent_magnitudes;
+    }
 
     if (emit_cli_output)
         printf("#----- Mass density along (l,b)= (%.3f,%.3f) --------\n",
                lSIMU, bSIMU);
     prepared.grid.build(context, grid_cfg);
+    if (prepared.grid.uses_forward_source_selection() &&
+        !(prepared.grid.total_source_count() > 0.0)) {
+        throw std::runtime_error(
+            "forward-source selection leaves zero source density; relax the "
+            "magnitude cuts, extinction, photometry, or initial-mass range");
+    }
 
     // ------- Optional CALCTAU -------
     int    CALCTAU = getOptioni(argc, argv, "CALCTAU", 1, 0);
@@ -507,7 +786,7 @@ int run_sampler_impl(RunContext &context,
         CALCTAU = typed_config->runtime.calculate_optical_depth;
     }
     double tauall  = 0, Nsall = 0;
-    if (CALCTAU && Isen - Isst > 0 && AIrc > 0) {
+    if (CALCTAU && Isen - Isst > 0 && AI0 > 0) {
         void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata,
                                int Dsmax21, double AI0, double hscale,
                                double Isst, double Isen);
@@ -575,23 +854,15 @@ int run_sampler_impl(RunContext &context,
     prepared.event_config.Nsall   = Nsall;
     prepared.event_config.tauall  = tauall;
     prepared.event_config.Dmean   = Dmean;
-    if (typed_config && typed_config->forward_source.enabled != 0) {
-        prepared.forward_source_generator =
-            std::make_unique<gmodel::ForwardSourceGenerator>(make_forward_source_generator(*typed_config));
-        prepared.forward_source_rng =
-            std::make_unique<RandomEngine>(typed_config->seed + 0x9e3779b9UL);
+    if (typed_config && prepared.forward_source_generator) {
         prepared.event_config.forward_source_generator = prepared.forward_source_generator.get();
         prepared.event_config.forward_source_rng = prepared.forward_source_rng.get();
         prepared.event_config.source_min_initial_mass_msun =
             typed_config->forward_source.min_initial_mass_msun;
         prepared.event_config.source_max_initial_mass_msun =
             typed_config->forward_source.max_initial_mass_msun;
-        prepared.event_config.match_source_selection =
-            typed_config->forward_source.match_source_selection != 0;
-        prepared.event_config.source_i_min = Isst;
-        prepared.event_config.source_i_max = Isen;
-        prepared.event_config.source_vi_min = VIsst;
-        prepared.event_config.source_vi_max = VIsen;
+        prepared.event_config.source_selection_distance_bin_pc =
+            prepared.grid.dD();
         prepared.event_config.source_selection_bands =
             typed_config->forward_source.selection_bands;
         prepared.event_config.source_selection_min_magnitudes =

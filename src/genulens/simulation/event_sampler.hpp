@@ -44,17 +44,15 @@ public:
         // Reference distance for musRCG correction
         double Dmean = 0.0;
 
-        // Optional source-star annotation. This does not replace legacy LF/CMF
-        // source-selection weighting.
+        // Optional source-star sampling from the shared isochrone lookup.
+        // Non-empty source_selection_bands are already folded into the
+        // line-of-sight source density grid; the event loop samples the
+        // concrete source star consistent with that selected source prior.
         const model::ForwardSourceGenerator *forward_source_generator = nullptr;
         RandomEngine *forward_source_rng = nullptr;
         double source_min_initial_mass_msun = 0.09;
         double source_max_initial_mass_msun = 1.0;
-        bool match_source_selection = true;
-        double source_i_min = 14.0;
-        double source_i_max = 21.0;
-        double source_vi_min = 0.0;
-        double source_vi_max = 0.0;
+        double source_selection_distance_bin_pc = 0.0;
         std::vector<std::string> source_selection_bands;
         std::vector<double> source_selection_min_magnitudes;
         std::vector<double> source_selection_max_magnitudes;

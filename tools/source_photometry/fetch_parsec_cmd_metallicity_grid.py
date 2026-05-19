@@ -23,6 +23,16 @@ def mh_token(mh: float) -> str:
     return prefix + f"{value:.2f}".replace(".", "p")
 
 
+def age_token(log_age: float) -> str:
+    return "age" + f"{log_age:.5f}".replace(".", "p")
+
+
+def component_log_ages(component: dict) -> list[float]:
+    if "logAge_grid" in component:
+        return [float(value) for value in component["logAge_grid"]]
+    return [float(component["logAge"])]
+
+
 def radius_from_logl_logte(log_l: float, log_te: float) -> float:
     teff = 10.0**log_te
     return math.sqrt(10.0**log_l) * (TSUN_K / teff) ** 2
@@ -96,6 +106,26 @@ def metadata(component: dict, row: dict[str, float], mh: float) -> dict:
         "MH": mh,
         "Zini": row["Zini"],
     }
+
+
+def grid_paths(output_dir: Path, component: dict, mh: float, log_age: float, multi_age: bool, phot_name: str | None = None) -> dict[str, Path]:
+    metallicity_token = mh_token(mh)
+    if multi_age:
+        age_part = age_token(log_age)
+        paths = {
+            "normalized_prime": output_dir / "normalized" / component["name"] / age_part / f"{component['name']}_{age_part}_{metallicity_token}_prime_parsec.dat",
+            "normalized_roman": output_dir / "normalized" / component["name"] / age_part / f"{component['name']}_{age_part}_{metallicity_token}_roman_parsec.dat",
+        }
+        if phot_name is not None:
+            paths["raw"] = output_dir / "raw" / "grid" / age_part / f"{metallicity_token}_{phot_name}.dat"
+        return paths
+    paths = {
+        "normalized_prime": output_dir / "normalized" / component["name"] / f"{component['name']}_{metallicity_token}_prime_parsec.dat",
+        "normalized_roman": output_dir / "normalized" / component["name"] / f"{component['name']}_{metallicity_token}_roman_parsec.dat",
+    }
+    if phot_name is not None:
+        paths["raw"] = output_dir / "raw" / component["name"] / f"{metallicity_token}_{phot_name}.dat"
+    return paths
 
 
 def build_rows(component: dict, mh: float, raw: dict[str, list[dict[str, float]]]) -> tuple[list[dict], list[dict]]:
@@ -172,44 +202,52 @@ def main() -> None:
     allowed_mh = set(args.mh or [])
     all_prime_rows: list[dict] = []
     all_roman_rows: list[dict] = []
+    fetched_raw_paths: set[Path] = set()
 
     for component in config["components"]:
         if allowed_components and component["name"] not in allowed_components:
             continue
+        log_ages = component_log_ages(component)
+        multi_age = "logAge_grid" in component
+        if multi_age and allowed_components:
+            print(f"{component['name']} has {len(log_ages)} logAge grid points")
         for mh in component["mh_grid"]:
             if allowed_mh and mh not in allowed_mh:
                 continue
-            token = mh_token(mh)
-            raw_tables: dict[str, list[dict[str, float]]] = {}
-            for phot_name, phot_cfg in config["photometric_systems"].items():
-                raw_path = args.output_dir / "raw" / component["name"] / f"{token}_{phot_name}.dat"
-                if raw_path.exists() and not args.force:
-                    print(f"reuse {component['name']} {phot_name} logAge={component['logAge']} MH={mh}")
-                    raw_tables[phot_name] = read_raw_table(raw_path)
-                    continue
-                print(f"fetch {component['name']} {phot_name} logAge={component['logAge']} MH={mh}", flush=True)
-                df = ezpadova.get_isochrones(
-                    logage=(component["logAge"], component["logAge"], 0.0),
-                    MH=(mh, mh, 0.0),
-                    photsys_file=phot_cfg["photsys_file"],
-                    track_parsec=config["defaults"]["track_parsec"],
-                    track_colibri=config["defaults"]["track_colibri"],
-                    photsys_version=config["defaults"]["photsys_version"],
-                    kind_interp=config["defaults"]["kind_interp"],
-                    kind_mag=config["defaults"]["kind_mag"],
-                    output_kind=config["defaults"]["output_kind"],
-                    output_evstage=config["defaults"]["output_evstage"],
-                )
-                save_raw_dataframe(df, raw_path, component=component, mh=mh, phot_name=phot_name)
-                raw_tables[phot_name] = table_rows(df)
+            for log_age in log_ages:
+                component_at_age = {**component, "logAge": log_age}
+                raw_tables: dict[str, list[dict[str, float]]] = {}
+                for phot_name, phot_cfg in config["photometric_systems"].items():
+                    raw_path = grid_paths(args.output_dir, component, mh, log_age, multi_age, phot_name)["raw"]
+                    if raw_path.exists() and (not args.force or raw_path in fetched_raw_paths):
+                        print(f"reuse {component['name']} {phot_name} logAge={log_age} MH={mh}")
+                        raw_tables[phot_name] = read_raw_table(raw_path)
+                        continue
+                    print(f"fetch {component['name']} {phot_name} logAge={log_age} MH={mh}", flush=True)
+                    df = ezpadova.get_isochrones(
+                        logage=(log_age, log_age, 0.0),
+                        MH=(mh, mh, 0.0),
+                        photsys_file=phot_cfg["photsys_file"],
+                        track_parsec=config["defaults"]["track_parsec"],
+                        track_colibri=config["defaults"]["track_colibri"],
+                        photsys_version=config["defaults"]["photsys_version"],
+                        kind_interp=config["defaults"]["kind_interp"],
+                        kind_mag=config["defaults"]["kind_mag"],
+                        output_kind=config["defaults"]["output_kind"],
+                        output_evstage=config["defaults"]["output_evstage"],
+                    )
+                    save_raw_dataframe(df, raw_path, component=component_at_age, mh=mh, phot_name=phot_name)
+                    fetched_raw_paths.add(raw_path)
+                    raw_tables[phot_name] = table_rows(df)
 
-            prime_rows, roman_rows = build_rows(component, mh, raw_tables)
-            prime_columns = config["normalized_tables"]["prime_parsec"]["columns"]
-            roman_columns = config["normalized_tables"]["roman_parsec"]["columns"]
-            write_table(args.output_dir / "normalized" / component["name"] / f"{component['name']}_{token}_prime_parsec.dat", prime_columns, prime_rows)
-            write_table(args.output_dir / "normalized" / component["name"] / f"{component['name']}_{token}_roman_parsec.dat", roman_columns, roman_rows)
-            all_prime_rows.extend(prime_rows)
-            all_roman_rows.extend(roman_rows)
+                prime_rows, roman_rows = build_rows(component_at_age, mh, raw_tables)
+                prime_columns = config["normalized_tables"]["prime_parsec"]["columns"]
+                roman_columns = config["normalized_tables"]["roman_parsec"]["columns"]
+                paths = grid_paths(args.output_dir, component, mh, log_age, multi_age)
+                write_table(paths["normalized_prime"], prime_columns, prime_rows)
+                write_table(paths["normalized_roman"], roman_columns, roman_rows)
+                all_prime_rows.extend(prime_rows)
+                all_roman_rows.extend(roman_rows)
 
     if all_prime_rows:
         write_table(args.output_dir / "normalized" / "all_prime_parsec.dat", config["normalized_tables"]["prime_parsec"]["columns"], all_prime_rows)

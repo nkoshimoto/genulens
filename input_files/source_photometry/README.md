@@ -42,6 +42,35 @@ Normalized table families:
 
 See `parsec_cmd/README.md` for the acquisition settings and citation notes.
 
+## Isochrone Library Registry
+
+`isochrone_libraries.json` records the normalized table paths understood by
+the source-forward resolver. The code can select `parsec` or `mist`
+families. PARSEC is solar-scaled only in this repository; PARSEC
+`alpha_enhanced` requests intentionally raise an error so users do not mistake a
+missing catalog for a supported model. Use MIST for alpha-enhanced systematics.
+The checked-in normalized external tables include the PARSEC solar-scaled
+baseline plus MIST comparison tables.
+
+Use `tools/source_photometry/normalize_isochrone_table.py` for one-off
+conversion of external model tables. It accepts explicit column mappings, so it
+can ingest PARSEC/CMD or MIST tables without hard-coding every upstream header
+variant.
+
+Raw external downloads for MIST are tracked by manifest files in this
+directory. See `.note/isochrone_download_status.md` for the current downloaded
+asset list and normalization notes.
+
+Large raw archives are not intended to be committed. Recreate them and rebuild
+the normalized aggregates with:
+
+```bash
+python tools/source_photometry/fetch_isochrone_assets.py
+python tools/source_photometry/build_external_isochrone_aggregates.py
+```
+
+The generated MIST aggregates cover component indices `0-10`.
+
 ## `prime_hybrid/`
 
 Files:

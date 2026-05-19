@@ -6,6 +6,7 @@
 #include "genulens/model/kinematics.hpp"
 #include "genulens/model/mass_function.hpp"
 #include "genulens/model/parameters.hpp"
+#include "genulens/model/source_population_prior.hpp"
 #include "genulens/model/stellar_population_model.hpp"
 #include "genulens/rng.hpp"
 #include "genulens/simulation/likelihood.hpp"
@@ -94,8 +95,8 @@ int main()
     std::filesystem::current_path(cwd);
 
     const auto roman_isochrones = genulens::model::IsochroneGrid::load_default_roman();
-    require(roman_isochrones.row_count() == 14723, "Roman isochrone row count changed");
-    require(roman_isochrones.sequence_count() == 41, "Roman isochrone sequence count changed");
+    require(roman_isochrones.row_count() == 41039, "Roman isochrone row count changed");
+    require(roman_isochrones.sequence_count() == 113, "Roman isochrone sequence count changed");
     require(roman_isochrones.bands().size() == 6, "Roman isochrone band count changed");
 
     genulens::model::IsochroneQuery iso_query;
@@ -111,6 +112,17 @@ int main()
     require(roman_star.absolute_magnitudes.count("F146mag") == 1, "Roman isochrone F146 band missing");
     require(std::abs(roman_star.absolute_magnitudes.at("F146mag") - 9.251) < 1e-12,
             "Roman isochrone F146 lookup failed");
+
+    genulens::model::MagnitudeSelection f146_cut;
+    f146_cut.band = "F146mag";
+    f146_cut.min_magnitude = 3.0;
+    f146_cut.max_magnitude = 8.5;
+    const auto f146_intervals = roman_isochrones.matching_initial_mass_intervals(iso_query, {f146_cut});
+    require(!f146_intervals.empty(), "isochrone magnitude selection intervals missing");
+    for (const auto &interval : f146_intervals) {
+        require(interval.max_mass_msun > interval.min_mass_msun,
+                "isochrone magnitude selection interval ordering failed");
+    }
 
     iso_query.metallicity_mh = -0.45;
     const auto nearest_mh_star = roman_isochrones.lookup(iso_query);
@@ -128,7 +140,8 @@ int main()
     pop_query.initial_mass_msun = 0.1000000015;
     const auto thick_star = population.lookup(pop_query);
     require(thick_star.component == "thick", "population component-index lookup failed");
-    require(std::abs(thick_star.log_age - 10.07918) < 1e-12, "population default thick age failed");
+    require(std::abs(thick_star.log_age - 10.079181246047625) < 1e-8,
+            "population default thick age failed");
     require(std::abs(thick_star.metallicity_mh + 0.8) < 1e-12, "population default thick metallicity failed");
 
     pop_query.component = "thin1";
@@ -143,6 +156,22 @@ int main()
     const auto metal_poor_thin = population.lookup(pop_query);
     require(std::abs(metal_poor_thin.metallicity_mh + 0.5) < 1e-12,
             "population explicit metallicity failed");
+
+    const auto thin_prior = genulens::model::SourcePopulationPrior::points_for_component(0);
+    require(thin_prior.size() == 12, "thin source prior point count changed");
+    double thin_prior_weight = 0.0;
+    bool thin_prior_has_multiple_ages = false;
+    for (const auto &point : thin_prior) thin_prior_weight += point.weight;
+    for (const auto &point : thin_prior) {
+        if (std::abs(point.log_age - thin_prior.front().log_age) > 1e-12) {
+            thin_prior_has_multiple_ages = true;
+        }
+    }
+    require(std::abs(thin_prior_weight - 1.0) < 1e-12,
+            "thin source prior weights do not sum to one");
+    require(thin_prior_has_multiple_ages, "thin source prior does not include age bins");
+    const auto thick_prior = genulens::model::SourcePopulationPrior::points_for_component(7);
+    require(thick_prior.size() == 5, "thick source prior point count changed");
 
     genulens::RandomEngine source_rng(123);
     const auto source_generator = genulens::model::ForwardSourceGenerator::load_default_roman();
@@ -159,6 +188,14 @@ int main()
     require(source_star.angular_radius_microarcsec > 0.0, "forward source angular radius failed");
     require(source_star.stellar.absolute_magnitudes.count("F146mag") == 1,
             "forward source absolute F146 missing");
+    source_query.max_initial_mass_msun = 1.0;
+    source_query.magnitude_selections = {f146_cut};
+    const auto selected_source_star = source_generator.sample(source_query, source_rng);
+    require(selected_source_star.stellar.absolute_magnitudes.at("F146mag") >= 3.0 &&
+                selected_source_star.stellar.absolute_magnitudes.at("F146mag") <= 8.5,
+            "forward source selected mass did not satisfy magnitude cut");
+    source_query.magnitude_selections.clear();
+    source_query.max_initial_mass_msun = 0.11;
     const auto source_batch = source_generator.sample_many(source_query, 4, source_rng);
     require(source_batch.row_count() == 4, "forward source result row count failed");
     require(source_batch.column_count() == 16, "forward source result column count failed");

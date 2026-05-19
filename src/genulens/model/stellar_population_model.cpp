@@ -22,7 +22,7 @@ constexpr std::array<ComponentDefaults, 10> kDefaults = {{
     {"thin5", 4, 9.607455023, 0.0},
     {"thin6", 5, 9.781755375, 0.0},
     {"thin7", 6, 9.937016107, 0.0},
-    {"thick", 7, 10.07918, -0.8},
+    {"thick", 7, 10.079181246047625, -0.8},
     {"bar", 8, 9.95424, 0.0},
     {"NSD", 9, 9.8451, 0.0},
 }};
@@ -74,6 +74,24 @@ StellarProperties StellarPopulationModel::lookup(const StellarPopulationQuery &q
     isochrone_query.metallicity_mh =
         query.use_default_metallicity ? default_metallicity_mh(component) : query.metallicity_mh;
     return isochrones_.lookup(isochrone_query);
+}
+
+std::vector<MassInterval> StellarPopulationModel::matching_initial_mass_intervals(
+    const StellarPopulationQuery &query,
+    const std::vector<MagnitudeSelection> &selection) const
+{
+    std::string component = query.component;
+    if (component.empty()) {
+        component = component_name(query.component_index);
+    }
+
+    IsochroneQuery isochrone_query;
+    isochrone_query.component = component;
+    isochrone_query.initial_mass_msun = query.initial_mass_msun;
+    isochrone_query.log_age = query.use_default_log_age ? default_log_age(component) : query.log_age;
+    isochrone_query.metallicity_mh =
+        query.use_default_metallicity ? default_metallicity_mh(component) : query.metallicity_mh;
+    return isochrones_.matching_initial_mass_intervals(isochrone_query, selection);
 }
 
 std::string StellarPopulationModel::component_name(int component_index)

@@ -115,6 +115,18 @@ Project documentation is organized under [`docs/`](docs/):
 The public Python notebook is
 [`examples/python_binding.ipynb`](examples/python_binding.ipynb).
 
+Additional examples:
+
+- [`examples/source_isochrone_systematics.ipynb`](examples/source_isochrone_systematics.ipynb):
+  compares PARSEC and MIST source-forward predictions for
+  alpha-enhancement systematics in source populations, using a configurable
+  PRIME `Imag` source range, source-property plots, and an HR-diagram scatter.
+  The companion `examples/source_isochrone_systematics.py` runs a fast
+  annotation-only comparison by default; pass `--use-selection` to fold the
+  band cut into the source-distance prior. Source-selection grid construction
+  reports progress and reuses selection-probability results within the same
+  Python process.
+
 ## Python API
 
 The refactored Python API calls the shared C++ simulation core directly. It does
@@ -147,12 +159,16 @@ cfg.sampling.small_gamma = 1
 cfg.model.imf.alpha2 = -1.35
 ```
 
-Forward source annotations can be appended without replacing the legacy LF/CMF
-source-selection machinery:
+Source selection has two Python modes. Classic mode keeps the historical LF/CMF
+selection, while isochrone mode appends source stellar properties and can fold a
+band cut into the source-distance prior:
 
 ```python
-cfg.forward_source.enabled = 1
-cfg.forward_source.photometry = "roman"
+cfg.source.mode = "isochrone"
+cfg.source.photometry = "prime"
+cfg.source.band = "Imag"
+cfg.source.min_magnitude = 12.0
+cfg.source.max_magnitude = 21.0
 ```
 
 This adds source age/metallicity metadata, mass, radius, `Teff`, `logg`,
