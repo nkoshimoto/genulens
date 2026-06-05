@@ -25,3 +25,6 @@ refactored `genulens` codebase.
   comparison of PARSEC and MIST source-forward predictions for
   alpha-enhancement systematics, with a configurable PRIME `Imag` source range
   source-property plots, and an HR-diagram scatter.
+- [`examples/rate_summary_map.ipynb`](../examples/rate_summary_map.ipynb):
+  structured optical-depth and event-rate summaries for one line of sight and
+  small `l,b` maps from the Python API.

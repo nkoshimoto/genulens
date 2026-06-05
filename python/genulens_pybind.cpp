@@ -1,4 +1,6 @@
 #include "genulens/options.hpp"
+#include "genulens/model/extinction.hpp"
+#include "genulens/model/extinction_map.hpp"
 #include "genulens/model/forward_source.hpp"
 #include "genulens/model/isochrone_grid.hpp"
 #include "genulens/model/isochrone_library.hpp"
@@ -27,6 +29,39 @@ PYBIND11_MODULE(genulens, m)
           &genulens::model::default_isochrone_table_path,
           py::arg("spec"));
 
+    py::class_<genulens::model::ExtinctionMapSample>(m, "ExtinctionMapSample")
+        .def_readonly("l", &genulens::model::ExtinctionMapSample::l_deg)
+        .def_readonly("b", &genulens::model::ExtinctionMapSample::b_deg)
+        .def_readonly("ejk", &genulens::model::ExtinctionMapSample::ejk);
+
+    py::class_<genulens::model::ReferenceBandExtinction>(m, "ReferenceBandExtinction")
+        .def_readonly("Vmag", &genulens::model::ReferenceBandExtinction::v_band)
+        .def_readonly("Imag", &genulens::model::ReferenceBandExtinction::i_band)
+        .def_readonly("Jmag", &genulens::model::ReferenceBandExtinction::j_band)
+        .def_readonly("Hmag", &genulens::model::ReferenceBandExtinction::h_band)
+        .def_readonly("Kmag", &genulens::model::ReferenceBandExtinction::k_band)
+        .def_readonly("EVI", &genulens::model::ReferenceBandExtinction::color_vi)
+        .def_readonly("F087mag", &genulens::model::ReferenceBandExtinction::f087_band)
+        .def_readonly("F146mag", &genulens::model::ReferenceBandExtinction::f146_band)
+        .def_readonly("F213mag", &genulens::model::ReferenceBandExtinction::f213_band);
+
+    py::class_<genulens::model::GenstarsExtinctionMap>(m, "GenstarsExtinctionMap")
+        .def_static("load", &genulens::model::GenstarsExtinctionMap::load, py::arg("path"))
+        .def_static("load_default", &genulens::model::GenstarsExtinctionMap::load_default,
+                    py::arg("extinction_map") = 1)
+        .def("lookup", &genulens::model::GenstarsExtinctionMap::sample,
+             py::arg("l"), py::arg("b"), py::arg("extinction_map") = 1)
+        .def("ejk_at", &genulens::model::GenstarsExtinctionMap::ejk_at,
+             py::arg("l"), py::arg("b"), py::arg("extinction_map") = 1)
+        .def_property_readonly("row_count", &genulens::model::GenstarsExtinctionMap::row_count);
+
+    m.def("genstars_reference_extinction",
+          &genulens::model::genstars_reference_extinction,
+          py::arg("l"),
+          py::arg("b"),
+          py::arg("ejk"),
+          py::arg("extinction_law") = 1);
+
     auto run_simulation = [](const genulens::GenulensConfig &cfg, py::object likelihood) {
         genulens::LikelihoodFunction fn;
         if (!likelihood.is_none()) {
@@ -37,6 +72,36 @@ PYBIND11_MODULE(genulens, m)
         }
         py::gil_scoped_release release;
         return genulens::simulate(cfg, fn);
+    };
+    auto rate_summary = [run_simulation](genulens::GenulensConfig cfg, py::object likelihood) {
+        cfg.runtime.calculate_optical_depth = 1;
+        auto result = run_simulation(cfg, likelihood);
+        return result.summary;
+    };
+    auto rate_map = [rate_summary](const std::vector<double> &l_values,
+                                   const std::vector<double> &b_values,
+                                   genulens::GenulensConfig base_config,
+                                   py::object likelihood) {
+        genulens::RateMapResult result;
+        result.summaries.reserve(l_values.size() * b_values.size());
+        for (const double b : b_values) {
+            for (const double l : l_values) {
+                auto cfg = base_config;
+                cfg.l = l;
+                cfg.b = b;
+                result.summaries.push_back(rate_summary(cfg, likelihood));
+            }
+        }
+        return result;
+    };
+    auto rate_summaries = [rate_summary](const std::vector<genulens::GenulensConfig> &configs,
+                                         py::object likelihood) {
+        genulens::RateMapResult result;
+        result.summaries.reserve(configs.size());
+        for (const auto &cfg : configs) {
+            result.summaries.push_back(rate_summary(cfg, likelihood));
+        }
+        return result;
     };
 
     py::class_<genulens::GenulensConfig>(m, "Config")
@@ -162,21 +227,56 @@ PYBIND11_MODULE(genulens, m)
              [](genulens::GenulensConfig &cfg,
                 double dm_rc,
                 double ejk_rc,
+                double ejk_scale,
+                double ejk_offset,
                 int extinction_law,
                 double dust_scale_height_pc) -> genulens::GenulensConfig & {
                  cfg.source.extinction_mode = "genstars";
                  cfg.source.dm_rc = dm_rc;
                  cfg.source.ejk_rc = ejk_rc;
+                 cfg.source.ejk_scale = ejk_scale;
+                 cfg.source.ejk_offset = ejk_offset;
                  cfg.source.extinction_law = extinction_law;
                  cfg.source.dust_scale_height_pc = dust_scale_height_pc;
                  return cfg;
              },
              py::arg("dm_rc") = 14.5,
              py::arg("ejk_rc") = 1.0,
+             py::arg("ejk_scale") = 1.0,
+             py::arg("ejk_offset") = 0.0,
              py::arg("extinction_law") = 1,
              py::arg("dust_scale_height_pc") = 164.0,
              py::return_value_policy::reference_internal,
              "Use the genstars-style extinction law for apparent source cuts.")
+        .def("use_genstars_extinction_map",
+             [](genulens::GenulensConfig &cfg,
+                double dm_rc,
+                int extinction_law,
+                int extinction_map,
+                const std::string &extinction_map_path,
+                double ejk_scale,
+                double ejk_offset,
+                double dust_scale_height_pc) -> genulens::GenulensConfig & {
+                 cfg.source.extinction_mode = "genstars_map";
+                 cfg.source.dm_rc = dm_rc;
+                 cfg.source.ejk_rc = 0.0;
+                 cfg.source.ejk_scale = ejk_scale;
+                 cfg.source.ejk_offset = ejk_offset;
+                 cfg.source.extinction_law = extinction_law;
+                 cfg.source.extinction_map = extinction_map;
+                 cfg.source.extinction_map_path = extinction_map_path;
+                 cfg.source.dust_scale_height_pc = dust_scale_height_pc;
+                 return cfg;
+             },
+             py::arg("dm_rc") = 0.0,
+             py::arg("extinction_law") = 1,
+             py::arg("extinction_map") = 1,
+             py::arg("extinction_map_path") = "",
+             py::arg("ejk_scale") = 1.0,
+             py::arg("ejk_offset") = 0.0,
+             py::arg("dust_scale_height_pc") = 164.0,
+             py::return_value_policy::reference_internal,
+             "Use the genstars E(J-Ks) extinction map and extinction law.")
         .def("use_manual_extinction",
              [](genulens::GenulensConfig &cfg,
                 double dm_rc,
@@ -225,7 +325,11 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("ak_rc", &genulens::SourceSelectionConfig::ak_rc)
         .def_readwrite("extinction_mode", &genulens::SourceSelectionConfig::extinction_mode)
         .def_readwrite("ejk_rc", &genulens::SourceSelectionConfig::ejk_rc)
+        .def_readwrite("ejk_scale", &genulens::SourceSelectionConfig::ejk_scale)
+        .def_readwrite("ejk_offset", &genulens::SourceSelectionConfig::ejk_offset)
         .def_readwrite("extinction_law", &genulens::SourceSelectionConfig::extinction_law)
+        .def_readwrite("extinction_map", &genulens::SourceSelectionConfig::extinction_map)
+        .def_readwrite("extinction_map_path", &genulens::SourceSelectionConfig::extinction_map_path)
         .def_readwrite("dust_scale_height_pc", &genulens::SourceSelectionConfig::dust_scale_height_pc)
         .def_readwrite("min_initial_mass_msun", &genulens::SourceSelectionConfig::min_initial_mass_msun)
         .def_readwrite("max_initial_mass_msun", &genulens::SourceSelectionConfig::max_initial_mass_msun)
@@ -626,7 +730,26 @@ PYBIND11_MODULE(genulens, m)
         .def_readonly("theta_S", &genulens::Event::source_angular_radius_microarcsec)
         .def_readonly("Mabs_S", &genulens::Event::source_absolute_magnitudes);
 
+    py::class_<genulens::RateSummary>(m, "RateSummary")
+        .def_readonly("l", &genulens::RateSummary::l)
+        .def_readonly("b", &genulens::RateSummary::b)
+        .def_readonly("n_simu", &genulens::RateSummary::n_simu)
+        .def_readonly("n_generated", &genulens::RateSummary::n_generated)
+        .def_readonly("n_like", &genulens::RateSummary::n_like)
+        .def_readonly("source_density_arcmin2", &genulens::RateSummary::source_density_arcmin2)
+        .def_readonly("source_density_raw_arcmin2", &genulens::RateSummary::source_density_raw_arcmin2)
+        .def_readonly("tau", &genulens::RateSummary::tau)
+        .def_readonly("mean_tE_days", &genulens::RateSummary::mean_tE_days)
+        .def_readonly("median_tE_days", &genulens::RateSummary::median_tE_days)
+        .def_readonly("event_rate_per_star_per_year",
+                      &genulens::RateSummary::event_rate_per_star_per_year)
+        .def_readonly("event_rate_per_deg2_per_year",
+                      &genulens::RateSummary::event_rate_per_deg2_per_year)
+        .def_readonly("sum_gamma", &genulens::RateSummary::sum_gamma)
+        .def_readonly("sum_tE_gamma", &genulens::RateSummary::sum_tE_gamma);
+
     py::class_<genulens::SimulationResult>(m, "SimulationResult")
+        .def_readonly("summary", &genulens::SimulationResult::summary)
         .def_property_readonly("columns", &genulens::SimulationResult::columns)
         .def("to_numpy", [](const genulens::SimulationResult &result) {
             auto rows = result.flattened_rows();
@@ -640,7 +763,39 @@ PYBIND11_MODULE(genulens, m)
             return array;
         });
 
+    py::class_<genulens::RateMapResult>(m, "RateMapResult")
+        .def_property_readonly("columns", &genulens::RateMapResult::columns)
+        .def_readonly("summaries", &genulens::RateMapResult::summaries)
+        .def("to_numpy", [](const genulens::RateMapResult &result) {
+            auto rows = result.flattened_rows();
+            py::array_t<double> array({result.row_count(), result.column_count()});
+            auto mutable_array = array.mutable_unchecked<2>();
+            for (py::ssize_t r = 0; r < static_cast<py::ssize_t>(result.row_count()); ++r) {
+                for (py::ssize_t c = 0; c < static_cast<py::ssize_t>(result.column_count()); ++c) {
+                    mutable_array(r, c) = rows[static_cast<std::size_t>(r * result.column_count() + c)];
+                }
+            }
+            return array;
+        });
+
     m.def("simulate", run_simulation, py::arg("cfg"), py::arg("likelihood") = py::none());
+    m.def("compute_rate_summary",
+          rate_summary,
+          py::arg("cfg"),
+          py::arg("likelihood") = py::none(),
+          "Run the simulator with optical-depth calculation enabled and return the rate summary.");
+    m.def("compute_rate_map",
+          rate_map,
+          py::arg("l_values"),
+          py::arg("b_values"),
+          py::arg("base_config"),
+          py::arg("likelihood") = py::none(),
+          "Compute rate summaries on an l,b grid using one shared base config.");
+    m.def("compute_rate_summaries",
+          rate_summaries,
+          py::arg("configs"),
+          py::arg("likelihood") = py::none(),
+          "Compute rate summaries for configs that may each carry their own extinction.");
 
     m.def("ruc", [run_simulation](double l, double b, long n_simu, unsigned long seed, py::object likelihood) {
         genulens::GenulensConfig cfg;

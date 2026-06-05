@@ -6,12 +6,15 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <algorithm>
+#include <map>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 #include "genulens/cli/option.h"
 #include "genulens/io/input_data.hpp"
 #include "genulens/model/coordinates.hpp"
 #include "genulens/model/extinction.hpp"
+#include "genulens/model/extinction_map.hpp"
 #include "genulens/model/forward_source.hpp"
 #include "genulens/model/isochrone_library.hpp"
 #include "genulens/model/parameters.hpp"
@@ -34,6 +37,23 @@ namespace gmodel = genulens::model;
 namespace genulens {
 
 namespace {
+
+const gmodel::GenstarsExtinctionMap &cached_genstars_extinction_map(const SourceSelectionConfig &source)
+{
+    const auto path = source.extinction_map_path.empty()
+                          ? resolve_input_file(source.extinction_map == 0 ? "EJK_G12_S20.dat"
+                                                                          : "EJK_G12_S20_LR.dat")
+                          : resolve_input_file(source.extinction_map_path);
+    static std::map<std::string, std::shared_ptr<gmodel::GenstarsExtinctionMap>> cache;
+    const auto key = path.string();
+    auto found = cache.find(key);
+    if (found != cache.end()) return *found->second;
+
+    auto loaded = std::make_shared<gmodel::GenstarsExtinctionMap>(
+        gmodel::GenstarsExtinctionMap::load(path));
+    auto [inserted, _] = cache.emplace(key, std::move(loaded));
+    return *inserted->second;
+}
 
 gmodel::ForwardSourceGenerator make_forward_source_generator(const GenulensConfig &config)
 {
@@ -148,12 +168,20 @@ gmodel::ReferenceBandExtinction make_reference_extinction(const GenulensConfig *
                                                           double ak_rc,
                                                           double evi_rc)
 {
-    if (typed_config && typed_config->source.extinction_mode == "genstars") {
-        if (typed_config->source.ejk_rc <= 0.0) {
-            throw std::runtime_error("source extinction_mode='genstars' requires ejk_rc > 0");
+    if (typed_config && (typed_config->source.extinction_mode == "genstars" ||
+                         typed_config->source.extinction_mode == "genstars_map")) {
+        double ejk_reference = typed_config->source.ejk_rc;
+        if (typed_config->source.extinction_mode == "genstars_map" || ejk_reference <= 0.0) {
+            const auto &map = cached_genstars_extinction_map(typed_config->source);
+            ejk_reference = map.ejk_at(l_deg, b_deg, typed_config->source.extinction_map);
+        }
+        ejk_reference = ejk_reference * typed_config->source.ejk_scale +
+                        typed_config->source.ejk_offset;
+        if (ejk_reference <= 0.0) {
+            throw std::runtime_error("effective E(J-Ks) extinction must be positive");
         }
         return gmodel::genstars_reference_extinction(l_deg, b_deg,
-                                                     typed_config->source.ejk_rc,
+                                                     ejk_reference,
                                                      typed_config->source.extinction_law);
     }
     if (typed_config && typed_config->source.extinction_mode != "manual") {
@@ -345,6 +373,7 @@ int run_sampler_impl(RunContext &context,
                      int argc, char **argv,
                      LikelihoodFunction custom_likelihood,
                      EventSampler::EventSink event_sink,
+                     RateSummary *rate_summary,
                      bool emit_cli_output)
 {
     char curdir[200];
@@ -412,22 +441,18 @@ int run_sampler_impl(RunContext &context,
         EVIrc = typed_config->source.evi_rc;
         DMrc = typed_config->source.dm_rc;
         AKrc = typed_config->source.ak_rc;
-        const SourceSelectionConfig default_source;
-        const bool legacy_i_selection_requested =
-            typed_config->source.i_min != default_source.i_min ||
-            typed_config->source.i_max != default_source.i_max;
-        const bool legacy_vi_selection_requested =
-            typed_config->source.vi_min != default_source.vi_min ||
-            typed_config->source.vi_max != default_source.vi_max;
-        if (typed_config->source.extinction_mode == "genstars" &&
-            (legacy_i_selection_requested || legacy_vi_selection_requested)) {
+        const bool legacy_i_selection_active = Isen - Isst > 0.0;
+        const bool legacy_vi_selection_active = VIsen - VIsst > 0.0;
+        if ((typed_config->source.extinction_mode == "genstars" ||
+             typed_config->source.extinction_mode == "genstars_map") &&
+            (legacy_i_selection_active || legacy_vi_selection_active)) {
             const auto reference_extinction =
                 make_reference_extinction(typed_config, lSIMU, bSIMU,
                                           AVrc, AIrc, AJrc, AHrc, AKrc, EVIrc);
-            if (legacy_i_selection_requested) {
+            if (legacy_i_selection_active) {
                 AIrc = reference_extinction.i_band;
             }
-            if (legacy_vi_selection_requested) {
+            if (legacy_vi_selection_active) {
                 EVIrc = reference_extinction.color_vi;
             }
         }
@@ -647,11 +672,11 @@ int run_sampler_impl(RunContext &context,
     double cosl   = cos(lSIMU/180.0*PI), sinl = sin(lSIMU/180.0*PI);
     double hscale = hdust / (fabs(sinb) + 0.0001);
     double Dmean  = (DMrc > 0) ? pow(10, 0.2*DMrc) * 10 : -9.99;
-    const bool legacy_ai_extinction_enabled = AIrc > 0.0;
-    const bool legacy_ak_extinction_enabled = AKrc > 0.0;
-    const bool legacy_evi_extinction_enabled = EVIrc > 0.0;
     const auto reference_extinction = make_reference_extinction(typed_config, lSIMU, bSIMU,
                                                                 AVrc, AIrc, AJrc, AHrc, AKrc, EVIrc);
+    const bool legacy_ai_extinction_enabled = reference_extinction.i_band > 0.0;
+    const bool legacy_ak_extinction_enabled = reference_extinction.k_band > 0.0;
+    const bool legacy_evi_extinction_enabled = reference_extinction.color_vi > 0.0;
     AIrc = reference_extinction.i_band;
     EVIrc = reference_extinction.color_vi;
     AKrc = reference_extinction.k_band;
@@ -786,7 +811,10 @@ int run_sampler_impl(RunContext &context,
         CALCTAU = typed_config->runtime.calculate_optical_depth;
     }
     double tauall  = 0, Nsall = 0;
-    if (CALCTAU && Isen - Isst > 0 && AI0 > 0) {
+    if (CALCTAU && prepared.grid.uses_forward_source_selection()) {
+        tauall = prepared.grid.selected_source_optical_depth();
+        Nsall = prepared.grid.total_source_count();
+    } else if (CALCTAU && Isen - Isst > 0 && AI0 > 0) {
         void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata,
                                int Dsmax21, double AI0, double hscale,
                                double Isst, double Isen);
@@ -853,6 +881,7 @@ int run_sampler_impl(RunContext &context,
     prepared.event_config.nallS   = prepared.grid.total_source_count();
     prepared.event_config.Nsall   = Nsall;
     prepared.event_config.tauall  = tauall;
+    prepared.event_config.rate_summary = rate_summary;
     prepared.event_config.Dmean   = Dmean;
     if (typed_config && prepared.forward_source_generator) {
         prepared.event_config.forward_source_generator = prepared.forward_source_generator.get();
@@ -883,7 +912,7 @@ int run_sampler_impl(RunContext &context,
 
 int Sampler::run_cli(RunContext &context, int argc, char **argv)
 {
-    return run_sampler_impl(context, nullptr, argc, argv, {}, {}, true);
+    return run_sampler_impl(context, nullptr, argc, argv, {}, {}, nullptr, true);
 }
 
 SimulationResult Sampler::simulate(RunContext &context, int argc, char **argv,
@@ -895,6 +924,7 @@ SimulationResult Sampler::simulate(RunContext &context, int argc, char **argv,
         [&result](const Event &event) {
             result.events.push_back(event);
         },
+        &result.summary,
         false);
     if (code != 0) {
         throw std::runtime_error("genulens scientific backend returned non-zero status");
@@ -915,6 +945,7 @@ SimulationResult Sampler::simulate(RunContext &context, const GenulensConfig &co
         [&result](const Event &event) {
             result.events.push_back(event);
         },
+        &result.summary,
         false);
     if (code != 0) {
         throw std::runtime_error("genulens scientific backend returned non-zero status");

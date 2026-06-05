@@ -1,5 +1,7 @@
 #pragma once
 
+#include "genulens/types.hpp"
+
 namespace genulens {
 
 struct MonteCarloStats {
@@ -42,6 +44,14 @@ struct EventOutputRow {
     double projected_separation_min = 0, u0_source = 0;
     int binary_state = 0;
 };
+
+RateSummary make_rate_summary(const MonteCarloStats &stats,
+                              long n_simu,
+                              double l,
+                              double b,
+                              double total_source_count,
+                              double all_source_density,
+                              double tauall);
 
 class CliEventReporter {
 public:

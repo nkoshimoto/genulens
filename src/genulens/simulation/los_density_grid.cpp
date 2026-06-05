@@ -428,6 +428,36 @@ void LineOfSightDensityGrid::build(RunContext &ctx,
     }
 }
 
+double LineOfSightDensityGrid::selected_source_optical_depth() const {
+    if (!(nallS_ > 0.0) || nbin_ <= 0 || dD_ <= 0.0) return 0.0;
+
+    double weighted_tau = 0.0;
+    for (int iDs = 1; iDs <= nbin_; ++iDs) {
+        const double Ds = D_[iDs];
+        if (!(Ds > 0.0)) continue;
+
+        double source_density = 0.0;
+        for (int i = 0; i < ncomp_; ++i) {
+            source_density += rhoD_S_[i][iDs];
+        }
+        if (!(source_density > 0.0)) continue;
+
+        double tau_ds = 0.0;
+        for (int iDl = 1; iDl < iDs; ++iDl) {
+            const double Dl = D_[iDl];
+            double lens_density = 0.0;
+            for (int i = 0; i < ncomp_; ++i) {
+                lens_density += rhoD_L_[i][iDl];
+            }
+            tau_ds += lens_density * Dl * (1.0 - Dl / Ds);
+        }
+        tau_ds *= dD_;
+        weighted_tau += tau_ds * source_density * dD_;
+    }
+
+    return weighted_tau / nallS_ * PI4GC2;
+}
+
 int LineOfSightDensityGrid::sample_source_component(double ran) const {
     double cumu = 0.0;
     int i_s;

@@ -168,6 +168,87 @@ Important sampling option mappings:
 weight. With `small_gamma = 0`, low-Gamma events can be rejected by the usual
 Gamma rejection step.
 
+## Rate Summaries
+
+The Python API can return line-of-sight optical-depth and event-rate summaries
+directly from the C++ simulation state. These values are not parsed from CLI
+stdout.
+
+```python
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10_000, seed=42)
+cfg.source.mode = "classic"
+cfg.source.i_min = 14.0
+cfg.source.i_max = 21.0
+cfg.source.ai_rc = 1.0
+cfg.source.dm_rc = 14.5
+cfg.observation.IL_err = 0.0
+
+summary = genulens.compute_rate_summary(cfg)
+print(summary.tau)
+print(summary.event_rate_per_star_per_year)
+print(summary.event_rate_per_deg2_per_year)
+```
+
+`compute_rate_summary` copies the config, enables the optical-depth calculation
+internally, runs the same event sampler used by `simulate`, and returns:
+
+- `source_density_arcmin2`
+- `source_density_raw_arcmin2`
+- `tau`
+- `mean_tE_days`
+- `median_tE_days`
+- `event_rate_per_star_per_year`
+- `event_rate_per_deg2_per_year`
+- `sum_gamma`
+- `sum_tE_gamma`
+
+The event rate follows the existing CLI summary convention:
+
+```text
+event_rate = 2 * tau / pi / mean_tE_days * 365.25
+```
+
+For quick maps, evaluate the same summary on an `l,b` grid:
+
+```python
+rate_map = genulens.compute_rate_map(
+    l_values=np.linspace(-5.0, 5.0, 21),
+    b_values=np.linspace(-6.0, -2.0, 9),
+    base_config=cfg,
+)
+df = pd.DataFrame(rate_map.to_numpy(), columns=rate_map.columns)
+```
+
+`compute_rate_map` only changes `cfg.l` and `cfg.b`. It does not infer a
+line-of-sight extinction map. If `cfg.source.ai_rc`, `cfg.source.dm_rc`, or the
+genstars-style reference extinction values are fixed in `base_config`, the
+visible source cut uses those same values at every map point.
+
+For realistic visible-band maps, build one config per sightline and set the
+red-clump extinction and distance modulus for that sightline explicitly:
+
+```python
+configs = []
+for b in b_values:
+    for l in l_values:
+        cfg_lb = genulens.Config(l=l, b=b, n_simu=10_000, seed=42)
+        cfg_lb.source.mode = "classic"
+        cfg_lb.source.i_min = 14.0
+        cfg_lb.source.i_max = 21.0
+        cfg_lb.source.ai_rc = extinction_map_ai_rc(l, b)
+        cfg_lb.source.dm_rc = red_clump_dm(l, b)
+        cfg_lb.observation.IL_err = 0.0
+        configs.append(cfg_lb)
+
+rate_map = genulens.compute_rate_summaries(configs)
+df = pd.DataFrame(rate_map.to_numpy(), columns=rate_map.columns)
+```
+
+The summary depends on the active source selection, extinction, source-density
+model, and Monte Carlo settings. In particular, apparent source cuts require
+valid extinction parameters, and event rates use the Monte Carlo estimate of
+`mean_tE_days`.
+
 ## Source Modes
 
 The Python API exposes two source-selection modes through `cfg.source`.
@@ -267,11 +348,58 @@ cfg.source.ejk_rc = 1.0
 cfg.source.dm_rc = 14.5
 ```
 
+This uses a single `E(J-Ks)` value for the current sightline. To read the
+genstars extinction map directly, use:
+
+```python
+cfg.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
+```
+
+You can adjust the map without editing the input file. The effective value is
+`E(J-Ks)_eff = E(J-Ks)_map * ejk_scale + ejk_offset`:
+
+```python
+cfg.use_genstars_extinction_map(
+    extinction_law=1,
+    extinction_map=1,
+    ejk_scale=1.15,
+    ejk_offset=0.05,
+)
+```
+
+or equivalently:
+
+```python
+cfg.source.extinction_mode = "genstars_map"
+cfg.source.extinction_law = 1
+cfg.source.extinction_map = 1
+cfg.source.ejk_scale = 1.15
+cfg.source.ejk_offset = 0.05
+cfg.source.dm_rc = 0.0
+```
+
+`extinction_map = 1` uses the checked-in low-resolution
+`EJK_G12_S20_LR.dat` map with subgrid values where available. `extinction_map =
+2` uses only the 0.025 deg cell mean. The public genstars high-resolution map
+is not bundled here; if a local `EJK_G12_S20.dat` is available,
+`extinction_map = 0` can resolve it through the normal input-file search path.
+When `dm_rc = 0`, genulens uses the same Nataf-style red-clump distance-modulus
+formula used by the existing simulator path.
+
+You can inspect the map and the law conversion directly:
+
+```python
+emap = genulens.GenstarsExtinctionMap.load_default(extinction_map=1)
+sample = emap.lookup(l=1.0, b=-3.9)
+ref = genulens.genstars_reference_extinction(1.0, -3.9, sample.ejk, 1)
+print(sample.ejk, ref.Imag)
+```
+
 This mode supports `Vmag`, `Imag`, `Jmag_2mass`, `Hmag_2mass`,
 `Ksmag_2mass`, and the Roman bands `F087mag`, `F146mag`, and `F213mag`.
 `evi_rc` is retained for the legacy `V-I` source-selection path. For
 isochrone source cuts, prefer direct band extinctions or
-`extinction_mode = "genstars"`.
+`extinction_mode = "genstars"` / `"genstars_map"`.
 
 Age and metallicity are represented by a conservative discrete source-population
 prior. The simulator marginalizes source-selection probability over the

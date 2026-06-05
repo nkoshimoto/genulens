@@ -47,6 +47,49 @@ std::vector<std::string> SimulationResult::columns() const
     return out;
 }
 
+std::vector<std::string> RateMapResult::columns() const
+{
+    return {
+        "l",
+        "b",
+        "n_simu",
+        "n_generated",
+        "n_like",
+        "source_density_arcmin2",
+        "source_density_raw_arcmin2",
+        "tau",
+        "mean_tE_days",
+        "median_tE_days",
+        "event_rate_per_star_per_year",
+        "event_rate_per_deg2_per_year",
+        "sum_gamma",
+        "sum_tE_gamma",
+    };
+}
+
+std::vector<double> RateMapResult::flattened_rows() const
+{
+    std::vector<double> rows;
+    rows.reserve(summaries.size() * column_count());
+    for (const auto &summary : summaries) {
+        rows.push_back(summary.l);
+        rows.push_back(summary.b);
+        rows.push_back(static_cast<double>(summary.n_simu));
+        rows.push_back(static_cast<double>(summary.n_generated));
+        rows.push_back(static_cast<double>(summary.n_like));
+        rows.push_back(summary.source_density_arcmin2);
+        rows.push_back(summary.source_density_raw_arcmin2);
+        rows.push_back(summary.tau);
+        rows.push_back(summary.mean_tE_days);
+        rows.push_back(summary.median_tE_days);
+        rows.push_back(summary.event_rate_per_star_per_year);
+        rows.push_back(summary.event_rate_per_deg2_per_year);
+        rows.push_back(summary.sum_gamma);
+        rows.push_back(summary.sum_tE_gamma);
+    }
+    return rows;
+}
+
 std::vector<double> SimulationResult::flattened_rows() const
 {
     std::vector<double> rows;

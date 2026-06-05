@@ -16,6 +16,55 @@ CliEventReporter::CliEventReporter(bool enabled, int verbosity, int binary)
 {
 }
 
+RateSummary make_rate_summary(const MonteCarloStats &stats,
+                              long n_simu,
+                              double l,
+                              double b,
+                              double total_source_count,
+                              double all_source_density,
+                              double tauall)
+{
+    RateSummary summary;
+    summary.l = l;
+    summary.b = b;
+    summary.n_simu = n_simu;
+    summary.n_generated = stats.Ngen;
+    summary.n_like = stats.Nlike;
+    summary.source_density_arcmin2 = total_source_count;
+    summary.source_density_raw_arcmin2 = all_source_density * STR2MIN2 * 1e+6;
+    summary.tau = tauall;
+    summary.sum_gamma = stats.SumGamma;
+    summary.sum_tE_gamma = stats.SumtE;
+
+    if (stats.SumGamma > 0.0) {
+        double cumulative = 0.0;
+        for (int ilogtE = 0; ilogtE < stats.NbintE; ilogtE++) {
+            const double dP = (ilogtE == 0)
+                                  ? 0.5 * stats.NlogtEs[ilogtE] / stats.SumGamma
+                                  : 0.5 * (stats.NlogtEs[ilogtE - 1] + stats.NlogtEs[ilogtE]) /
+                                        stats.SumGamma;
+            cumulative += dP;
+            if (cumulative > 0.5) {
+                const double p2 = cumulative;
+                const double p1 = cumulative - dP;
+                const double dlogtE = (stats.logtEmax - stats.logtEmin) / stats.NbintE;
+                const double medlogtE = stats.logtEmin + (ilogtE - 0.5) * dlogtE +
+                                        (0.5 - p1) / (p2 - p1) * dlogtE;
+                summary.median_tE_days = pow(10.0, medlogtE);
+                break;
+            }
+        }
+        summary.mean_tE_days = stats.SumtE / stats.SumGamma;
+        if (summary.mean_tE_days > 0.0) {
+            summary.event_rate_per_star_per_year =
+                2 * tauall / M_PI / summary.mean_tE_days * 365.25;
+            summary.event_rate_per_deg2_per_year =
+                summary.event_rate_per_star_per_year * total_source_count * 3600;
+        }
+    }
+    return summary;
+}
+
 void CliEventReporter::print_monte_carlo_header() const
 {
     if (!enabled_) return;
@@ -106,27 +155,15 @@ void CliEventReporter::print_summary(const MonteCarloStats &stats,
     printf("# Source number density= %.5e ( %.5e ) arcmin^-2\n",
            total_source_count, all_source_density * STR2MIN2 * 1e+6);
 
-    double medtE = 0;
-    double CumuNlogtE = 0;
-    for (int ilogtE = 0; ilogtE < stats.NbintE; ilogtE++) {
-        double dP = (ilogtE == 0) ? 0.5 * stats.NlogtEs[ilogtE] / stats.SumGamma
-                  : 0.5 * (stats.NlogtEs[ilogtE-1] + stats.NlogtEs[ilogtE]) / stats.SumGamma;
-        CumuNlogtE += dP;
-        if (CumuNlogtE > 0.5) {
-            double p2 = CumuNlogtE, p1 = CumuNlogtE - dP;
-            double dlogtE = (stats.logtEmax - stats.logtEmin) / stats.NbintE;
-            double medlogtE = stats.logtEmin + (ilogtE - 0.5)*dlogtE
-                            + (0.5 - p1)/(p2 - p1)*dlogtE;
-            medtE = pow(10.0, medlogtE);
-            break;
-        }
-    }
-    double avetE       = stats.SumtE / stats.SumGamma;
-    double everate     = 2 * tauall / M_PI / avetE * 365.25;
-    double everatedeg2 = everate * total_source_count * 3600;
+    const auto summary = make_rate_summary(stats, n_simu, 0.0, 0.0,
+                                           total_source_count,
+                                           all_source_density,
+                                           tauall);
     printf("# avetE= %6.3f days, medtE= %6.3f days, tau= %.6e ,"
            " event_rate= %.6e /star/yr or %.6e /deg^2/yr\n",
-           avetE, medtE, tauall, everate, everatedeg2);
+           summary.mean_tE_days, summary.median_tE_days, tauall,
+           summary.event_rate_per_star_per_year,
+           summary.event_rate_per_deg2_per_year);
 
     if (binary_ == 1)
         printf("# (n_single n_binwide n_binclose)/n_all="

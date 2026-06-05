@@ -40,6 +40,7 @@ public:
         double nallS  = 0.0;
         double Nsall  = 0.0;
         double tauall = 0.0;
+        RateSummary *rate_summary = nullptr;
 
         // Reference distance for musRCG correction
         double Dmean = 0.0;

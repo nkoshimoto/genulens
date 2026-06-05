@@ -57,6 +57,91 @@ def test_python_ruc_alias():
     assert result.to_numpy().shape[0] == 3
 
 
+def test_python_rate_summary_api():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=50, seed=1234)
+    cfg.source.mode = "classic"
+    cfg.source.i_min = 14.0
+    cfg.source.i_max = 21.0
+    cfg.source.ai_rc = 1.0
+    cfg.source.dm_rc = 14.5
+    cfg.observation.IL_err = 0.0
+
+    summary = genulens.compute_rate_summary(cfg)
+    assert np.isclose(summary.l, cfg.l)
+    assert np.isclose(summary.b, cfg.b)
+    assert summary.tau > 0.0
+    assert summary.source_density_arcmin2 > 0.0
+    assert summary.mean_tE_days > 0.0
+    assert summary.event_rate_per_star_per_year > 0.0
+    assert summary.event_rate_per_deg2_per_year > 0.0
+
+    rate_map = genulens.compute_rate_map([-1.0, 1.0], [-4.0], cfg)
+    arr = rate_map.to_numpy()
+    assert arr.shape == (2, len(rate_map.columns))
+    assert "tau" in rate_map.columns
+    assert "event_rate_per_deg2_per_year" in rate_map.columns
+    assert np.all(arr[:, rate_map.columns.index("tau")] > 0.0)
+
+    cfg_low_extinction = genulens.Config(l=-1.0, b=-4.0, n_simu=50, seed=1234)
+    cfg_low_extinction.source.mode = "classic"
+    cfg_low_extinction.source.i_min = 14.0
+    cfg_low_extinction.source.i_max = 21.0
+    cfg_low_extinction.source.ai_rc = 0.8
+    cfg_low_extinction.source.dm_rc = 14.5
+    cfg_low_extinction.observation.IL_err = 0.0
+
+    cfg_high_extinction = genulens.Config(l=1.0, b=-4.0, n_simu=50, seed=1234)
+    cfg_high_extinction.source.mode = "classic"
+    cfg_high_extinction.source.i_min = 14.0
+    cfg_high_extinction.source.i_max = 21.0
+    cfg_high_extinction.source.ai_rc = 3.0
+    cfg_high_extinction.source.dm_rc = 14.5
+    cfg_high_extinction.observation.IL_err = 0.0
+
+    rate_summaries = genulens.compute_rate_summaries([cfg_low_extinction, cfg_high_extinction])
+    summaries = rate_summaries.to_numpy()
+    assert summaries.shape == (2, len(rate_summaries.columns))
+    assert np.allclose(summaries[:, rate_summaries.columns.index("l")], [-1.0, 1.0])
+    assert np.all(summaries[:, rate_summaries.columns.index("event_rate_per_deg2_per_year")] > 0.0)
+
+
+def test_python_genstars_extinction_map_api():
+    extinction_map = genulens.GenstarsExtinctionMap.load_default(extinction_map=1)
+    sample = extinction_map.lookup(l=1.0, b=-3.9, extinction_map=1)
+    assert extinction_map.row_count > 0
+    assert sample.ejk > 0.0
+
+    reference = genulens.genstars_reference_extinction(
+        l=1.0,
+        b=-3.9,
+        ejk=sample.ejk,
+        extinction_law=1,
+    )
+    assert reference.Imag > 0.0
+    assert reference.Kmag > 0.0
+
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=50, seed=1234)
+    cfg.use_classic_source(i_min=14.0, i_max=21.0)
+    cfg.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
+    cfg.observation.IL_err = 0.0
+
+    summary = genulens.compute_rate_summary(cfg)
+    assert summary.source_density_arcmin2 > 0.0
+    assert summary.event_rate_per_deg2_per_year > 0.0
+
+    cfg_stronger_extinction = genulens.Config(l=1.0, b=-3.9, n_simu=50, seed=1234)
+    cfg_stronger_extinction.use_classic_source(i_min=14.0, i_max=21.0)
+    cfg_stronger_extinction.use_genstars_extinction_map(
+        extinction_law=1,
+        extinction_map=1,
+        ejk_scale=1.5,
+    )
+    cfg_stronger_extinction.observation.IL_err = 0.0
+
+    stronger_summary = genulens.compute_rate_summary(cfg_stronger_extinction)
+    assert stronger_summary.source_density_arcmin2 < summary.source_density_arcmin2
+
+
 def test_python_isochrone_grid_lookup():
     grid = genulens.IsochroneGrid.load_default_roman()
     assert grid.row_count == 41039
@@ -192,6 +277,26 @@ def test_python_simulation_forward_source_h_band_manual_extinction():
     result = genulens.simulate(cfg)
     assert result.to_numpy().shape[0] == 5
     assert "M_Hmag_2mass_S" in result.columns
+
+
+def test_python_h_band_rate_summary_uses_isochrone_source_selection():
+    cfg = genulens.Config(l=1.0, b=-3.9, n_simu=20, seed=1234)
+    cfg.use_isochrone_source(
+        i_min=11.0,
+        i_max=18.0,
+        band="Hmag_2mass",
+        photometry="prime",
+        min_mass=0.09,
+        max_mass=2.0,
+    )
+    cfg.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
+    cfg.observation.IL_err = 0.0
+
+    summary = genulens.compute_rate_summary(cfg)
+    assert summary.source_density_arcmin2 > 0.0
+    assert summary.tau > 0.0
+    assert summary.event_rate_per_star_per_year > 0.0
+    assert summary.event_rate_per_deg2_per_year > 0.0
 
 
 def test_python_simulation_forward_source_imag_auto_extinction_changes_source_prior():

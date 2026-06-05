@@ -57,6 +57,7 @@ public:
     double dD() const { return dD_; }
     double total_source_count() const { return nallS_; }
     bool uses_forward_source_selection() const { return uses_forward_source_selection_; }
+    double selected_source_optical_depth() const;
 
     const double *D_data() const { return D_.data(); }
     const double *cumu_rho_all_S_data() const { return cumu_rho_all_S_.data(); }

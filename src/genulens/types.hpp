@@ -61,8 +61,35 @@ struct Event {
     std::vector<double> source_absolute_magnitudes;
 };
 
+struct RateSummary {
+    double l = 0.0;
+    double b = 0.0;
+    long n_simu = 0;
+    long n_generated = 0;
+    int n_like = 0;
+    double source_density_arcmin2 = 0.0;
+    double source_density_raw_arcmin2 = 0.0;
+    double tau = 0.0;
+    double mean_tE_days = 0.0;
+    double median_tE_days = 0.0;
+    double event_rate_per_star_per_year = 0.0;
+    double event_rate_per_deg2_per_year = 0.0;
+    double sum_gamma = 0.0;
+    double sum_tE_gamma = 0.0;
+};
+
+struct RateMapResult {
+    std::vector<RateSummary> summaries;
+
+    std::vector<std::string> columns() const;
+    std::vector<double> flattened_rows() const;
+    std::size_t row_count() const { return summaries.size(); }
+    std::size_t column_count() const { return columns().size(); }
+};
+
 struct SimulationResult {
     std::vector<Event> events;
+    RateSummary summary;
     bool include_source_properties = false;
     int verbosity = 0;
     std::vector<std::string> source_property_bands;

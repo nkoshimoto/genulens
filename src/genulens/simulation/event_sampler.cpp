@@ -908,6 +908,10 @@ int EventSampler::run(RunContext &ctx,
     }
 
     // --- Summary ---
+    if (cfg.rate_summary != nullptr) {
+        *cfg.rate_summary = make_rate_summary(stats, NSIMU, cfg.l, cfg.b,
+                                              cfg.Nsall, cfg.nallS, cfg.tauall);
+    }
     reporter.print_summary(stats, NSIMU, CALCPRIORpiE, CALCPRIORthE,
                            cfg.Nsall, cfg.nallS, cfg.tauall);
 

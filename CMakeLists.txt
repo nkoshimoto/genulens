@@ -63,6 +63,7 @@ add_library(genulens_core
     src/genulens/model/source_population_prior.cpp
     src/genulens/model/stellar_population_model.cpp
     src/genulens/model/extinction.cpp
+    src/genulens/model/extinction_map.cpp
     src/genulens/simulation/initialize.cpp
     src/genulens/simulation/sampler.cpp
     src/genulens/simulation/los_density_grid.cpp

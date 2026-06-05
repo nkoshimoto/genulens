@@ -30,7 +30,11 @@ struct SourceSelectionConfig {
     double ak_rc = 0.0;
     std::string extinction_mode = "manual";
     double ejk_rc = 0.0;
+    double ejk_scale = 1.0;
+    double ejk_offset = 0.0;
     int extinction_law = 1;
+    int extinction_map = 1;
+    std::string extinction_map_path;
     double dust_scale_height_pc = 164.0;
 
     double min_initial_mass_msun = 0.09;
