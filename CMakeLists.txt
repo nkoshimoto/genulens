@@ -135,4 +135,9 @@ else()
 endif()
 
 install(TARGETS genulens genulens_core)
-install(DIRECTORY input_files DESTINATION share/genulens)
+install(DIRECTORY input_files DESTINATION share/genulens
+    PATTERN "raw" EXCLUDE
+    PATTERN "*.txz" EXCLUDE
+    PATTERN "*.tar" EXCLUDE
+    PATTERN "*.tar.gz" EXCLUDE
+    PATTERN "*.zip" EXCLUDE)
