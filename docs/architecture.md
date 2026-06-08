@@ -15,7 +15,8 @@ The refactor is organized around four goals:
    runtime state, and event generation.
 4. Eventually share the same model objects with the `pre_gapmoe` helper tools.
 
-The first public milestone focuses on goals 1 and 2.
+The v2 public branch focuses on goals 1 and 2 while exposing the source-forward
+and event-rate APIs needed for physically motivated prior construction.
 
 ## Current simulation flow
 
@@ -102,8 +103,8 @@ The following parts are intentionally not fully cleaned up yet:
 - `raw_cli_args` still exists for legacy options.
 - `pre_gapmoe` tools are still command-line stdout tools, not Python direct APIs.
 
-These are not blockers for the first Python API milestone. They should be
-handled incrementally to avoid changing too much scientific logic at once.
+These are not blockers for the v2 public branch. They should be handled
+incrementally to avoid changing too much scientific logic at once.
 
 ## Recommended next steps
 

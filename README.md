@@ -258,6 +258,14 @@ Project documentation is under [`docs/`](docs/):
 - [Python API](docs/python_api.md): Python configuration, result tables, custom
   likelihoods, source modes, extinction, isochrone systematics, and rate
   summaries.
+- [Source-forward mode](docs/source_forward.md): classic source selection,
+  isochrone source sampling, source-property columns, and magnitude cuts.
+- [Extinction](docs/extinction.md): manual extinction, genstars-style laws, and
+  bundled extinction-map support.
+- [Optical-depth and event-rate maps](docs/rate_maps.md): rate-summary APIs and
+  map workflows.
+- [Isochrone systematics](docs/isochrone_systematics.md): PARSEC/MIST tables and
+  alpha-enhancement systematics.
 - [Architecture](docs/architecture.md): current object boundaries and
   collaborator-facing design notes.
 - [pre_gapmoe tools](docs/pre_gapmoe.md): helper-tool build and usage notes.
