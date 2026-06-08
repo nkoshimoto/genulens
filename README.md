@@ -41,6 +41,13 @@ If GSL is installed in a non-standard prefix:
 GSL_ROOT=/path/to/gsl make
 ```
 
+The same GSL shared libraries must be visible at runtime. On Linux with a
+non-standard GSL prefix, set for example:
+
+```bash
+export LD_LIBRARY_PATH=/path/to/gsl/lib:$LD_LIBRARY_PATH
+```
+
 Build the Python extension:
 
 ```bash

@@ -118,19 +118,20 @@ set_tests_properties(unit_core PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOU
 add_test(NAME smoke_cli COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke/smoke_cli.sh")
 add_test(NAME regression_cli COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke/regression_cli.sh")
 
-find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
-find_package(pybind11 CONFIG QUIET)
-if(GENULENS_BUILD_PYTHON AND Python3_FOUND AND pybind11_FOUND)
+if(GENULENS_BUILD_PYTHON)
+    find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
+    find_package(pybind11 CONFIG REQUIRED)
     pybind11_add_module(genulens_python python/genulens_pybind.cpp)
     target_link_libraries(genulens_python PRIVATE genulens_core)
     set_target_properties(genulens_python PROPERTIES OUTPUT_NAME genulens)
+    install(TARGETS genulens_python LIBRARY DESTINATION .)
     add_test(NAME python_binding
         COMMAND "${Python3_EXECUTABLE}" -m pytest "${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke/test_python.py")
     set_tests_properties(python_binding PROPERTIES
         ENVIRONMENT "PYTHONPATH=$<TARGET_FILE_DIR:genulens_python>"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 else()
-    message(STATUS "Python extension disabled or pybind11/Python development files unavailable")
+    message(STATUS "Python extension disabled")
 endif()
 
 install(TARGETS genulens genulens_core)

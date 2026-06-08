@@ -15,6 +15,8 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
+#include <memory>
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(genulens, m)
@@ -65,9 +67,15 @@ PYBIND11_MODULE(genulens, m)
     auto run_simulation = [](const genulens::GenulensConfig &cfg, py::object likelihood) {
         genulens::LikelihoodFunction fn;
         if (!likelihood.is_none()) {
-            fn = [likelihood](const genulens::Event &event) {
+            auto likelihood_ptr = std::shared_ptr<py::object>(
+                new py::object(std::move(likelihood)),
+                [](py::object *obj) {
+                    py::gil_scoped_acquire gil;
+                    delete obj;
+                });
+            fn = [likelihood_ptr](const genulens::Event &event) {
                 py::gil_scoped_acquire gil;
-                return likelihood(event).cast<double>();
+                return (*likelihood_ptr)(event).cast<double>();
             };
         }
         py::gil_scoped_release release;

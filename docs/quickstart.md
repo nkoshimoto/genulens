@@ -27,6 +27,13 @@ GSL_ROOT=/path/to/gsl make
 GSL_ROOT=/path/to/gsl make python
 ```
 
+The same GSL shared libraries must be visible at runtime. On Linux with a
+non-standard GSL prefix, set for example:
+
+```bash
+export LD_LIBRARY_PATH=/path/to/gsl/lib:$LD_LIBRARY_PATH
+```
+
 From a source checkout, import the extension with `PYTHONPATH=build`:
 
 ```bash
