@@ -2,155 +2,124 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4784948.svg)](https://doi.org/10.5281/zenodo.4784948)
 [![arXiv](http://img.shields.io/badge/arXiv-2104.03306-orange.svg?style=flat)](https://arxiv.org/abs/2104.03306)
 
+# genulens v2
 
+`genulens` ("generate microlensing") simulates microlensing events with the
+Galactic model of [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract).
+The model is optimized for bulge sightlines and is most appropriate around
+`|l| < 10 deg` and `|b| < 7 deg`.
 
-# genulens
-`genulens`, which stands for "generate microlensing", is a tool to simulate microlensing events using Monte Carlo simulation of the Galactic model developed by [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract).
-The Galactic model is optimized for the bulge direction, and it is best to be used for analyzing microlensing events in |l| < 10 deg. and |b| < 7 deg.  
-The code itself has been published as [Koshimoto & Ranc (2021), Zenodo.4784948](http://doi.org/10.5281/zenodo.4784948).
-Please cite the papers if you find this code useful in your research.
+Version 2 keeps the command-line simulator but refactors the C++ core into
+shared model and simulation objects, adds a direct Python API, and exposes new
+source-population and rate-map workflows.
 
-A simulator for stars, [`genstars`](https://github.com/nkoshimoto/genstars), is also available.
+Please cite Koshimoto, Baba & Bennett (2021) and
+[Koshimoto & Ranc (2021), Zenodo.4784948](http://doi.org/10.5281/zenodo.4784948)
+if you use this code in your research. A separate star simulator,
+[`genstars`](https://github.com/nkoshimoto/genstars), is also available.
 
-The copyright of an included supplementary code, "option.cpp", belongs to Ian A. Bond and Takahiro Sumi.
+The copyright of the included supplementary code `option.cpp` belongs to
+Ian A. Bond and Takahiro Sumi.
 
+## What Is New
 
-## Major updates
-### v1.2 and star generator (June-July 2022)
-- A much more efficient simulation is available thanks to a newly introduced importance sampling feature that only simulates events with parameters that are close to the input parameters. This allows most calculations to be performed 5 to 15 times faster than before.  
-- Although [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.adsabs.harvard.edu/abs/2021ApJ...917...78K/abstract) did not developed their Galactic model for the Galactic Central region (|b| < 1 deg.), the nuclear stellar disk (NSD) component was added to `genulens` due to a demand, which affects |b| < ~0.5 deg. Although it was not fitted to the data for the Galactic Central region, we have confirmed that there is no major discrepancy with the star count data by the GALACTICNUCLEUS survey (Koshimoto et al., in preparation).  
-- Accordingly, the position of the Galactic Center in the model was changed from (l, b) = (0, 0) to (l, b) = (-0.056, -0.046) deg., which is the position of Sgr A*.  
-- The directory hierarchy was also changed. The former nkoshimoto/genulens/genulens was deleted and its contents were brought under nkoshimoto/genulens/. Therefore, if you have been using a wrapper program that assumes the previous directory structure, please change it.
-- I have made a significant revision on the [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf). Now it explains many options available in `genulens`.  
-- A jupyter-notebook, [genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb), is added to the repository to introduce practical analysis of some events.  
-- `genstars`, a version to simulate stars rather than microlensing events, is now available [here](https://github.com/nkoshimoto/genstars)
-
-
-### v1.1 (June 2021)
-On June 3 2021, we released version 1.1 using a random number generator from GSL (GNU Scientific Library).
-This is because we realized that the random number generator from the C++ standard library, which was used in v1.0, does not have very good randomness.
-The statistics (the median, 1 sigma, 2 sigma values) were probably OK, but the distributions were jagged compared to the GSL one with a same number of simulation.
-Note that this version requires that you have GSL in your environment.
-
-### v1.0 (May 2021)
-First release on May 24 2021.
-
-## Before installation
-Please ensure that GSL (GNU Scientific Library) is installed in your environment.
-If you do not have GSL, please download it from the link provided on the [GSL page](https://www.gnu.org/software/gsl/), and install it following README or INSTALL in the downloaded directory.
-
-You can check where you have GSL by
-```
-gsl-config --libs
-```
-If the command gsl-config does not work in the terminal, it probably means that the GSL lib is not installed, or unknown to the OS.
-
+- Refactored C++ simulation core with reusable objects under `src/genulens/`.
+- Direct Python bindings that call the C++ core without running `./genulens` as
+  a subprocess or parsing CLI stdout.
+- Typed Python configuration through `genulens.Config`.
+- NumPy-compatible simulation results with CLI-style event labels.
+- Python custom likelihood functions evaluated inside the Monte Carlo event
+  loop.
+- Source-forward mode that attaches isochrone-based source properties such as
+  source mass, radius, effective temperature, surface gravity, angular radius,
+  metallicity metadata, and absolute magnitudes.
+- PARSEC and MIST source-property tables, including MIST alpha-enhanced
+  systematics experiments.
+- Bundled genstars-style `E(J-Ks)` extinction map support with adjustable
+  extinction scale and offset.
+- Direct optical-depth and event-rate summary APIs for single sightlines and
+  maps.
+- Refactored `pre_gapmoe` helper tools linked against the same Galactic model
+  core.
 
 ## Installation
-If you have `git`, you can download the package by
-``` 
+
+`genulens` requires a C++ compiler, CMake, and GSL.
+
+Check that GSL is visible:
+
+```bash
+gsl-config --libs
+```
+
+Clone and build the command-line program:
+
+```bash
 git clone https://github.com/nkoshimoto/genulens.git
+cd genulens
+make
+./genulens
 ```
-This is recommended because that way you can track any future updates with `git`.
 
-If you do not have `git`, you can simply download the package by clicking the green button "Code" on the upper right in [the repository page](https://github.com/nkoshimoto/genulens), selecting "Download ZIP", and then unzipping it.
+If GSL is installed in a non-standard prefix:
 
-You need a C++ compiler to `make` using Makefile to compile the program genulens.cpp in the downloaded directory.  
-The default compiler is `clang++`, which is available in macOS.  
-Please replace the first uncommented line in Makefile with `g++` or any other C++ compiler if you prefer.  
-If you are not sure if you have `clang++` or `g++`, you can check it by
-```
-which clang++ (or g++)
-```
-If your terminal returns a full path for it, then you have the compiler.
-
-The Makefile now delegates to CMake and detects GSL automatically where possible.
-If GSL is installed in a non-standard prefix, set `GSL_ROOT` before building:
-
-```
+```bash
 GSL_ROOT=/path/to/gsl make
 ```
 
-You can compile the program by
-```
-make
-```
+Additional build targets:
 
-If
-```
-./genulens
-```
-returns output lines that starts from
-> \#   Output of "./genulens "
-
-and ends with
-> \# Nlike/N= 100000 / 100000      wtlike/wtlike_tE= 112448 / 112448 = 1.000000
-
-you are ready to use `genulens`. Note that the exact numbers of the end line might depend on your environment because the calculation uses random numbers.
-Please make sure that the input\_files/ directory is in the same directory as where you run `genulens`.
-
-Additional build targets are available:
-
-```
-make pre_gapmoe
+```bash
 make python
+make pre_gapmoe
 make test
 make clean
 ```
 
-The Python extension can also be built through `pip install .` in environments
-with scikit-build-core and pybind11.
+For Python use from a source checkout:
 
-## Documentation
+```bash
+make python
+PYTHONPATH=build python -c "import genulens; print(genulens.__file__)"
+```
 
-Project documentation is organized under [`docs/`](docs/):
+The Python extension can also be built with:
 
-- [Python API](docs/python_api.md): direct Python usage, typed configuration,
-  ndarray conversion, and custom likelihoods.
-- [Architecture notes](docs/architecture.md): current object boundaries and
-  remaining refactor targets for collaborators.
-- [pre_gapmoe helper tools](docs/pre_gapmoe.md): current status and command-line
-  usage of the preprocessing helpers.
+```bash
+pip install .
+```
 
-The public Python notebook is
-[`examples/python_binding.ipynb`](examples/python_binding.ipynb).
+Editable installs are supported in environments with `scikit-build-core` and
+`pybind11`:
 
-Additional examples:
+```bash
+pip install -e .
+```
 
-- [`examples/source_isochrone_systematics.ipynb`](examples/source_isochrone_systematics.ipynb):
-  compares PARSEC and MIST source-forward predictions for
-  alpha-enhancement systematics in source populations, using a configurable
-  PRIME `Imag` source range, source-property plots, and an HR-diagram scatter.
-  The companion `examples/source_isochrone_systematics.py` runs a fast
-  annotation-only comparison by default; pass `--use-selection` to fold the
-  band cut into the source-distance prior. Source-selection grid construction
-  reports progress and reuses selection-probability results within the same
-  Python process.
+## Quick Start
 
-## Python API
-
-The refactored Python API calls the shared C++ simulation core directly. It does
-not run `./genulens` as a subprocess and does not parse CLI stdout.
-
-Basic example:
+Run a plain simulation from Python:
 
 ```python
+import pandas as pd
 import genulens
 
 cfg = genulens.Config(l=1.0, b=-3.9, n_simu=100_000, seed=42)
 result = genulens.simulate(cfg)
-arr = result.to_numpy()
+df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 ```
 
-`result.columns` gives the column order of the returned NumPy array. The default
-Python result uses the `VERBOSITY=3` style event layout:
-`wtj`, `M_L`, `D_L`, `D_S`, `t_E`, `theta_E`, `pi_E`, `pi_EN`, `pi_EE`,
-`mu_rel`, `mu_rel_N`, `mu_rel_E`, `mu_Sl`, `mu_Sb`, `I_L`, `K_L`, `iS`, `iL`,
-and `fREM`. The Python result includes `mu_rel_N` and `mu_rel_E` directly, so
-callers do not need to reconstruct them from parallax components.
+The default Python result uses a `VERBOSITY=3`-style event layout:
 
-Observation constraints, source selection, model parameters, and sampling
-options are exposed as typed nested config objects:
+```text
+wtj, M_L, D_L, D_S, t_E, theta_E, pi_E, pi_EN, pi_EE,
+mu_rel, mu_rel_N, mu_rel_E, mu_Sl, mu_Sb, I_L, K_L, iS, iL, fREM
+```
+
+Unlike the historical CLI output, the Python table includes `mu_rel_N` and
+`mu_rel_E` directly.
+
+Configure observation constraints and model options through typed objects:
 
 ```python
 cfg.observation.tE_obs = 54.5
@@ -159,168 +128,199 @@ cfg.sampling.small_gamma = 1
 cfg.model.imf.alpha2 = -1.35
 ```
 
-Source selection has two Python modes. Classic mode keeps the historical LF/CMF
-selection, while isochrone mode appends source stellar properties and can fold a
-band cut into the source-distance prior:
-
-```python
-cfg.source.mode = "isochrone"
-cfg.source.photometry = "prime"
-cfg.source.band = "Imag"
-cfg.source.min_magnitude = 12.0
-cfg.source.max_magnitude = 21.0
-```
-
-This adds source age/metallicity metadata, mass, radius, `Teff`, `logg`,
-angular radius, and absolute magnitudes from the shared isochrone lookup.
-
-Python callables can be passed as custom likelihoods and are evaluated inside the
-Monte Carlo event loop:
+Pass a Python likelihood function:
 
 ```python
 def likelihood(event):
-    return 1.0 if event.t_E > 10.0 else 0.0
+    return 1.0 if 10.0 < event.t_E < 100.0 else 0.0
 
 result = genulens.simulate(cfg, likelihood=likelihood)
 ```
 
-See [docs/python_api.md](docs/python_api.md) and
-[`examples/python_binding.ipynb`](examples/python_binding.ipynb) for a complete
-walkthrough.
+## Source-Forward Mode
 
+Classic source mode keeps the historical luminosity-function source selection:
 
-## Usage
-See [Usage.pdf](https://github.com/nkoshimoto/genulens/blob/main/Usage.pdf).  
-[genulens_samples.ipynb](https://github.com/nkoshimoto/genulens/blob/main/genulens_samples.ipynb) is also available and you can follow some practical event analysis using `genulens`.  
-
-
-## GAPMOE preprocessing helpers
-
-This repository also includes a small set of standalone preprocessing tools in
-`pre_gapmoe/`.  They are C++ rewrites of the older GAPMOE helper programs and
-share the Galactic model implementation used by `genulens`.  The tools are
-intended for generating tabulated inputs such as line-of-sight density profiles,
-present-day mass functions, and relative proper-motion distributions.
-
-### Building the helper tools
-
-The helper tools require GSL and a C++11 compiler.  If `gsl-config` is available
-on your `PATH`, build them with
-
-```
-make -C pre_gapmoe
+```python
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=20_000, seed=42)
+cfg.use_classic_source(i_min=14.0, i_max=21.0)
 ```
 
-If GSL is installed in a non-standard location, point `GSL_CONFIG` to the
-`gsl-config` binary for that installation:
+Isochrone source mode samples a concrete source star and appends source
+properties to each simulated event:
 
-```
-make -C pre_gapmoe GSL_CONFIG=/path/to/gsl/bin/gsl-config
-```
+```python
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=20_000, seed=42)
+cfg.use_isochrone_source(
+    i_min=14.0,
+    i_max=21.0,
+    band="Imag",
+    photometry="prime",
+    apparent=True,
+    min_mass=0.09,
+    max_mass=2.0,
+)
+cfg.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
 
-The build creates three executables:
-
-```
-pre_gapmoe/calc_rho_profile
-pre_gapmoe/calc_mass_dist
-pre_gapmoe/calc_murel_dist
-```
-
-Each program supports `--help`:
-
-```
-./pre_gapmoe/calc_rho_profile --help
-./pre_gapmoe/calc_mass_dist --help
-./pre_gapmoe/calc_murel_dist --help
+result = genulens.simulate(cfg)
+df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 ```
 
-### `calc_rho_profile`
+Isochrone mode appends columns such as:
 
-`calc_rho_profile` outputs number-density profiles along a line of sight.
-It can also apply source-selection weights using extinction, reddening, red-clump
-distance modulus, and apparent source magnitude/color cuts.
-
-Example:
-
-```
-./pre_gapmoe/calc_rho_profile \
-  l 1.0 b -3.9 Dmin 100 Dmax 16000 Dstep 100 \
-  AIrc 1.5 EVIrc 1.2 Isrange 14 21
+```text
+logage_S, MH_S, M_S_ini, M_S, R_S, teff_S, logg_S,
+theta_S, M_Vmag_S, M_Imag_S, M_Hmag_2mass_S, ...
 ```
 
-Important source-selection options include `AIrc` or `IsAIrc`, `EVIrc`, `DMrc`,
-`Isrange`, `Is`, `Iserr`, `VIsrange`, `VIs`, `VIserr`, `hdust`, and `gammaDs`.
-When source selection is active, the output appends `rhoD_S[0..10]` and
-`rhoD_S_tot` columns.
+Apparent-magnitude source cuts require extinction. You can provide manual band
+extinctions or use the genstars-style extinction law/map:
 
-This program is deterministic; there is no Monte Carlo histogram precision to
-converge.  The line-of-sight resolution is controlled by `Dstep`, and `Dmin`
-defaults to `Dstep`.
+```python
+cfg.use_genstars_extinction(dm_rc=14.5, ejk_rc=1.0)
 
-### `calc_mass_dist`
-
-`calc_mass_dist` outputs the present-day mass function for each Galactic
-component.
-
-Example:
-
-```
-./pre_gapmoe/calc_mass_dist Nmass 1000
+cfg.use_genstars_extinction_map(
+    extinction_law=1,
+    extinction_map=1,
+    ejk_scale=1.0,
+    ejk_offset=0.0,
+)
 ```
 
-The output columns are `logM[Msun]`, `dN/dlogM[0..10]`, and `dN/dlogM_tot`.
-This program is also deterministic.  The mass-grid resolution is controlled by
-`Nmass`, the number of log-mass intervals used for the IMF table.
+## Isochrone Systematics
 
-### `calc_murel_dist`
+Source-property predictions can use PARSEC or MIST normalized isochrone tables:
 
-`calc_murel_dist` outputs the relative proper-motion distribution either on a
-`Dl x Ds` grid or for a single `(Dl, Ds)` pair.  It always reports both the
-proper-motion amplitude `murel` and the direction angle `phi`.
-
-By default, automatic precision control is enabled:
-
-```
-AUTOERR 1
-ERR_TARGET 0.03
-ERR_CHECK 100000
-Nsimu 10000000
+```python
+cfg.source.mode = "isochrone"
+cfg.source.photometry = "roman"
+cfg.source.isochrone_family = "mist"
+cfg.source.isochrone_abundance = "solar_scaled"
 ```
 
-`Nsimu` is treated as the maximum number of accepted Monte Carlo draws.  The run
-stops early only when both the `murel` and `phi` histograms satisfy the requested
-relative Poisson precision.  Precision diagnostics are printed in comment lines,
-including `mu_overflow_frac`, which reports the fraction of draws outside the
-configured `murel` histogram range.
+For alpha-enhancement systematics, use MIST alpha-enhanced tables or a mixture:
 
-Examples:
-
-```
-./pre_gapmoe/calc_murel_dist
-
-./pre_gapmoe/calc_murel_dist GRID 0 Dl 4000 Ds 8000
-
-./pre_gapmoe/calc_murel_dist \
-  AUTOERR 1 ERR_TARGET 0.03 ERR_CHECK 100000 \
-  mumax 1000 dmu 0.5
+```python
+cfg.source.isochrone_model = "alpha_mixture"
+cfg.source.secondary_isochrone_family = "mist"
+cfg.source.secondary_isochrone_abundance = "alpha_enhanced"
+cfg.source.secondary_isochrone_alpha_fe = 0.4
+cfg.source.alpha_enhanced_fraction = 0.5
 ```
 
-The default `mumax` is `300 mas/yr`, which is sufficient for many sight lines.
-Very nearby lens bins can have larger relative proper motions; in those cases,
-increase `mumax` until `mu_overflow_frac` is acceptably small.
+PARSEC alpha-enhanced tables are not available in the bundled table set; trying
+to select PARSEC alpha-enhanced models raises an explicit error. Treat the alpha
+mixture as a systematics knob, not as a full chemical-evolution model.
 
-In grid mode the main output columns are
+## Optical Depth and Event-Rate Summaries
 
+The Python API can return optical-depth and event-rate summaries directly from
+the C++ simulation state:
+
+```python
+cfg = genulens.Config(l=1.0, b=-3.9, n_simu=10_000, seed=42)
+cfg.use_classic_source(i_min=14.0, i_max=21.0)
+cfg.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
+cfg.observation.IL_err = 0.0
+
+summary = genulens.compute_rate_summary(cfg)
+print(summary.tau)
+print(summary.event_rate_per_star_per_year)
+print(summary.event_rate_per_deg2_per_year)
 ```
-DS[pc]  DL[pc]  murel[mas/yr]  phi[rad]  dP/dmurel  dP/dphi
+
+For maps, evaluate one config per sightline:
+
+```python
+configs = []
+for b in b_values:
+    for l in l_values:
+        cfg_lb = genulens.Config(l=float(l), b=float(b), n_simu=10_000, seed=42)
+        cfg_lb.use_isochrone_source(
+            i_min=14.0,
+            i_max=21.0,
+            band="Imag",
+            photometry="prime",
+            apparent=True,
+        )
+        cfg_lb.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
+        cfg_lb.observation.IL_err = 0.0
+        configs.append(cfg_lb)
+
+rate_map = genulens.compute_rate_summaries(configs)
+df = pd.DataFrame(rate_map.to_numpy(), columns=rate_map.columns)
 ```
 
-With `AUTOERR 1`, the following diagnostic columns are appended:
+## Documentation and Examples
 
-```
-mu_count  mu_relerr  phi_count  phi_relerr  Ndraw
+Project documentation is under [`docs/`](docs/):
+
+- [Python API](docs/python_api.md): Python configuration, result tables, custom
+  likelihoods, source modes, extinction, isochrone systematics, and rate
+  summaries.
+- [Architecture](docs/architecture.md): current object boundaries and
+  collaborator-facing design notes.
+- [pre_gapmoe tools](docs/pre_gapmoe.md): helper-tool build and usage notes.
+
+Notebook examples:
+
+- [`examples/python_binding.ipynb`](examples/python_binding.ipynb): basic Python
+  simulation, result tables, plotting, and custom likelihoods.
+- [`examples/source_isochrone_systematics.ipynb`](examples/source_isochrone_systematics.ipynb):
+  source-property and HR-diagram comparisons across isochrone assumptions.
+- [`examples/rate_summary_map.ipynb`](examples/rate_summary_map.ipynb): optical
+  depth, event-rate, and extinction maps for I- and H-band source selections.
+
+Script examples:
+
+- [`examples/source_isochrone_systematics.py`](examples/source_isochrone_systematics.py):
+  fast source-property systematics check; pass `--use-selection` to fold the
+  band cut into the source-distance prior.
+
+## Scientific Notes
+
+- The Galactic model was developed for bulge microlensing applications. Be
+  careful outside the recommended `|l| < 10 deg`, `|b| < 7 deg` range.
+- Source-forward mode is intended for physically motivated prior construction
+  and systematics exploration. Its output depends on the isochrone library,
+  abundance assumptions, IMF, source-population prior, extinction law, and
+  extinction map.
+- MIST/PARSEC differences include stellar evolution, atmosphere/bolometric
+  correction choices, passbands, and zero-points. Do not interpret differences
+  between libraries as only alpha-enhancement effects.
+- Apparent source selections require an extinction model. For maps, use
+  line-of-sight dependent extinction such as `use_genstars_extinction_map`
+  rather than reusing one fixed red-clump extinction value everywhere.
+- Building source-forward selected-density grids can take time. The simulator
+  prints progress to `stderr`, and repeated runs in the same Python process can
+  reuse cached selection probabilities.
+
+## Legacy CLI and pre_gapmoe
+
+The historical CLI remains available:
+
+```bash
+./genulens
 ```
 
-`phi` is defined as `atan2(mu_E, mu_N)` after rotating the Galactic
-proper-motion components into north/east coordinates, matching the convention
-used by the legacy `murel_sampling.c` helper.
+The original usage guide is still useful for legacy command-line options:
+
+- [Usage.pdf](Usage.pdf)
+
+The refactored `pre_gapmoe` helpers are built with:
+
+```bash
+make pre_gapmoe
+```
+
+They are written to `build/pre_gapmoe/` when using the CMake build. See
+[docs/pre_gapmoe.md](docs/pre_gapmoe.md) for details.
+
+## Release History
+
+- v2: refactored C++ core, direct Python API, source-forward isochrone support,
+  extinction-map support, custom Python likelihoods, and rate-summary APIs.
+- v1.2, June-July 2022: importance sampling, NSD component, updated Galactic
+  Center position, revised usage documentation, and related `genstars` release.
+- v1.1, June 2021: switched to the GSL random number generator.
+- v1.0, May 2021: initial public release.
