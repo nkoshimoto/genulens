@@ -7,13 +7,9 @@ import genulens
 import pytest
 
 
-LEGACY_DIR = Path(
-    os.environ.get(
-        "GENULENS_SOURCE_COMPAT_DIR",
-        "/moao38_7/nunota/HSC_FFP/GalModel_for_HSCFFP",
-    )
-)
-LEGACY_EXE = LEGACY_DIR / "genulens_source"
+LEGACY_DIR_ENV = os.environ.get("GENULENS_SOURCE_COMPAT_DIR")
+LEGACY_DIR = Path(LEGACY_DIR_ENV) if LEGACY_DIR_ENV else None
+LEGACY_EXE = LEGACY_DIR / "genulens_source" if LEGACY_DIR is not None else None
 
 
 def relative_difference(new, reference):
@@ -43,6 +39,8 @@ def parse_legacy_summary(stdout):
 
 
 def run_legacy_genulens_source(l_deg, b_deg, n_simu=1000):
+    if LEGACY_DIR is None or LEGACY_EXE is None:
+        raise RuntimeError("set GENULENS_SOURCE_COMPAT_DIR to run this compatibility test")
     command = [
         str(LEGACY_EXE),
         "l",
@@ -92,8 +90,11 @@ def run_current_genulens(l_deg, b_deg, n_simu=1000):
 
 
 @pytest.mark.skipif(
-    not LEGACY_EXE.exists(),
-    reason="legacy genulens_source executable is not available",
+    LEGACY_EXE is None or not LEGACY_EXE.exists(),
+    reason=(
+        "legacy genulens_source executable is not available; "
+        "set GENULENS_SOURCE_COMPAT_DIR to enable this optional compatibility test"
+    ),
 )
 def test_genulens_source_rate_compatibility_over_wide_field():
     grid = [

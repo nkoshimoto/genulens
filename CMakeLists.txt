@@ -11,26 +11,30 @@ option(GENULENS_BUILD_PYTHON "Build pybind11 Python extension" ON)
 
 find_package(GSL QUIET)
 if(NOT GSL_FOUND)
+    set(GENULENS_GSL_HINTS)
+    if(DEFINED ENV{GSL_ROOT})
+        list(APPEND GENULENS_GSL_HINTS "$ENV{GSL_ROOT}")
+    endif()
     find_path(GSL_INCLUDE_DIR gsl/gsl_rng.h
         HINTS
-            "$ENV{GSL_ROOT}/include"
-            "/rogue1_8/nunota/local/gsl/include"
-            "/rogue1_8/nunota/local/gulls_env/include"
+            ${GENULENS_GSL_HINTS}
+        PATH_SUFFIXES include
+        PATHS
             "/usr/include"
             "/usr/local/include")
     find_library(GSL_LIBRARY gsl
         HINTS
-            "$ENV{GSL_ROOT}/lib"
-            "/rogue1_8/nunota/local/gsl/lib"
-            "/rogue1_8/nunota/local/gulls_env/lib"
+            ${GENULENS_GSL_HINTS}
+        PATH_SUFFIXES lib lib64
+        PATHS
             "/usr/lib64"
             "/usr/lib"
             "/usr/local/lib")
     find_library(GSLCBLAS_LIBRARY gslcblas
         HINTS
-            "$ENV{GSL_ROOT}/lib"
-            "/rogue1_8/nunota/local/gsl/lib"
-            "/rogue1_8/nunota/local/gulls_env/lib"
+            ${GENULENS_GSL_HINTS}
+        PATH_SUFFIXES lib lib64
+        PATHS
             "/usr/lib64"
             "/usr/lib"
             "/usr/local/lib")
