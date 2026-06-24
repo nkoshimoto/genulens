@@ -50,13 +50,16 @@ MassFunctionGrid BrokenPowerLawIMF::build_grid(int n_bins, double lower_mass_msu
     const double temp23 = std::pow(p.m2, p.alpha3 + 1.0);
     const double temp33 = std::pow(p.m3, p.alpha3 + 1.0);
     const double temp34 = std::pow(p.m3, p.alpha4 + 1.0);
+    const double temp44 = std::pow(p.mbr, p.alpha4 + 1.0);
+    const double temp45 = std::pow(p.mbr, p.alpha5 + 1.0);
 
     for (int i = 0; i <= n_bins; ++i) {
         const double log_mass = i * grid.log_mass_step + grid.log_mass_start;
         grid.log_mass[i] = log_mass;
         grid.mass[i] = std::pow(10.0, log_mass);
         const double mass = grid.mass[i];
-        const double alpha = (mass < p.m3) ? p.alpha4 :
+        const double alpha = (mass < p.mbr) ? p.alpha5 :
+                             (mass < p.m3) ? p.alpha4 :
                              (mass < p.m2) ? p.alpha3 :
                              (mass < p.m1) ? p.alpha2 :
                              (mass < p.m0) ? p.alpha1 : p.alpha0;
@@ -65,6 +68,7 @@ MassFunctionGrid BrokenPowerLawIMF::build_grid(int n_bins, double lower_mass_msu
         if (mass < p.m1) continuity = temp12 / temp11 * continuity;
         if (mass < p.m2) continuity = temp23 / temp22 * continuity;
         if (mass < p.m3) continuity = temp34 / temp33 * continuity;
+        if (mass < p.mbr) continuity = temp45 / temp44 * continuity;
         grid.probability_log_mass[i] = std::pow(mass, alpha + 1.0) / continuity;
         if (i >= 1) {
             grid.cumulative_number[i] =
@@ -176,6 +180,7 @@ ProjectedSeparation BinaryLensSampler::sample_projected_separation(double primar
 double broken_power_law_imf(double mass_msun, const IMFParameters &params)
 {
     if (mass_msun <= 0.0) return 0.0;
+    if (mass_msun < params.mbr) return std::pow(mass_msun, params.alpha5);
     if (mass_msun < params.m3) return std::pow(mass_msun, params.alpha4);
     if (mass_msun < params.m2) return std::pow(mass_msun, params.alpha3);
     if (mass_msun < params.m1) return std::pow(mass_msun, params.alpha2);

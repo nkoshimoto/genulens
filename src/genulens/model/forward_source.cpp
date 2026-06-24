@@ -88,13 +88,15 @@ std::string imf_cache_key(const IMFParameters &imf)
         << imf.m1 << ','
         << imf.m2 << ','
         << imf.m3 << ','
+        << imf.mbr << ','
         << imf.ml << ','
         << imf.mu << ','
         << imf.alpha0 << ','
         << imf.alpha1 << ','
         << imf.alpha2 << ','
         << imf.alpha3 << ','
-        << imf.alpha4;
+        << imf.alpha4 << ','
+        << imf.alpha5;
     return out.str();
 }
 

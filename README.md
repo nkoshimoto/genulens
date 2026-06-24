@@ -61,6 +61,13 @@ The Python extension can also be built with:
 pip install .
 ```
 
+For a non-standard GSL prefix, pass the same environment variables to pip:
+
+```bash
+GSL_ROOT=/path/to/gsl pip install .
+export LD_LIBRARY_PATH=/path/to/gsl/lib:$LD_LIBRARY_PATH
+```
+
 Editable installs are supported in environments with `scikit-build-core` and
 `pybind11`:
 

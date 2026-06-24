@@ -55,9 +55,29 @@ const gmodel::GenstarsExtinctionMap &cached_genstars_extinction_map(const Source
     return *inserted->second;
 }
 
+InitialMassFunctionOptions to_runtime_imf_options(const gmodel::IMFParameters &imf)
+{
+    InitialMassFunctionOptions out;
+    out.m0 = imf.m0;
+    out.m1 = imf.m1;
+    out.m2 = imf.m2;
+    out.m3 = imf.m3;
+    out.mbr = imf.mbr;
+    out.ml = imf.ml;
+    out.mu = imf.mu;
+    out.alpha0 = imf.alpha0;
+    out.alpha1 = imf.alpha1;
+    out.alpha2 = imf.alpha2;
+    out.alpha3 = imf.alpha3;
+    out.alpha4 = imf.alpha4;
+    out.alpha5 = imf.alpha5;
+    return out;
+}
+
 gmodel::ForwardSourceGenerator make_forward_source_generator(const GenulensConfig &config)
 {
     const auto &source = config.forward_source;
+    const auto &source_imf = source.use_model_imf != 0 ? config.model.imf : source.imf;
     const bool custom_model = source.isochrone_model == "custom";
     const bool solar_model = source.isochrone_model == "parsec_solar_scaled";
     const bool alpha_mixture_model = source.isochrone_model == "alpha_mixture";
@@ -128,7 +148,7 @@ gmodel::ForwardSourceGenerator make_forward_source_generator(const GenulensConfi
             secondary_path,
             source.alpha_enhanced_fraction,
             has_component_alpha ? component_alpha_fractions : std::vector<double>{},
-            config.model.imf);
+            source_imf);
     }
     const bool resolved_primary_is_default_parsec =
         gmodel::normalize_isochrone_family(source.isochrone_family) == "parsec" &&
@@ -137,17 +157,17 @@ gmodel::ForwardSourceGenerator make_forward_source_generator(const GenulensConfi
         source.isochrone_table_path.empty();
     if (!resolved_primary_is_default_parsec || !source.isochrone_table_path.empty()) {
         if (source.photometry == "prime") {
-            return gmodel::ForwardSourceGenerator::load_prime(primary_path, config.model.imf);
+            return gmodel::ForwardSourceGenerator::load_prime(primary_path, source_imf);
         }
         if (source.photometry == "roman") {
-            return gmodel::ForwardSourceGenerator::load_roman(primary_path, config.model.imf);
+            return gmodel::ForwardSourceGenerator::load_roman(primary_path, source_imf);
         }
     }
     if (config.forward_source.photometry == "prime") {
-        return gmodel::ForwardSourceGenerator::load_default_prime(config.model.imf);
+        return gmodel::ForwardSourceGenerator::load_default_prime(source_imf);
     }
     if (config.forward_source.photometry == "roman") {
-        return gmodel::ForwardSourceGenerator::load_default_roman(config.model.imf);
+        return gmodel::ForwardSourceGenerator::load_default_roman(source_imf);
     }
     throw std::runtime_error("unknown forward source photometry: " + config.forward_source.photometry);
 }
@@ -385,25 +405,18 @@ int run_sampler_impl(RunContext &context,
     Initializer().read_model_options(context, argc, argv);
     if (typed_config) {
         const auto &imf = typed_config->model.imf;
-        context.imf_options.m0 = imf.m0;
-        context.imf_options.m1 = imf.m1;
-        context.imf_options.m2 = imf.m2;
-        context.imf_options.m3 = imf.m3;
-        context.imf_options.ml = imf.ml;
-        context.imf_options.mu = imf.mu;
-        context.imf_options.alpha0 = imf.alpha0;
-        context.imf_options.alpha1 = imf.alpha1;
-        context.imf_options.alpha2 = imf.alpha2;
-        context.imf_options.alpha3 = imf.alpha3;
-        context.imf_options.alpha4 = imf.alpha4;
+        context.imf_options = to_runtime_imf_options(imf);
         apply_typed_model_parameters(context, typed_config->model);
     }
+    const InitialMassFunctionOptions lens_imf_options = context.imf_options;
     double M0_B = context.imf_options.m0, M1_B = context.imf_options.m1;
     double M2_B = context.imf_options.m2, M3_B = context.imf_options.m3;
+    double Mbr_B = context.imf_options.mbr;
     double Ml   = context.imf_options.ml, Mu   = context.imf_options.mu;
     double alpha0_B = context.imf_options.alpha0, alpha1_B = context.imf_options.alpha1;
     double alpha2_B = context.imf_options.alpha2, alpha3_B = context.imf_options.alpha3;
     double alpha4_B = context.imf_options.alpha4;
+    double alpha5_B = context.imf_options.alpha5;
     Initializer().finalize_spatial_model(context, argc, argv);
     if (typed_config) {
         apply_typed_model_parameters(context, typed_config->model);
@@ -462,7 +475,15 @@ int run_sampler_impl(RunContext &context,
                " and (l,b)= (%.3f, %.3f) is outside the range.\n", lSIMU, bSIMU);
 
     // ------- Population runtime -------
-    prepared.population.initialize_mass_function(context, context.imf_options);
+    InitialMassFunctionOptions density_imf_options = lens_imf_options;
+    const bool use_separate_forward_source_imf =
+        typed_config && typed_config->forward_source.enabled != 0 &&
+        typed_config->forward_source.use_model_imf == 0;
+    if (use_separate_forward_source_imf) {
+        density_imf_options = to_runtime_imf_options(typed_config->forward_source.imf);
+        context.imf_options = density_imf_options;
+    }
+    prepared.population.initialize_mass_function(context, density_imf_options);
     prepared.population_active = true;
     prepared.population.initialize_luminosity_functions(context, Isst, Isen, VIsst, VIsen, AIrc, EVIrc);
     prepared.luminosity_functions_active = true;
@@ -471,6 +492,12 @@ int run_sampler_impl(RunContext &context,
     double *PlogM_B          = prepared.population.mass_probability;
     double *PlogM_cum_norm_B = prepared.population.mass_cumulative;
     int    *imptiles_B       = prepared.population.mass_percentiles;
+    if (use_separate_forward_source_imf) {
+        context.imf_options = lens_imf_options;
+        store_IMF_nBs(context, 0, logMass_B, PlogM_B, PlogM_cum_norm_B, imptiles_B,
+                      M0_B, M1_B, M2_B, M3_B, Mbr_B, Ml, Mu,
+                      alpha1_B, alpha2_B, alpha3_B, alpha4_B, alpha5_B, alpha0_B);
+    }
 
     // ------- Kinematic tables -------
     prepared.kinematic_tables.initialize_shu_distribution(context);
@@ -519,7 +546,8 @@ int run_sampler_impl(RunContext &context,
     printf("#            alpha1= %5.2f ( %.2f <M< %.2f ),\n", alpha1_B, M1_B, M0_B);
     printf("#            alpha2= %5.2f ( %.2f <M< %.2f ),\n", alpha2_B, M2_B, M1_B);
     printf("#            alpha3= %5.2f ( %.2f <M< %.2f ),\n", alpha3_B, M3_B, M2_B);
-    printf("#            alpha4= %5.2f ( %.5f <M< %.5f )\n",  alpha4_B, Ml, M3_B);
+    printf("#            alpha4= %5.2f ( %.5f <M< %.5f ),\n", alpha4_B, Mbr_B, M3_B);
+    printf("#            alpha5= %5.2f ( %.5e <M< %.5f )\n", alpha5_B, Ml, Mbr_B);
     printf("#         (R, z)sun= (%5.0f, %5.0f) pc\n", context.density.R0, 25.0);
     printf("#   (vx, vy, vz)sun= (%5.1f, %5.1f, %4.1f) km/s\n", context.kinematics.vxsun, context.kinematics.vysun, context.kinematics.vzsun);
     printf("#------------ Disk model: (DISK, hDISK, tSFR)= ( %d , %d , %.1f Gyr ) -----\n",
@@ -722,9 +750,10 @@ int run_sampler_impl(RunContext &context,
         alpha2_B += sampling_options.weight_lens_mass;
         alpha3_B += sampling_options.weight_lens_mass;
         alpha4_B += sampling_options.weight_lens_mass;
+        alpha5_B += sampling_options.weight_lens_mass;
         store_IMF_nBs(context, 0, logMass_B, PlogM_B, PlogM_cum_norm_B, imptiles_B,
-                      M0_B, M1_B, M2_B, M3_B, Ml, Mu,
-                      alpha1_B, alpha2_B, alpha3_B, alpha4_B, alpha0_B);
+                      M0_B, M1_B, M2_B, M3_B, Mbr_B, Ml, Mu,
+                      alpha1_B, alpha2_B, alpha3_B, alpha4_B, alpha5_B, alpha0_B);
     }
 
     // ------- Density grid -------
@@ -813,7 +842,7 @@ int run_sampler_impl(RunContext &context,
     double tauall  = 0, Nsall = 0;
     if (CALCTAU && prepared.grid.uses_forward_source_selection()) {
         tauall = prepared.grid.selected_source_optical_depth();
-        Nsall = prepared.grid.total_source_count();
+        Nsall = prepared.grid.total_source_count() * STR2MIN2 * 1e+6;
     } else if (CALCTAU && Isen - Isst > 0 && AI0 > 0) {
         void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata,
                                int Dsmax21, double AI0, double hscale,

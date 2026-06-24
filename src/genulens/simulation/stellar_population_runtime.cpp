@@ -13,8 +13,8 @@ void PopulationRuntime::initialize_mass_function(RunContext &ctx, const InitialM
   mass_cumulative = (double*)calloc(ctx.stellar.nm + 1, sizeof(double *));
   mass_percentiles = (int*)calloc(22, sizeof(int *));
   store_IMF_nBs(ctx, 1, log_mass, mass_probability, mass_cumulative, mass_percentiles,
-                options.m0, options.m1, options.m2, options.m3, options.ml, options.mu,
-                options.alpha1, options.alpha2, options.alpha3, options.alpha4, options.alpha0);
+                options.m0, options.m1, options.m2, options.m3, options.mbr, options.ml, options.mu,
+                options.alpha1, options.alpha2, options.alpha3, options.alpha4, options.alpha5, options.alpha0);
 }
 
 void PopulationRuntime::initialize_luminosity_functions(
@@ -106,7 +106,7 @@ void PopulationRuntime::release_all(RunContext &ctx) {
   free(empirical_masses);
 }
 
-void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0){
+void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Mbr, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha5, double alpha0){
   /* Store IMF with a broken-power law form.
    * Update normalize factors for the density distribution if B == 1 */
   gmodel::IMFParameters imf_parameters;
@@ -114,6 +114,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
   imf_parameters.m1 = M1;
   imf_parameters.m2 = M2;
   imf_parameters.m3 = M3;
+  imf_parameters.mbr = Mbr;
   imf_parameters.ml = Ml;
   imf_parameters.mu = Mu;
   imf_parameters.alpha0 = alpha0;
@@ -121,6 +122,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
   imf_parameters.alpha2 = alpha2;
   imf_parameters.alpha3 = alpha3;
   imf_parameters.alpha4 = alpha4;
+  imf_parameters.alpha5 = alpha5;
   const auto mass_grid = gmodel::BrokenPowerLawIMF(imf_parameters).build_grid(ctx.stellar.nm, Ml, Mu);
   std::vector<double> PlogM_cum = mass_grid.cumulative_number;
   std::vector<double> PMlogM_cum = mass_grid.cumulative_mass;

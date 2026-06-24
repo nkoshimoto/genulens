@@ -50,6 +50,13 @@ The convenience method sets:
 - `cfg.source.max_initial_mass_msun`
 - `cfg.source.use_magnitude_selection = 1`
 
+Isochrone mode is a new source-population model, not a byte-for-byte
+replacement for the historical luminosity-function selection. It is the right
+mode for source physical properties and multi-band forward-prior experiments,
+but absolute source densities and event rates depend on the chosen isochrone
+family, age/metallicity prior, abundance assumptions, IMF, passbands, and
+extinction model.
+
 ## Output columns
 
 Isochrone mode appends source-property columns after the event columns:

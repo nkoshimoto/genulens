@@ -98,6 +98,11 @@ source-distance density grid. This is the mode to use when the event-rate map
 must be tied to source properties or to bands beyond the historical `I`/`V-I`
 selection.
 
+The current I-band classic rate path has been checked against the legacy
+`genulens_source` summary calculation. H-band maps in the public examples use
+the new isochrone source-selection model, so they should be treated as
+model-dependent forward predictions rather than legacy-compatible rates.
+
 Do not compare event rates from different source-selection models as if they
 were only band differences. For example, comparing classic `I` selection to
 isochrone `H` selection mixes source-density normalizations and selection
@@ -107,4 +112,17 @@ models. For a cleaner I/H comparison, use isochrone mode for both bands.
 
 See [`examples/rate_summary_map.ipynb`](../examples/rate_summary_map.ipynb) for
 I- and H-band maps, extinction maps, per-star rates, per-square-degree rates,
-and latitude profiles integrated over a longitude range.
+latitude profiles integrated over a longitude range, and an I-band comparison
+with the central-region MOA-II 9 yr empirical fits from Nunota et al. (2025).
+
+The Nunota et al. comparison uses the published `|l| < 5 deg` fits:
+
+```text
+tau = 1.75e-6 * exp(0.34 * (3 - |b|))
+Gamma = 16.08e-6 * exp(0.44 * (3 - |b|)) star^-1 yr^-1
+```
+
+These fits are for `I_S < 21.4 mag`, `t_E < 760 d`, and the measured southern
+bulge range. The notebook overlays them only as a diagnostic reference for
+`tau` and per-star event rate. It does not compare per-square-degree rates
+because that also requires matching the observed source-density normalization.

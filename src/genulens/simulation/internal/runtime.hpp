@@ -66,7 +66,7 @@ void calc_PA(double gl, double gb, double *PA, double *cosPA, double *sinPA);
 void calc_opticaldepth(RunContext &ctx, double *tauall, double *Nsall, int idata, int Dsmax21, double AI0, double hscale, double Isst, double Isen);
 void store_NSDmoments(RunContext &ctx, char *infile);
 double like_obs(RunContext &ctx, double mod, double obs, double err, double fe, int det, int UNIFORM);
-void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha0);
+void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, double *PlogM_cum_norm, int *imptiles, double M0, double M1, double M2, double M3, double Mbr, double Ml, double Mu, double alpha1, double alpha2, double alpha3, double alpha4, double alpha5, double alpha0);
 void Mini2Mrem(RunContext &ctx, double *pout, double Mini, int mean);
 double fLF_detect(RunContext &ctx, double extI, double Imin, double Imax, int idisk);
 double fIVI_detect(RunContext &ctx, double extI, double Imin, double Imax, double extVI, double VImin, double VImax, int idisk);

@@ -36,6 +36,7 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     imf.m1 = getOptiond(argc, argv, "M1", 1, default_imf.m1);
     imf.m2 = getOptiond(argc, argv, "M2", 1, default_imf.m2);
     imf.m3 = getOptiond(argc, argv, "M3", 1, default_imf.m3);
+    imf.mbr = getOptiond(argc, argv, "Mbr", 1, default_imf.mbr);
     imf.ml = getOptiond(argc, argv, "Ml", 1, default_imf.ml);
     imf.mu = getOptiond(argc, argv, "Mu", 1, default_imf.mu);
     imf.alpha1 = getOptiond(argc, argv, "alpha1", 1, default_imf.alpha1);
@@ -43,6 +44,7 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     imf.alpha3 = getOptiond(argc, argv, "alpha3", 1, default_imf.alpha3);
     imf.alpha0 = getOptiond(argc, argv, "alpha0", 1, default_imf.alpha0);
     imf.alpha4 = getOptiond(argc, argv, "alpha4", 1, default_imf.alpha4);
+    imf.alpha5 = getOptiond(argc, argv, "alpha5", 1, default_imf.alpha5);
 
     density.DISK = getOptiond(argc, argv, "DISK", 1, 2);
     density.rhot0 = getOptiond(argc, argv, "rhot0", 1, 0.042);
@@ -120,9 +122,9 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
         density.DISK = 1;
     }
     if (B14bar == 1) {
-        imf.m0 = 1.0, imf.m1 = 0.7, imf.m2 = 0.08, imf.m3 = 0.01;
+        imf.m0 = 1.0, imf.m1 = 0.7, imf.m2 = 0.08, imf.m3 = 0.01, imf.mbr = imf.ml;
         imf.alpha1 = -2.0, imf.alpha2 = -1.3, imf.alpha3 = -0.5;
-        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3;
+        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3, imf.alpha5 = imf.alpha4;
         density.model = 6, density.addX = 0, context.B14vbar = 1;
         density.R0 = 8200, density.thetaD = 20, density.x0_1 = 1580.0, density.y0_1 = 620.0;
         density.z0_1 = 430.0, density.Rc = 2400.0, density.C1 = 2, density.C2 = 4, density.C3 = 1;
@@ -134,9 +136,9 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     }
     if (E_fg0 == 1) {
         density.model = 5, density.addX = 0;
-        imf.m0 = 1.0, imf.m1 = 0.843651488650385, imf.m2 = 0.08, imf.m3 = 0.01;
+        imf.m0 = 1.0, imf.m1 = 0.843651488650385, imf.m2 = 0.08, imf.m3 = 0.01, imf.mbr = imf.ml;
         imf.alpha1 = -2.30708461042964, imf.alpha2 = -1.09811414023325, imf.alpha3 = -0.176687444667866;
-        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3;
+        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3, imf.alpha5 = imf.alpha4;
         density.R0 = 8160, density.thetaD = 27, density.frho0b = 0.847695765083198,
         density.Rc = 2804.94024639663;
         density.x0_1 = 668.323640191308, density.y0_1 = 277.674592258175,
@@ -156,9 +158,9 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     }
     if (G_fg0 == 1) {
         density.model = 6, density.addX = 0;
-        imf.m0 = 1.0, imf.m1 = 0.896557393600988, imf.m2 = 0.08, imf.m3 = 0.01;
+        imf.m0 = 1.0, imf.m1 = 0.896557393600988, imf.m2 = 0.08, imf.m3 = 0.01, imf.mbr = imf.ml;
         imf.alpha1 = -2.39628188518525, imf.alpha2 = -1.18451896148506, imf.alpha3 = 0.168672130848533;
-        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3;
+        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3, imf.alpha5 = imf.alpha4;
         density.R0 = 8160, density.thetaD = 27, density.frho0b = 0.777347874844233,
         density.Rc = 4838.85613149588;
         density.x0_1 = 1025.42128394916, density.y0_1 = 457.419718281149,
@@ -178,9 +180,9 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     }
     if (EXE_fg0 == 1) {
         density.model = 5, density.addX = 5;
-        imf.m0 = 1.0, imf.m1 = 0.859770466578045, imf.m2 = 0.08, imf.m3 = 0.01;
+        imf.m0 = 1.0, imf.m1 = 0.859770466578045, imf.m2 = 0.08, imf.m3 = 0.01, imf.mbr = imf.ml;
         imf.alpha1 = -2.32279457078378, imf.alpha2 = -1.13449983242887, imf.alpha3 = -0.175862190587576;
-        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3;
+        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3, imf.alpha5 = imf.alpha4;
         density.R0 = 8160, density.thetaD = 27, density.frho0b = 0.839014514507754,
         density.Rc = 2631.78535429573;
         density.x0_1 = 930.623146993329, density.y0_1 = 370.784386649364,
@@ -204,9 +206,9 @@ void Initializer::read_model_options(RunContext &context, int argc, char **argv)
     }
     if (GXG_fg0 == 1) {
         density.model = 6, density.addX = 6;
-        imf.m0 = 1.0, imf.m1 = 0.901747918318042, imf.m2 = 0.08, imf.m3 = 0.01;
+        imf.m0 = 1.0, imf.m1 = 0.901747918318042, imf.m2 = 0.08, imf.m3 = 0.01, imf.mbr = imf.ml;
         imf.alpha1 = -2.32055781291126, imf.alpha2 = -1.16146692073597, imf.alpha3 = -0.222751835826612;
-        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3;
+        imf.alpha0 = imf.alpha1, imf.alpha4 = imf.alpha3, imf.alpha5 = imf.alpha4;
         density.R0 = 8160, density.thetaD = 27, density.frho0b = 0.861982105059042,
         density.Rc = 2834.43172768484;
         density.x0_1 = 1564.78976595399, density.y0_1 = 721.729645984158,

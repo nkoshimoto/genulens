@@ -7,6 +7,7 @@ struct IMFParameters {
     double m1 = 0.859770466578045;
     double m2 = 0.08;
     double m3 = 0.01;
+    double mbr = 0.001;
     double ml = 0.001;
     double mu = 120.0;
     double alpha0 = -2.32279457078378;
@@ -14,6 +15,7 @@ struct IMFParameters {
     double alpha2 = -1.13449983242887;
     double alpha3 = -0.175862190587576;
     double alpha4 = -0.175862190587576;
+    double alpha5 = -0.175862190587576;
 };
 
 struct DensityParameters {

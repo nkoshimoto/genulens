@@ -55,6 +55,8 @@ struct SourceSelectionConfig {
 
 struct ForwardSourceConfig {
     int enabled = 0;
+    int use_model_imf = 1;
+    model::IMFParameters imf;
     std::string photometry = "roman";
     std::string isochrone_model = "parsec_solar_scaled";
     std::string isochrone_family = "parsec";

@@ -226,6 +226,35 @@ def test_python_simulation_forward_source_mode():
     assert np.all(np.isfinite(teff))
 
 
+def test_python_forward_source_can_use_separate_imf_from_lens_imf():
+    cfg = genulens.Config(l=0.4, b=-1.2, n_simu=2, seed=1234)
+    cfg.model.imf.ml = 1.0e-8
+    cfg.model.imf.mbr = 4.47e-6
+    cfg.model.imf.m3 = 1.3e-3
+    cfg.model.imf.mu = 1.3e-3
+    cfg.model.imf.alpha3 = -0.46
+    cfg.model.imf.alpha4 = -2.07
+    cfg.model.imf.alpha5 = -1.13
+    cfg.use_isochrone_source(
+        i_min=14.0,
+        i_max=30.0,
+        band="F146mag",
+        photometry="roman",
+        min_mass=0.08,
+        max_mass=2.0,
+    )
+    cfg.forward_source.use_model_imf = 0
+    cfg.use_genstars_extinction_map(extinction_law=1, extinction_map=1)
+    cfg.observation.IL_err = 0.0
+    cfg.sampling.small_gamma = 1
+
+    result = genulens.simulate(cfg)
+    arr = result.to_numpy()
+    assert arr.shape[0] == 2
+    assert np.all(arr[:, result.columns.index("M_L")] <= 1.3e-3)
+    assert "M_F146mag_S" in result.columns
+
+
 def test_python_source_mode_convenience_methods():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1234)
     cfg.use_isochrone_source(
