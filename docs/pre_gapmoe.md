@@ -1,7 +1,7 @@
-# pre_gapmoe helper tools
+# `pre_gapmoe` helper tools
 
 The repository includes three preprocessing helper tools for
-[gapmoe](https://github.com/NunotaKansuke/gapmoe):
+[`gapmoe`](https://github.com/NunotaKansuke/gapmoe):
 
 - `calc_rho_profile`
 - `calc_mass_dist`

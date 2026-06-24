@@ -20,7 +20,7 @@ the working details.
   and map workflows.
 - [Isochrone systematics](isochrone_systematics.md): PARSEC/MIST tables,
   alpha-enhanced MIST experiments, and scientific caveats.
-- [pre_gapmoe tools](pre_gapmoe.md): build and usage notes for the helper
+- [`pre_gapmoe` tools](pre_gapmoe.md): build and usage notes for the helper
   command-line tools.
 
 ## Developer notes

@@ -112,17 +112,4 @@ models. For a cleaner I/H comparison, use isochrone mode for both bands.
 
 See [`examples/rate_summary_map.ipynb`](../examples/rate_summary_map.ipynb) for
 I- and H-band maps, extinction maps, per-star rates, per-square-degree rates,
-latitude profiles integrated over a longitude range, and an I-band comparison
-with the central-region MOA-II 9 yr empirical fits from Nunota et al. (2025).
-
-The Nunota et al. comparison uses the published `|l| < 5 deg` fits:
-
-```text
-tau = 1.75e-6 * exp(0.34 * (3 - |b|))
-Gamma = 16.08e-6 * exp(0.44 * (3 - |b|)) star^-1 yr^-1
-```
-
-These fits are for `I_S < 21.4 mag`, `t_E < 760 d`, and the measured southern
-bulge range. The notebook overlays them only as a diagnostic reference for
-`tau` and per-star event rate. It does not compare per-square-degree rates
-because that also requires matching the observed source-density normalization.
+and latitude profiles integrated over a longitude range.

@@ -116,7 +116,7 @@ See [docs/quickstart.md](docs/quickstart.md) and
 - [Optical-depth and event-rate maps](docs/rate_maps.md)
 - [Isochrone systematics](docs/isochrone_systematics.md)
 - [Architecture notes](docs/architecture.md)
-- [pre_gapmoe helper tools](docs/pre_gapmoe.md)
+- [`pre_gapmoe` helper tools](docs/pre_gapmoe.md)
 
 Notebook examples:
 
