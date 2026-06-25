@@ -1,0 +1,42 @@
+{
+  "schema": "genulens.source_photometry.isochrone_libraries.v1",
+  "normalized_schema": [
+    "component",
+    "component_index",
+    "family",
+    "logAge",
+    "MH",
+    "Zini",
+    "Mini",
+    "Mass",
+    "radius_rsun",
+    "Teff_K",
+    "logg",
+    "<absolute magnitude bands...>"
+  ],
+  "libraries": {
+    "parsec": {
+      "status": "available",
+      "solar_scaled": {
+        "roman": "source_photometry/parsec_cmd/metallicity_grid/normalized/all_roman_parsec.dat",
+        "prime": "source_photometry/parsec_cmd/metallicity_grid/normalized/all_prime_parsec.dat"
+      },
+      "alpha_enhanced": {
+        "status": "unsupported",
+        "reason": "The local PARSEC/CMD source-photometry grid is solar-scaled only. Alpha-enhanced experiments use MIST tables."
+      }
+    },
+    "mist": {
+      "status": "available",
+      "official_site": "https://waps.cfa.harvard.edu/MIST/",
+      "solar_scaled": {
+        "path_template": "source_photometry/mist/v2.5/solar_scaled/normalized/all_{photometry}_mist_solar.dat"
+      },
+      "alpha_enhanced": {
+        "status": "available_experimental",
+        "default_alpha_fe": 0.4,
+        "path_template": "source_photometry/mist/v2.5/alpha_enhanced/{alpha_token}/normalized/all_{photometry}_mist_alpha_{alpha_token}.dat"
+      }
+    }
+  }
+}

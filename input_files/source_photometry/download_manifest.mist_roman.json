@@ -1,0 +1,12 @@
+{
+  "schema": "genulens.source_photometry.download_manifest.v1",
+  "records": [
+    {
+      "url": "https://mist.science/data/tarballs_v2.5/isos/Roman.txz",
+      "path": "input_files/source_photometry/mist/v2.5/raw/isos/Roman.txz",
+      "bytes": 1001997796,
+      "sha256": "ba49df1c573f0c289042e7fdb00f2f78de3b22dc1921a8e3696a4cec2e25e5d1",
+      "status": "downloaded"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "cmd_service": "https://stev.oapd.inaf.it/cgi-bin/cmd",
+  "cmd_version_observed": "3.9",
+  "import_role": "genstars_compatibility_anchor",
+  "next_role": "parsec_metallicity_grid",
+  "metallicity_policy": {
+    "current": "one representative MH per component, chosen to match existing genstars processed tables where possible",
+    "next": "finite MH grid per component with MH/Zini retained in normalized tables",
+    "initial_grid_proposal": {
+      "thin_disk": [-0.5, -0.25, 0.0, 0.25],
+      "thick_disk": [-1.2, -1.0, -0.8, -0.6, -0.4],
+      "bar": [-0.5, -0.25, 0.0, 0.25],
+      "NSD": [-0.5, -0.25, 0.0, 0.25]
+    }
+  },
+  "generated_with": {
+    "tool": "ezpadova",
+    "source": "https://github.com/mfouesneau/ezpadova",
+    "commit": "f39625883e22a619b180c73b290a46a2a137f05e"
+  },
+  "defaults": {
+    "track_parsec": "parsec_CAF09_v1.2S",
+    "track_colibri": "parsec_CAF09_v1.2S_S_LMC_08_web",
+    "photsys_version": "YBCnewVega",
+    "kind_interp": "1",
+    "kind_mag": "2",
+    "output_kind": "0",
+    "output_evstage": "1",
+    "MH": 0.0
+  },
+  "components": [
+    {"name": "thin1", "logAge": 8.0},
+    {"name": "thin2", "logAge": 8.778151250383644},
+    {"name": "thin3", "logAge": 9.176091259055681},
+    {"name": "thin4", "logAge": 9.397940008672037},
+    {"name": "thin5", "logAge": 9.60745502321467},
+    {"name": "thin6", "logAge": 9.78175537465247},
+    {"name": "thin7", "logAge": 9.937016107464814},
+    {"name": "thick", "logAge": 10.07918, "MH": -0.8, "legacy_name": "thick2"},
+    {"name": "bar", "logAge": 9.95424},
+    {"name": "NSD", "logAge": 9.8451}
+  ],
+  "photometric_systems": {
+    "ubvrijhk": {
+      "photsys_file": "YBC_tab_mag_odfnew/tab_mag_ubvrijhk.dat",
+      "used_for": ["V", "I"]
+    },
+    "twomass": {
+      "photsys_file": "YBC_tab_mag_odfnew/tab_mag_2mass.dat",
+      "used_for": ["J_2MASS", "H_2MASS", "Ks_2MASS"]
+    },
+    "roman2021": {
+      "photsys_file": "tab_mag_odfnew/tab_mag_Roman2021.dat",
+      "used_for": ["F087", "F146", "F213"],
+      "compatibility_note": "Matches the existing genstars Z087/W146/F213 columns more closely than Roman2024."
+    }
+  },
+  "normalized_tables": {
+    "prime_parsec": {
+      "sources": ["ubvrijhk", "twomass"],
+      "columns": ["Mini", "Mass", "radius_rsun", "Teff_K", "logg", "Vmag", "Imag", "Jmag_2mass", "Hmag_2mass", "Ksmag_2mass"]
+    },
+    "roman_parsec": {
+      "sources": ["twomass", "roman2021"],
+      "columns": ["Mini", "Mass", "radius_rsun", "Teff_K", "logg", "Jmag_2mass", "Hmag_2mass", "Ksmag_2mass", "F087mag", "F146mag", "F213mag"]
+    }
+  }
+}
