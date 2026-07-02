@@ -5,14 +5,16 @@ simulation.
 
 ## Install
 
-Released Linux and macOS wheels can be installed with:
+Released Linux x86_64 and macOS arm64 wheels can be installed with:
 
 ```bash
 pip install genulens
 ```
 
 The wheels include the compiled extension, command-line executable, bundled
-input tables, and the GSL shared libraries needed by the extension.
+input tables, and the GSL shared libraries needed by the extension. macOS
+x86_64 may fall back to a source build and therefore requires a system GSL
+installation.
 
 Source builds, including `pip install --no-binary genulens genulens` and
 `pip install git+https://github.com/nkoshimoto/genulens.git`, require a system
