@@ -8,8 +8,8 @@ publish binary wheels.
 The release workflow builds wheels for:
 
 - Linux x86_64
-- macOS x86_64
-- macOS arm64
+- macOS x86_64, deployment target 13.0
+- macOS arm64, deployment target 14.0
 - CPython 3.9 through 3.13
 
 Windows wheels are not built in the first PyPI release series.
