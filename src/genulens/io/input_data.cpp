@@ -4,7 +4,35 @@
 #include <stdexcept>
 #include <string>
 
+#if defined(__unix__) || defined(__APPLE__)
+#include <dlfcn.h>
+#endif
+
 namespace genulens {
+
+namespace {
+
+std::filesystem::path module_directory()
+{
+#if defined(__unix__) || defined(__APPLE__)
+    Dl_info info;
+    if (dladdr(reinterpret_cast<void *>(&module_directory), &info) && info.dli_fname) {
+        return std::filesystem::absolute(info.dli_fname).parent_path();
+    }
+#endif
+    return {};
+}
+
+void append_installed_roots(std::vector<std::filesystem::path> &roots)
+{
+    const auto module_dir = module_directory();
+    if (module_dir.empty()) return;
+
+    roots.push_back(module_dir / "share" / "genulens" / "input_files");
+    roots.push_back(module_dir.parent_path() / "share" / "genulens" / "input_files");
+}
+
+} // namespace
 
 InputDataRepository::InputDataRepository(std::filesystem::path override_dir)
     : override_dir_(std::move(override_dir))
@@ -19,6 +47,7 @@ std::vector<std::filesystem::path> InputDataRepository::search_roots() const
     if (const char *env = std::getenv("GENULENS_INPUT_DIR")) {
         roots.emplace_back(env);
     }
+    append_installed_roots(roots);
 #ifdef GENULENS_SOURCE_DIR
     roots.emplace_back(std::filesystem::path(GENULENS_SOURCE_DIR) / "input_files");
 #endif

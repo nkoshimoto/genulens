@@ -3,9 +3,25 @@
 This page shows the shortest path from a source checkout to a Python
 simulation.
 
-## Build
+## Install
 
-`genulens` requires a C++ compiler, CMake, and GSL.
+Released Linux and macOS wheels can be installed with:
+
+```bash
+pip install genulens
+```
+
+The wheels include the compiled extension, command-line executable, bundled
+input tables, and the GSL shared libraries needed by the extension.
+
+Source builds, including `pip install --no-binary genulens genulens` and
+`pip install git+https://github.com/nkoshimoto/genulens.git`, require a system
+GSL installation.
+
+## Build From Source
+
+To build from a source checkout, `genulens` requires a C++ compiler, CMake, and
+GSL.
 
 Check that GSL is visible:
 
@@ -40,18 +56,21 @@ From a source checkout, import the extension with `PYTHONPATH=build`:
 PYTHONPATH=build python -c "import genulens; print(genulens.__file__)"
 ```
 
-You can also build/install the Python extension with:
+You can also build/install the Python extension from source with:
 
 ```bash
 pip install .
 ```
 
-For a non-standard GSL prefix, pass the same environment variables to pip:
+For a non-standard GSL prefix, pass `GSL_ROOT` to pip:
 
 ```bash
 GSL_ROOT=/path/to/gsl pip install .
-export LD_LIBRARY_PATH=/path/to/gsl/lib:$LD_LIBRARY_PATH
 ```
+
+For source installs from a non-standard GSL prefix, the built extension records
+the linked GSL path in its install RPATH. If your platform strips or ignores
+that RPATH, set `LD_LIBRARY_PATH` or the platform equivalent at runtime.
 
 Editable installs are supported in environments with `scikit-build-core` and
 `pybind11`:

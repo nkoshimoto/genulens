@@ -40,8 +40,8 @@ void print_help()
         << "  1. direct path\n"
         << "  2. ./input_files\n"
         << "  3. GENULENS_INPUT_DIR\n"
-        << "  4. source-tree shared data\n"
-        << "  5. installed shared data\n";
+        << "  4. installed shared data near the executable/module\n"
+        << "  5. system shared data\n";
 }
 
 } // namespace

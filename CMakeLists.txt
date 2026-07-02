@@ -4,6 +4,7 @@ project(genulens LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(CTest)
 
@@ -89,8 +90,7 @@ add_library(genulens_core
     src/genulens/simulation/observation_likelihood.cpp
     src/genulens/io/input_data.cpp)
 target_include_directories(genulens_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
-target_link_libraries(genulens_core PUBLIC GSL::gsl GSL::gslcblas m)
-target_compile_definitions(genulens_core PRIVATE GENULENS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(genulens_core PUBLIC GSL::gsl GSL::gslcblas m ${CMAKE_DL_LIBS})
 
 add_executable(genulens genulens.cpp)
 target_link_libraries(genulens PRIVATE genulens_core)

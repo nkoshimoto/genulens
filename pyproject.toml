@@ -4,11 +4,71 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "genulens"
-version = "0.0.0"
-description = "Python bindings for the genulens shared C++ core"
+version = "2.0.0a2"
+description = "Microlensing event simulation with a refactored C++ core and Python API"
+readme = "README.md"
 requires-python = ">=3.9"
+license = "GPL-3.0-only"
+license-files = [
+    "LICENSE",
+    "third_party_licenses/*",
+]
+authors = [
+    { name = "Naoki Koshimoto" },
+]
 dependencies = ["numpy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.urls]
+Homepage = "https://github.com/nkoshimoto/genulens"
+Documentation = "https://github.com/nkoshimoto/genulens/tree/main/docs"
+Repository = "https://github.com/nkoshimoto/genulens"
+Issues = "https://github.com/nkoshimoto/genulens/issues"
 
 [tool.scikit-build]
 cmake.build-type = "Release"
 
+[tool.scikit-build.sdist]
+exclude = [
+    ".git",
+    ".github",
+    ".note",
+    "build",
+    "dist",
+    "wheelhouse",
+    "**/.ipynb_checkpoints",
+    "input_files/source_photometry/**/raw",
+    "input_files/source_photometry/**/*.tar",
+    "input_files/source_photometry/**/*.tar.gz",
+    "input_files/source_photometry/**/*.txz",
+    "input_files/source_photometry/**/*.zip",
+]
+
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
+skip = "*-win32 *-win_amd64 *-musllinux*"
+archs = "auto64"
+test-command = "python -c \"import genulens; cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1); result = genulens.simulate(cfg); assert result.to_numpy().shape[0] == 5\""
+
+[tool.cibuildwheel.linux]
+environment = { GSL_ROOT = "/project/.local/gsl", LD_LIBRARY_PATH = "/project/.local/gsl/lib:$LD_LIBRARY_PATH" }
+before-all = "curl -L https://ftp.gnu.org/gnu/gsl/gsl-2.8.tar.gz -o /tmp/gsl.tar.gz && mkdir -p /tmp/gsl-src && tar -xzf /tmp/gsl.tar.gz -C /tmp/gsl-src --strip-components=1 && cd /tmp/gsl-src && ./configure --prefix=/project/.local/gsl --disable-static --enable-shared && make -j2 && make install"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.macos]
+before-all = "brew install gsl"
+before-build = "python -m pip install delocate"
+repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"

@@ -14,6 +14,7 @@
 #include "genulens/simulation/simulator.hpp"
 
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
@@ -79,6 +80,12 @@ int main()
             "nested input file resolution failed");
 
     const auto cwd = std::filesystem::current_path();
+    const auto input_dir = cwd / "input_files";
+#if defined(_WIN32)
+    _putenv_s("GENULENS_INPUT_DIR", input_dir.string().c_str());
+#else
+    setenv("GENULENS_INPUT_DIR", input_dir.string().c_str(), 1);
+#endif
     std::filesystem::current_path(std::filesystem::temp_directory_path());
     try {
         require(genulens::resolve_input_file("Minidie.dat").filename() == "Minidie.dat",

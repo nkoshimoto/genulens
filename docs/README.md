@@ -27,6 +27,8 @@ the working details.
 
 - [Architecture](architecture.md): current object boundaries, simulation flow,
   transitional pieces, and suggested next refactor steps.
+- [Releasing Python wheels](releasing.md): wheel build, TestPyPI, and PyPI
+  publication workflow.
 
 ## Examples
 
