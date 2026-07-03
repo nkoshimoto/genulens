@@ -135,6 +135,7 @@ else()
 endif()
 
 install(TARGETS genulens genulens_core)
+install(TARGETS calc_rho_profile calc_mass_dist calc_murel_dist RUNTIME DESTINATION bin)
 install(DIRECTORY input_files DESTINATION share/genulens
     PATTERN "raw" EXCLUDE
     PATTERN "*.txz" EXCLUDE

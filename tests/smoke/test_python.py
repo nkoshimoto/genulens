@@ -57,6 +57,41 @@ def test_python_ruc_alias():
     assert result.to_numpy().shape[0] == 3
 
 
+def test_python_pre_gapmoe_api():
+    mass = genulens.pre_gapmoe.mass_distribution(Nmass=16)
+    mass_arr = mass.to_numpy()
+    assert mass_arr.shape[0] > 0
+    assert mass_arr.shape[1] == len(mass.columns)
+    assert mass.columns[0] == "logM[Msun]"
+    assert "dN/dlogM_tot" in mass.columns
+
+    rho = genulens.pre_gapmoe.rho_profile(l=1.0, b=-3.9, Dmin=500, Dmax=1000, Dstep=500, SOURCE=1)
+    rho_arr = rho.to_numpy()
+    assert rho_arr.shape == (2, len(rho.columns))
+    assert rho.columns[0] == "D[pc]"
+    assert "rhoD_S_tot" in rho.columns
+
+    murel = genulens.pre_gapmoe.murel_distribution(
+        l=1.0,
+        b=-3.9,
+        GRID=1,
+        DLmin=0,
+        DLmax=1000,
+        DLstep=500,
+        DSmin=500,
+        DSmax=1000,
+        DSstep=500,
+        Nsimu=100,
+        mumax=20,
+        dmu=5,
+        AUTOERR=0,
+    )
+    murel_arr = murel.to_numpy()
+    assert murel_arr.shape[1] == len(murel.columns)
+    assert murel.columns[:6] == ["DS[pc]", "DL[pc]", "murel[mas/yr]", "phi[rad]", "dP/dmurel", "dP/dphi"]
+    assert any("calc_murel_dist" in part for part in murel.command)
+
+
 def test_python_rate_summary_api():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=50, seed=1234)
     cfg.source.mode = "classic"

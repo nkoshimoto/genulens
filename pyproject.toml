@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "genulens"
-version = "2.0.0a2"
+version = "2.0.0a3"
 description = "Microlensing event simulation with a refactored C++ core and Python API"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -61,7 +61,7 @@ exclude = [
 build = "cp39-* cp310-* cp311-* cp312-* cp313-*"
 skip = "*-win32 *-win_amd64 *-musllinux*"
 archs = "auto64"
-test-command = "python -c \"import genulens; cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1); result = genulens.simulate(cfg); assert result.to_numpy().shape[0] == 5\""
+test-command = "python -c \"import genulens; cfg = genulens.Config(l=1.0, b=-3.9, n_simu=5, seed=1); result = genulens.simulate(cfg); assert result.to_numpy().shape[0] == 5; assert genulens.pre_gapmoe.mass_distribution().to_numpy().shape[1] == 13\""
 
 [tool.cibuildwheel.linux]
 environment = { GSL_ROOT = "/project/.local/gsl", LD_LIBRARY_PATH = "/project/.local/gsl/lib:$LD_LIBRARY_PATH" }

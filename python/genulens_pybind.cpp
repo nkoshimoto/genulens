@@ -15,9 +15,246 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 
+#include <array>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <sstream>
+#include <stdexcept>
+#include <string>
 #include <memory>
+#include <vector>
 
 namespace py = pybind11;
+
+namespace {
+
+struct PreGapmoeTable {
+    std::vector<std::string> columns;
+    std::vector<double> values;
+    std::size_t rows = 0;
+    std::size_t cols = 0;
+    std::vector<std::string> command;
+    std::string stdout_text;
+};
+
+std::string shell_quote(const std::string &value)
+{
+    std::string out = "'";
+    for (char ch : value) {
+        if (ch == '\'') out += "'\\''";
+        else out += ch;
+    }
+    out += "'";
+    return out;
+}
+
+std::string trim_copy(const std::string &text)
+{
+    std::size_t first = 0;
+    while (first < text.size() && std::isspace(static_cast<unsigned char>(text[first]))) first++;
+    std::size_t last = text.size();
+    while (last > first && std::isspace(static_cast<unsigned char>(text[last - 1]))) last--;
+    return text.substr(first, last - first);
+}
+
+bool file_exists(const std::filesystem::path &path)
+{
+    std::error_code ec;
+    return std::filesystem::is_regular_file(path, ec);
+}
+
+std::filesystem::path find_pre_gapmoe_executable(const std::string &tool, const py::object &executable_dir)
+{
+    if (!executable_dir.is_none()) {
+        auto path = std::filesystem::path(py::cast<std::string>(py::str(executable_dir))) / tool;
+        if (file_exists(path)) return path;
+        throw std::runtime_error("pre_gapmoe executable not found: " + path.string());
+    }
+
+    py::module_ sysconfig = py::module_::import("sysconfig");
+    auto scripts = std::filesystem::path(py::cast<std::string>(sysconfig.attr("get_path")("scripts")));
+    auto script_path = scripts / tool;
+    if (file_exists(script_path)) return script_path;
+
+    auto cwd_path = std::filesystem::current_path() / "pre_gapmoe" / tool;
+    if (file_exists(cwd_path)) return cwd_path;
+
+    auto build_path = std::filesystem::current_path() / "build" / "pre_gapmoe" / tool;
+    if (file_exists(build_path)) return build_path;
+
+    return std::filesystem::path(tool);
+}
+
+std::filesystem::path find_input_dir(const py::object &input_dir)
+{
+    if (!input_dir.is_none()) {
+        auto path = std::filesystem::path(py::cast<std::string>(py::str(input_dir)));
+        if (std::filesystem::is_directory(path)) return path;
+        throw std::runtime_error("genulens input directory not found: " + path.string());
+    }
+
+    py::module_ genulens_module = py::module_::import("genulens");
+    auto module_file = std::filesystem::path(py::cast<std::string>(py::str(genulens_module.attr("__file__"))));
+    auto module_dir = module_file.parent_path();
+    std::vector<std::filesystem::path> candidates{
+        module_dir / "share" / "genulens" / "input_files",
+        module_dir.parent_path() / "share" / "genulens" / "input_files",
+        module_dir.parent_path() / "input_files",
+        std::filesystem::current_path() / "input_files",
+    };
+    for (const auto &candidate : candidates) {
+        if (std::filesystem::is_directory(candidate)) return candidate;
+    }
+    return {};
+}
+
+void append_python_value(std::vector<std::string> &args, const py::handle &value)
+{
+    if (py::isinstance<py::bool_>(value)) {
+        args.push_back(py::cast<bool>(value) ? "1" : "0");
+    } else if (py::isinstance<py::str>(value) || py::isinstance<py::int_>(value) ||
+               py::isinstance<py::float_>(value)) {
+        args.push_back(py::cast<std::string>(py::str(value)));
+    } else if (py::isinstance<py::sequence>(value)) {
+        for (py::handle item : py::reinterpret_borrow<py::sequence>(value)) {
+            append_python_value(args, item);
+        }
+    } else {
+        throw py::type_error("pre_gapmoe option values must be bool, str, int, float, or a sequence of these");
+    }
+}
+
+std::vector<std::string> kwargs_to_args(const py::kwargs &kwargs)
+{
+    std::vector<std::string> args;
+    for (auto item : kwargs) {
+        std::string key = py::cast<std::string>(py::str(item.first));
+        if (key == "executable_dir") continue;
+        if (key == "input_dir") continue;
+        if (item.second.is_none()) continue;
+        args.push_back(key);
+        append_python_value(args, item.second);
+    }
+    return args;
+}
+
+std::vector<std::string> parse_columns(const std::string &line)
+{
+    std::string text = trim_copy(line);
+    if (text.rfind("#", 0) == 0) text = trim_copy(text.substr(1));
+    if (text.rfind("Columns:", 0) == 0) return {};
+
+    std::vector<std::string> columns;
+    std::istringstream stream(text);
+    std::string token;
+    while (stream >> token) columns.push_back(token);
+    return columns;
+}
+
+PreGapmoeTable parse_pre_gapmoe_output(const std::string &stdout_text)
+{
+    PreGapmoeTable table;
+    table.stdout_text = stdout_text;
+
+    std::istringstream lines(stdout_text);
+    std::string line;
+    bool next_comment_is_columns = false;
+    std::vector<std::vector<double>> rows;
+
+    while (std::getline(lines, line)) {
+        std::string trimmed = trim_copy(line);
+        if (trimmed.empty()) continue;
+
+        if (trimmed.rfind("#", 0) == 0) {
+            std::string comment = trim_copy(trimmed.substr(1));
+            if (next_comment_is_columns) {
+                table.columns = parse_columns(trimmed);
+                next_comment_is_columns = false;
+            }
+            if (comment == "Columns:") next_comment_is_columns = true;
+            continue;
+        }
+
+        std::istringstream row_stream(trimmed);
+        std::vector<double> row;
+        double value = 0.0;
+        while (row_stream >> value) row.push_back(value);
+        if (!row.empty()) rows.push_back(std::move(row));
+    }
+
+    table.rows = rows.size();
+    table.cols = rows.empty() ? 0 : rows.front().size();
+    for (const auto &row : rows) {
+        if (row.size() != table.cols) {
+            throw std::runtime_error("pre_gapmoe output has inconsistent row widths");
+        }
+        table.values.insert(table.values.end(), row.begin(), row.end());
+    }
+    if (!table.columns.empty() && table.columns.size() != table.cols) {
+        table.columns.clear();
+    }
+    return table;
+}
+
+std::string run_command_capture_stdout(
+    const std::vector<std::string> &command,
+    const std::filesystem::path &input_dir)
+{
+    std::string shell_command;
+    if (!input_dir.empty()) {
+        shell_command += "GENULENS_INPUT_DIR=";
+        shell_command += shell_quote(input_dir.string());
+        shell_command += " ";
+    }
+    for (std::size_t i = 0; i < command.size(); i++) {
+        if (i) shell_command += " ";
+        shell_command += shell_quote(command[i]);
+    }
+    shell_command += " 2>&1";
+
+    std::array<char, 4096> buffer{};
+    std::string output;
+    FILE *pipe = popen(shell_command.c_str(), "r");
+    if (!pipe) throw std::runtime_error("failed to start pre_gapmoe command");
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) != nullptr) {
+        output += buffer.data();
+    }
+    int status = pclose(pipe);
+    if (status != 0) {
+        throw std::runtime_error("pre_gapmoe command failed:\n" + output);
+    }
+    return output;
+}
+
+PreGapmoeTable run_pre_gapmoe_tool(const std::string &tool, const py::kwargs &kwargs)
+{
+    py::object executable_dir = py::none();
+    if (kwargs && kwargs.contains("executable_dir")) {
+        executable_dir = py::reinterpret_borrow<py::object>(kwargs["executable_dir"]);
+    }
+    py::object input_dir = py::none();
+    if (kwargs && kwargs.contains("input_dir")) {
+        input_dir = py::reinterpret_borrow<py::object>(kwargs["input_dir"]);
+    }
+
+    auto executable = find_pre_gapmoe_executable(tool, executable_dir);
+    auto resolved_input_dir = find_input_dir(input_dir);
+    std::vector<std::string> command{executable.string()};
+    auto args = kwargs_to_args(kwargs);
+    command.insert(command.end(), args.begin(), args.end());
+
+    py::gil_scoped_release release;
+    auto stdout_text = run_command_capture_stdout(command, resolved_input_dir);
+    py::gil_scoped_acquire acquire;
+
+    auto table = parse_pre_gapmoe_output(stdout_text);
+    table.command = std::move(command);
+    return table;
+}
+
+} // namespace
 
 PYBIND11_MODULE(genulens, m)
 {
@@ -789,6 +1026,35 @@ PYBIND11_MODULE(genulens, m)
             }
             return array;
         });
+
+    py::class_<PreGapmoeTable>(m, "PreGapmoeTable")
+        .def_readonly("columns", &PreGapmoeTable::columns)
+        .def_readonly("command", &PreGapmoeTable::command)
+        .def_readonly("stdout", &PreGapmoeTable::stdout_text)
+        .def_property_readonly("shape", [](const PreGapmoeTable &table) {
+            return py::make_tuple(table.rows, table.cols);
+        })
+        .def("to_numpy", [](const PreGapmoeTable &table) {
+            py::array_t<double> array({table.rows, table.cols});
+            auto mutable_array = array.mutable_unchecked<2>();
+            for (py::ssize_t r = 0; r < static_cast<py::ssize_t>(table.rows); ++r) {
+                for (py::ssize_t c = 0; c < static_cast<py::ssize_t>(table.cols); ++c) {
+                    mutable_array(r, c) = table.values[static_cast<std::size_t>(r * table.cols + c)];
+                }
+            }
+            return array;
+        });
+
+    auto pre_gapmoe = m.def_submodule("pre_gapmoe", "Python accessors for the pre_gapmoe histogram helper tools.");
+    pre_gapmoe.def("mass_distribution", [](py::kwargs kwargs) {
+        return run_pre_gapmoe_tool("calc_mass_dist", kwargs);
+    }, "Run calc_mass_dist and return a PreGapmoeTable.");
+    pre_gapmoe.def("rho_profile", [](py::kwargs kwargs) {
+        return run_pre_gapmoe_tool("calc_rho_profile", kwargs);
+    }, "Run calc_rho_profile and return a PreGapmoeTable.");
+    pre_gapmoe.def("murel_distribution", [](py::kwargs kwargs) {
+        return run_pre_gapmoe_tool("calc_murel_dist", kwargs);
+    }, "Run calc_murel_dist and return a PreGapmoeTable.");
 
     m.def("simulate", run_simulation, py::arg("cfg"), py::arg("likelihood") = py::none());
     m.def("compute_rate_summary",
