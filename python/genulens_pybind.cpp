@@ -74,6 +74,16 @@ std::filesystem::path find_pre_gapmoe_executable(const std::string &tool, const 
     }
 
     py::module_ sysconfig = py::module_::import("sysconfig");
+    py::module_ genulens_module = py::module_::import("genulens");
+    auto module_file = std::filesystem::path(py::cast<std::string>(py::str(genulens_module.attr("__file__"))));
+    auto module_dir = module_file.parent_path();
+
+    auto module_path = module_dir / tool;
+    if (file_exists(module_path)) return module_path;
+
+    auto module_pre_gapmoe_path = module_dir / "pre_gapmoe" / tool;
+    if (file_exists(module_pre_gapmoe_path)) return module_pre_gapmoe_path;
+
     auto scripts = std::filesystem::path(py::cast<std::string>(sysconfig.attr("get_path")("scripts")));
     auto script_path = scripts / tool;
     if (file_exists(script_path)) return script_path;
