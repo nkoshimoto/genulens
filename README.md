@@ -1,6 +1,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](http://www.gnu.org/licenses/gpl-3.0)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4784948.svg)](https://doi.org/10.5281/zenodo.4784948)
 [![arXiv](http://img.shields.io/badge/arXiv-2104.03306-orange.svg?style=flat)](https://arxiv.org/abs/2104.03306)
+[![PyPI](https://img.shields.io/pypi/v/genulens.svg)](https://pypi.org/project/genulens/)
 
 # genulens
 
@@ -9,33 +10,39 @@ Galactic model of [Koshimoto, Baba & Bennett (2021), ApJ, 917, 78](https://ui.ad
 The model is optimized for bulge sightlines and is most appropriate around
 `|l| < 10 deg` and `|b| < 7 deg`.
 
-The v2 branch keeps the historical command-line simulator and adds a refactored
-C++ core, direct Python bindings, source-forward isochrone workflows,
-genstars-style extinction-map support, custom Python likelihoods, and
-optical-depth/event-rate summary APIs.
+The v2 alpha release keeps the historical command-line simulator and adds a
+refactored C++ core, direct Python bindings, source-forward isochrone
+workflows, genstars-style extinction-map support, custom Python likelihoods,
+and optical-depth/event-rate summary APIs.
 
 For the full guide, start from [`docs/`](docs/). GitHub displays
 [`docs/README.md`](docs/README.md) automatically when opening that directory.
 
-## Installation
+## Install From PyPI
 
-Released Linux x86_64 and macOS arm64 wheels can be installed with:
+The Python package is available on PyPI:
 
 ```bash
 pip install genulens
 ```
 
-The wheels include the compiled extension, command-line executable, bundled
-input tables, and the GSL shared libraries needed by the extension. macOS
-x86_64 may fall back to a source build and therefore requires a system GSL
-installation.
+Binary wheels are currently published for Linux x86_64 and macOS arm64. These
+wheels include the compiled extension, the `genulens` command-line executable,
+bundled input tables, and the GSL shared libraries needed by the extension.
 
-Source builds, including `pip install --no-binary genulens genulens` and
-`pip install git+https://github.com/nkoshimoto/genulens.git`, require a system
-GSL installation.
+Other platforms, including macOS x86_64 and Windows, may fall back to a source
+build. Source builds require a system GSL installation.
 
-To build from a source checkout, `genulens` requires a C++ compiler, CMake, and
-GSL.
+## Build From Source
+
+Source builds include:
+
+```bash
+pip install --no-binary genulens genulens
+pip install git+https://github.com/nkoshimoto/genulens.git
+```
+
+To build from a checkout, `genulens` requires a C++ compiler, CMake, and GSL.
 
 Check that GSL is visible:
 
@@ -71,7 +78,7 @@ make python
 PYTHONPATH=build python -c "import genulens; print(genulens.__file__)"
 ```
 
-The Python extension can also be built from source with:
+The Python extension can also be built from the checkout with:
 
 ```bash
 pip install .
@@ -104,11 +111,13 @@ make clean
 
 ## CLI and Python
 
-The historical CLI remains available:
+The installed command-line simulator remains available as:
 
 ```bash
-./genulens
+genulens
 ```
+
+From a source-tree build, use `./genulens` or `build/genulens`.
 
 The Python API calls the same C++ simulation core directly. It does not run
 `./genulens` as a subprocess and does not parse CLI stdout.
@@ -159,8 +168,9 @@ Ian A. Bond and Takahiro Sumi.
 
 ## Release History
 
-- v2: refactored C++ core, direct Python API, source-forward isochrone support,
-  extinction-map support, custom Python likelihoods, and rate-summary APIs.
+- v2.0.0 alpha: PyPI package, refactored C++ core, direct Python API,
+  source-forward isochrone support, extinction-map support, custom Python
+  likelihoods, and rate-summary APIs.
 - v1.2, June-July 2022: importance sampling, NSD component, updated Galactic
   Center position, revised usage documentation, and related `genstars` release.
 - v1.1, June 2021: switched to the GSL random number generator.
