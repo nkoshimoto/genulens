@@ -52,6 +52,21 @@
 
 using namespace genulens;
 
+namespace {
+
+constexpr int kSourceGroupCount = 5;
+
+int source_group(int component)
+{
+    if (component >= 0 && component <= 6) return 0;
+    if (component == 7) return 1;
+    if (component == 8) return 2;
+    if (component == 9) return 3;
+    return 4;
+}
+
+} // namespace
+
 static int has_help_option(int argc, char **argv)
 {
     for (int i = 1; i < argc; i++) {
@@ -72,6 +87,7 @@ static void print_usage(const char *prog)
     printf("  mumax <mas/yr>   Upper edge of murel histogram (default 300)\n");
     printf("  dmu <mas/yr>     Bin width (default 0.5)\n");
     printf("  GRID <n>         1: Dl x Ds grid, 0: single point (default 1)\n");
+    printf("  SOURCEGROUPS <n>  1: append conditional source-group histograms in GRID mode\n");
     printf("  -h, --help       Show this help and exit\n\n");
     printf("Automatic precision options:\n");
     printf("  AUTOERR <n>      1: stop early once histogram precision is reached (default 1)\n");
@@ -171,6 +187,7 @@ int main(int argc, char **argv)
     double mumax   = getOptiond(argc, argv, "mumax",     1, 300.0);
     double dmu     = getOptiond(argc, argv, "dmu",       1, 0.5);
     int    GRID    = (int)getOptiond(argc, argv, "GRID",  1, 1);
+    int    SOURCEGROUPS = getOptioni(argc, argv, "SOURCEGROUPS", 1, 0);
     int    AUTOERR     = getOptioni(argc, argv, "AUTOERR",    1, 1);
     double ERR_TARGET  = getOptiond(argc, argv, "ERR_TARGET",  1, 0.03);
     long   ERR_CHECK   = (long)getOptiond(argc, argv, "ERR_CHECK", 1, 100000);
@@ -233,12 +250,27 @@ int main(int argc, char **argv)
         int nDS = (int)((DSmax - DSmin) / DSstep);
         printf("# Grid: DL [%.0f, %.0f] step %.0f pc (%d bins)\n", DLmin, DLmax, DLstep, nDL);
         printf("# Grid: DS [%.0f, %.0f] step %.0f pc (%d bins)\n", DSmin, DSmax, DSstep, nDS);
+        if (SOURCEGROUPS) printf("# gapmoe_schema: murel_source_groups_v1\n");
         printf("# Columns:\n# DS[pc]  DL[pc]  murel[mas/yr]  phi[rad]  dP/dmurel  dP/dphi");
+        if (SOURCEGROUPS) {
+            printf("  dP/dmurel[S=thin_disk]  dP/dmurel[S=thick_disk]");
+            printf("  dP/dmurel[S=bulge]  dP/dmurel[S=NSD]  dP/dmurel[S=halo]");
+            printf("  dP/dphi[S=thin_disk]  dP/dphi[S=thick_disk]");
+            printf("  dP/dphi[S=bulge]  dP/dphi[S=NSD]  dP/dphi[S=halo]");
+        }
         if (AUTOERR) printf("  mu_count  mu_relerr  phi_count  phi_relerr  Ndraw");
         printf("\n");
 
         double *hist     = (double*)calloc(nbins, sizeof(double));
         double *phi_hist = (double*)calloc(nphibins, sizeof(double));
+        double *source_mu_hist[kSourceGroupCount] = {};
+        double *source_phi_hist[kSourceGroupCount] = {};
+        if (SOURCEGROUPS) {
+            for (int group = 0; group < kSourceGroupCount; ++group) {
+                source_mu_hist[group] = (double*)calloc(nbins, sizeof(double));
+                source_phi_hist[group] = (double*)calloc(nphibins, sizeof(double));
+            }
+        }
 
         for (int j_DS = 0; j_DS < nDS; j_DS++) {
             double DS_c = DSmin + (j_DS + 0.5) * DSstep;
@@ -269,7 +301,14 @@ int main(int argc, char **argv)
 
             for (int ib = 0; ib < nbins; ib++) hist[ib] = 0;
             for (int ib = 0; ib < nphibins; ib++) phi_hist[ib] = 0;
+            if (SOURCEGROUPS) {
+                for (int group = 0; group < kSourceGroupCount; ++group) {
+                    for (int ib = 0; ib < nbins; ++ib) source_mu_hist[group][ib] = 0;
+                    for (int ib = 0; ib < nphibins; ++ib) source_phi_hist[group][ib] = 0;
+                }
+            }
             double wtot = 0, mu_overflow = 0.0;
+            double source_draws[kSourceGroupCount] = {};
             double mu_max_relerr = 1e99, mu_pass_frac = 0.0;
             double phi_max_relerr = 1e99, phi_pass_frac = 0.0;
             int mu_n_active = 0, phi_n_active = 0, converged = 0;
@@ -302,11 +341,19 @@ int main(int argc, char **argv)
                 double phi   = atan2(muE, muN);
 
                 wtot += 1.0;
+                const int group = source_group(i_s);
+                if (SOURCEGROUPS) source_draws[group] += 1.0;
                 int ibin = (int)(murel / dmu);
-                if (ibin < nbins) hist[ibin] += 1.0;
+                if (ibin < nbins) {
+                    hist[ibin] += 1.0;
+                    if (SOURCEGROUPS) source_mu_hist[group][ibin] += 1.0;
+                }
                 else mu_overflow += 1.0;
                 int iphi = (int)((phi - phimin) / dphi);
-                if (iphi >= 0 && iphi < nphibins) phi_hist[iphi] += 1.0;
+                if (iphi >= 0 && iphi < nphibins) {
+                    phi_hist[iphi] += 1.0;
+                    if (SOURCEGROUPS) source_phi_hist[group][iphi] += 1.0;
+                }
 
                 if (AUTOERR && ((long)wtot % ERR_CHECK == 0)) {
                     converged_mu = check_hist_precision(hist, nbins, wtot, ERR_TARGET,
@@ -342,6 +389,15 @@ int main(int argc, char **argv)
 
             for (int ib = 0; ib < nbins;    ib++) hist[ib]     /= (wtot * dmu);
             for (int ib = 0; ib < nphibins; ib++) phi_hist[ib] /= (wtot * dphi);
+            if (SOURCEGROUPS) {
+                for (int group = 0; group < kSourceGroupCount; ++group) {
+                    if (source_draws[group] <= 0.0) continue;
+                    for (int ib = 0; ib < nbins; ++ib)
+                        source_mu_hist[group][ib] /= (source_draws[group] * dmu);
+                    for (int ib = 0; ib < nphibins; ++ib)
+                        source_phi_hist[group][ib] /= (source_draws[group] * dphi);
+                }
+            }
 
             int nout = (nbins > nphibins) ? nbins : nphibins;
             for (int ib = 0; ib < nout; ib++) {
@@ -350,6 +406,12 @@ int main(int argc, char **argv)
                 double phi_c = (ib < nphibins) ? phimin + (ib + 0.5) * dphi        : 0.0;
                 double phi_d = (ib < nphibins) ? phi_hist[ib]                       : 0.0;
                 printf("%.1f\t%.1f\t%.3f\t%.6f\t%.6e\t%.6e", DS_c, DL_c, mu_c, phi_c, mu_d, phi_d);
+                if (SOURCEGROUPS) {
+                    for (int group = 0; group < kSourceGroupCount; ++group)
+                        printf("\t%.6e", (ib < nbins) ? source_mu_hist[group][ib] : 0.0);
+                    for (int group = 0; group < kSourceGroupCount; ++group)
+                        printf("\t%.6e", (ib < nphibins) ? source_phi_hist[group][ib] : 0.0);
+                }
                 if (AUTOERR) {
                     double mc = (ib < nbins)    ? hist[ib]*wtot*dmu  : 0.0;
                     double pc = (ib < nphibins) ? phi_hist[ib]*wtot*dphi : 0.0;
@@ -361,6 +423,12 @@ int main(int argc, char **argv)
         }} // i_DL, j_DS
 
         free(hist); free(phi_hist);
+        if (SOURCEGROUPS) {
+            for (int group = 0; group < kSourceGroupCount; ++group) {
+                free(source_mu_hist[group]);
+                free(source_phi_hist[group]);
+            }
+        }
 
     // ====================================================================
     // SINGLE-POINT MODE (GRID=0)
