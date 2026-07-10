@@ -155,6 +155,28 @@ ForwardSourceGenerator ForwardSourceGenerator::load_default_prime(IMFParameters 
     return generator;
 }
 
+ForwardSourceGenerator ForwardSourceGenerator::load_default_for_bands(
+    const std::vector<std::string> &bands,
+    IMFParameters imf_parameters)
+{
+    auto generator = ForwardSourceGenerator(
+        StellarPopulationModel::load_default_for_bands(bands), imf_parameters);
+    generator.cache_key_ = "bands";
+    for (const auto &band : bands) generator.cache_key_ += "|" + band;
+    generator.cache_key_ += "|" + imf_cache_key(imf_parameters);
+    return generator;
+}
+
+ForwardSourceGenerator ForwardSourceGenerator::load_table(
+    const std::string &table_path,
+    IMFParameters imf_parameters)
+{
+    auto generator = ForwardSourceGenerator(
+        StellarPopulationModel(IsochroneGrid::load(table_path)), imf_parameters);
+    generator.cache_key_ = "table|" + table_path + "|" + imf_cache_key(imf_parameters);
+    return generator;
+}
+
 ForwardSourceGenerator ForwardSourceGenerator::load_roman(const std::string &primary_table_path,
                                                           IMFParameters imf_parameters)
 {

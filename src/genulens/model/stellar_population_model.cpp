@@ -55,6 +55,12 @@ StellarPopulationModel StellarPopulationModel::load_default_prime()
     return StellarPopulationModel(IsochroneGrid::load_default_prime());
 }
 
+StellarPopulationModel StellarPopulationModel::load_default_for_bands(
+    const std::vector<std::string> &bands)
+{
+    return StellarPopulationModel(IsochroneGrid::load_default_for_bands(bands));
+}
+
 StellarPopulationModel::StellarPopulationModel(IsochroneGrid grid)
     : isochrones_(std::move(grid))
 {

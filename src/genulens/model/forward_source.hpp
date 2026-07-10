@@ -54,6 +54,11 @@ public:
 
     static ForwardSourceGenerator load_default_roman(IMFParameters imf_parameters = default_model_parameters().imf);
     static ForwardSourceGenerator load_default_prime(IMFParameters imf_parameters = default_model_parameters().imf);
+    static ForwardSourceGenerator load_default_for_bands(
+        const std::vector<std::string> &bands,
+        IMFParameters imf_parameters = default_model_parameters().imf);
+    static ForwardSourceGenerator load_table(const std::string &table_path,
+                                             IMFParameters imf_parameters = default_model_parameters().imf);
     static ForwardSourceGenerator load_roman(const std::string &primary_table_path,
                                              IMFParameters imf_parameters = default_model_parameters().imf);
     static ForwardSourceGenerator load_prime(const std::string &primary_table_path,

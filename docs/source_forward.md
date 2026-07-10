@@ -30,7 +30,6 @@ cfg.use_isochrone_source(
     i_min=14.0,
     i_max=21.0,
     band="Imag",
-    photometry="prime",
     apparent=True,
     min_mass=0.09,
     max_mass=2.0,
@@ -42,7 +41,6 @@ The convenience method sets:
 
 - `cfg.source.mode = "isochrone"`
 - `cfg.source.band`
-- `cfg.source.photometry`
 - `cfg.source.min_magnitude`
 - `cfg.source.max_magnitude`
 - `cfg.source.apparent_magnitude`

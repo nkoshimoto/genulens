@@ -414,7 +414,6 @@ PYBIND11_MODULE(genulens, m)
                 double i_min,
                 double i_max,
                 const std::string &band,
-                const std::string &photometry,
                 bool apparent,
                 double min_mass,
                 double max_mass,
@@ -426,7 +425,14 @@ PYBIND11_MODULE(genulens, m)
                  cfg.source.vi_min = 0.0;
                  cfg.source.vi_max = 0.0;
                  cfg.source.mode = "isochrone";
-                 cfg.source.photometry = photometry;
+                 if (band == "Vmag" || band == "Imag") {
+                     cfg.source.photometry = "prime";
+                 } else if (band == "F087mag" || band == "F146mag" || band == "F213mag" ||
+                            band == "Jmag_2mass" || band == "Hmag_2mass" || band == "Ksmag_2mass") {
+                     cfg.source.photometry = "roman";
+                 } else {
+                     throw std::runtime_error("unsupported default isochrone band: " + band);
+                 }
                  cfg.source.band = band;
                  cfg.source.min_magnitude = i_min;
                  cfg.source.max_magnitude = i_max;
@@ -443,7 +449,6 @@ PYBIND11_MODULE(genulens, m)
              py::arg("i_min") = 14.0,
              py::arg("i_max") = 21.0,
              py::arg("band") = "Imag",
-             py::arg("photometry") = "prime",
              py::arg("apparent") = true,
              py::arg("min_mass") = 0.09,
              py::arg("max_mass") = 1.0,
@@ -851,8 +856,8 @@ PYBIND11_MODULE(genulens, m)
 
     py::class_<genulens::model::IsochroneGrid>(m, "IsochroneGrid")
         .def_static("load", &genulens::model::IsochroneGrid::load, py::arg("path"))
-        .def_static("load_default_roman", &genulens::model::IsochroneGrid::load_default_roman)
-        .def_static("load_default_prime", &genulens::model::IsochroneGrid::load_default_prime)
+        .def_static("load_default_for_bands", &genulens::model::IsochroneGrid::load_default_for_bands,
+                    py::arg("bands"))
         .def_property_readonly("bands", &genulens::model::IsochroneGrid::bands)
         .def_property_readonly("row_count", &genulens::model::IsochroneGrid::row_count)
         .def_property_readonly("sequence_count", &genulens::model::IsochroneGrid::sequence_count)
@@ -872,8 +877,8 @@ PYBIND11_MODULE(genulens, m)
         .def_readwrite("use_default_metallicity", &genulens::model::StellarPopulationQuery::use_default_metallicity);
 
     py::class_<genulens::model::StellarPopulationModel>(m, "StellarPopulationModel")
-        .def_static("load_default_roman", &genulens::model::StellarPopulationModel::load_default_roman)
-        .def_static("load_default_prime", &genulens::model::StellarPopulationModel::load_default_prime)
+        .def_static("load_default_for_bands", &genulens::model::StellarPopulationModel::load_default_for_bands,
+                    py::arg("bands"))
         .def("lookup", &genulens::model::StellarPopulationModel::lookup, py::arg("query"))
         .def_static("component_name", &genulens::model::StellarPopulationModel::component_name, py::arg("component_index"))
         .def_static("component_index", &genulens::model::StellarPopulationModel::component_index, py::arg("component"))
@@ -919,15 +924,11 @@ PYBIND11_MODULE(genulens, m)
         });
 
     py::class_<genulens::model::ForwardSourceGenerator>(m, "ForwardSourceGenerator")
-        .def_static("load_default_roman", &genulens::model::ForwardSourceGenerator::load_default_roman,
+        .def_static("load_default_for_bands", &genulens::model::ForwardSourceGenerator::load_default_for_bands,
+                    py::arg("bands"),
                     py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
-        .def_static("load_default_prime", &genulens::model::ForwardSourceGenerator::load_default_prime,
-                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
-        .def_static("load_roman", &genulens::model::ForwardSourceGenerator::load_roman,
-                    py::arg("primary_table_path"),
-                    py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
-        .def_static("load_prime", &genulens::model::ForwardSourceGenerator::load_prime,
-                    py::arg("primary_table_path"),
+        .def_static("load_table", &genulens::model::ForwardSourceGenerator::load_table,
+                    py::arg("table_path"),
                     py::arg("imf_parameters") = genulens::model::default_model_parameters().imf)
         .def_static("load_mixture", &genulens::model::ForwardSourceGenerator::load_mixture,
                     py::arg("primary_table_path"),

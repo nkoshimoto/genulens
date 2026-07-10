@@ -21,6 +21,7 @@ class StellarPopulationModel {
 public:
     static StellarPopulationModel load_default_roman();
     static StellarPopulationModel load_default_prime();
+    static StellarPopulationModel load_default_for_bands(const std::vector<std::string> &bands);
 
     explicit StellarPopulationModel(IsochroneGrid grid);
 
