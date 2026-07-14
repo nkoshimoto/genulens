@@ -14,11 +14,12 @@ genulens: configure
 	cp $(BUILD_DIR)/genulens ./genulens
 
 pre_gapmoe: configure
-	$(CMAKE) --build $(BUILD_DIR) --target calc_rho_profile calc_mass_dist calc_murel_dist
+	$(CMAKE) --build $(BUILD_DIR) --target calc_rho_profile calc_mass_dist calc_murel_dist generate_flow_samples
 	mkdir -p pre_gapmoe
 	cp $(BUILD_DIR)/pre_gapmoe/calc_rho_profile pre_gapmoe/calc_rho_profile
 	cp $(BUILD_DIR)/pre_gapmoe/calc_mass_dist pre_gapmoe/calc_mass_dist
 	cp $(BUILD_DIR)/pre_gapmoe/calc_murel_dist pre_gapmoe/calc_murel_dist
+	cp $(BUILD_DIR)/pre_gapmoe/generate_flow_samples pre_gapmoe/generate_flow_samples
 
 python: configure
 	$(CMAKE) --build $(BUILD_DIR) --target genulens_python
@@ -31,4 +32,4 @@ test: genulens pre_gapmoe
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f genulens *.o *~
-	rm -f pre_gapmoe/*.o pre_gapmoe/calc_rho_profile pre_gapmoe/calc_mass_dist pre_gapmoe/calc_murel_dist
+	rm -f pre_gapmoe/*.o pre_gapmoe/calc_rho_profile pre_gapmoe/calc_mass_dist pre_gapmoe/calc_murel_dist pre_gapmoe/generate_flow_samples

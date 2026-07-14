@@ -902,6 +902,8 @@ int run_sampler_impl(RunContext &context,
     prepared.event_config.cosb    = cosb;     prepared.event_config.sinb  = sinb;
     prepared.event_config.cosl    = cosl;     prepared.event_config.sinl  = sinl;
     prepared.event_config.l       = lSIMU;   prepared.event_config.b     = bSIMU;
+    prepared.event_config.forced_source_component =
+        getOptioni(argc, argv, "__PRE_GAPMOE_SOURCE_COMPONENT", 1, -1);
     prepared.event_config.extinction = &extinction;
     prepared.event_config.AI0     = AI0;     prepared.event_config.AK0  = AK0;
     prepared.event_config.BHhd    = BHhd;    prepared.event_config.BHhb = BHhb;

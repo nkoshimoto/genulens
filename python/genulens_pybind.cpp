@@ -1066,6 +1066,9 @@ PYBIND11_MODULE(genulens, m)
     pre_gapmoe.def("murel_distribution", [](py::kwargs kwargs) {
         return run_pre_gapmoe_tool("calc_murel_dist", kwargs);
     }, "Run calc_murel_dist and return a PreGapmoeTable.");
+    pre_gapmoe.def("flow_samples", [](py::kwargs kwargs) {
+        return run_pre_gapmoe_tool("generate_flow_samples", kwargs);
+    }, "Run generate_flow_samples and return a PreGapmoeTable.");
 
     m.def("simulate", run_simulation, py::arg("cfg"), py::arg("likelihood") = py::none());
     m.def("compute_rate_summary",

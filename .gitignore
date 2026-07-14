@@ -10,6 +10,7 @@ genulens
 pre_gapmoe/calc_rho_profile
 pre_gapmoe/calc_mass_dist
 pre_gapmoe/calc_murel_dist
+pre_gapmoe/generate_flow_samples
 .ipynb_checkpoints/
 __pycache__/
 *.pyc

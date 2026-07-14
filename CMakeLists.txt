@@ -110,6 +110,11 @@ target_include_directories(calc_murel_dist PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries(calc_murel_dist PRIVATE genulens_core)
 set_target_properties(calc_murel_dist PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pre_gapmoe")
 
+add_executable(generate_flow_samples src/genulens/tools/pre_gapmoe/generate_flow_samples.cpp)
+target_include_directories(generate_flow_samples PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(generate_flow_samples PRIVATE genulens_core)
+set_target_properties(generate_flow_samples PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/pre_gapmoe")
+
 add_executable(test_core tests/unit/test_core.cpp)
 target_link_libraries(test_core PRIVATE genulens_core)
 add_test(NAME unit_core COMMAND test_core)
@@ -135,8 +140,8 @@ else()
 endif()
 
 install(TARGETS genulens genulens_core)
-install(TARGETS calc_rho_profile calc_mass_dist calc_murel_dist RUNTIME DESTINATION bin)
-install(TARGETS calc_rho_profile calc_mass_dist calc_murel_dist RUNTIME DESTINATION .)
+install(TARGETS calc_rho_profile calc_mass_dist calc_murel_dist generate_flow_samples RUNTIME DESTINATION bin)
+install(TARGETS calc_rho_profile calc_mass_dist calc_murel_dist generate_flow_samples RUNTIME DESTINATION .)
 install(DIRECTORY input_files DESTINATION share/genulens
     PATTERN "raw" EXCLUDE
     PATTERN "*.txz" EXCLUDE

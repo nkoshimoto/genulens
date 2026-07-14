@@ -311,6 +311,14 @@ int EventSampler::run(RunContext &ctx,
     const double Dmean   = cfg.Dmean;
     const bool attach_source_properties =
         cfg.forward_source_generator != nullptr && cfg.forward_source_rng != nullptr;
+    const int forced_source_component = cfg.forced_source_component;
+    if (forced_source_component < -1 || forced_source_component >= grid.ncomp()) {
+        throw std::runtime_error("forced source component is outside the Galactic component range");
+    }
+    if (forced_source_component >= 0 &&
+        !(grid.cumu_rho_S_data(forced_source_component)[grid.nbin()] > 0.0)) {
+        throw std::runtime_error("forced source component has zero density on this sightline");
+    }
 
     // PopulationRuntime raw pointers (still used directly)
     double *logMass_B        = pop.log_mass;
@@ -344,7 +352,9 @@ int EventSampler::run(RunContext &ctx,
         stats.Ngen++;
 
         // --- Sample source component and distance ---
-        int i_s = grid.sample_source_component(ctx.runtime.rng->uniform());
+        int i_s = forced_source_component >= 0
+            ? forced_source_component
+            : grid.sample_source_component(ctx.runtime.rng->uniform());
         if (i_s == ctx.density.ncomp) { j--; continue; }
 
         double tau_s = (i_s == 9)  ? ctx.stellar.mageND + ctx.stellar.sageND*ctx.runtime.rng->gaussian()
