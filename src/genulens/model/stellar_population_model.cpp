@@ -82,6 +82,19 @@ StellarProperties StellarPopulationModel::lookup(const StellarPopulationQuery &q
     return isochrones_.lookup(isochrone_query);
 }
 
+MassInterval StellarPopulationModel::initial_mass_interval(const StellarPopulationQuery &query) const
+{
+    std::string component = query.component;
+    if (component.empty()) component = component_name(query.component_index);
+
+    IsochroneQuery isochrone_query;
+    isochrone_query.component = component;
+    isochrone_query.log_age = query.use_default_log_age ? default_log_age(component) : query.log_age;
+    isochrone_query.metallicity_mh =
+        query.use_default_metallicity ? default_metallicity_mh(component) : query.metallicity_mh;
+    return isochrones_.initial_mass_interval(isochrone_query);
+}
+
 std::vector<MassInterval> StellarPopulationModel::matching_initial_mass_intervals(
     const StellarPopulationQuery &query,
     const std::vector<MagnitudeSelection> &selection) const

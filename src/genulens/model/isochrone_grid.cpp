@@ -305,6 +305,13 @@ StellarProperties IsochroneGrid::lookup(const IsochroneQuery &query) const
     return props;
 }
 
+MassInterval IsochroneGrid::initial_mass_interval(const IsochroneQuery &query) const
+{
+    const auto &seq = select_sequence(query);
+    if (seq.rows.empty()) throw std::runtime_error("selected empty isochrone sequence");
+    return {seq.rows.front().initial_mass_msun, seq.rows.back().initial_mass_msun};
+}
+
 std::vector<MassInterval> IsochroneGrid::matching_initial_mass_intervals(
     const IsochroneQuery &query,
     const std::vector<MagnitudeSelection> &selection) const

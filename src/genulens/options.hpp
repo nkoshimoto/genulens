@@ -4,6 +4,7 @@
 #include "genulens/simulation/observation_config.hpp"
 
 #include <string>
+#include <limits>
 #include <vector>
 
 namespace genulens {
@@ -38,7 +39,7 @@ struct SourceSelectionConfig {
     double dust_scale_height_pc = 164.0;
 
     double min_initial_mass_msun = 0.09;
-    double max_initial_mass_msun = 1.0;
+    double max_initial_mass_msun = std::numeric_limits<double>::infinity();
     std::string isochrone_model = "parsec_solar_scaled";
     std::string isochrone_family = "parsec";
     std::string isochrone_abundance = "solar_scaled";
@@ -72,7 +73,7 @@ struct ForwardSourceConfig {
     std::vector<int> alpha_enhanced_components;
     std::vector<double> alpha_enhanced_component_fractions;
     double min_initial_mass_msun = 0.09;
-    double max_initial_mass_msun = 1.0;
+    double max_initial_mass_msun = std::numeric_limits<double>::infinity();
     std::vector<std::string> selection_bands;
     std::vector<double> selection_min_magnitudes;
     std::vector<double> selection_max_magnitudes;

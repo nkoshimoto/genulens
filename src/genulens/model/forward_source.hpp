@@ -5,6 +5,7 @@
 #include "genulens/rng.hpp"
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,7 +17,8 @@ struct ForwardSourceQuery {
     int component_index = -1;
     double distance_pc = 8000.0;
     double min_initial_mass_msun = 0.09;
-    double max_initial_mass_msun = 1.0;
+    // Infinity means use the full support of the selected isochrone sequence.
+    double max_initial_mass_msun = std::numeric_limits<double>::infinity();
     double log_age = 0.0;
     double metallicity_mh = 0.0;
     bool use_default_log_age = true;
@@ -120,6 +122,8 @@ private:
     double imf_integral(const std::vector<MassInterval> &intervals,
                         double min_mass_msun,
                         double max_mass_msun) const;
+    MassInterval supported_mass_interval(const PopulationComponent &component,
+                                         const ForwardSourceQuery &query) const;
 };
 
 double angular_radius_microarcsec(double radius_rsun, double distance_pc);

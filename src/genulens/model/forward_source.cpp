@@ -277,8 +277,9 @@ ForwardSourceResult ForwardSourceGenerator::imf_quadrature(const ForwardSourceQu
         throw std::runtime_error(
             "forward-source IMF quadrature requires a generator with one stellar population");
     }
-    const double lo = std::max(query.min_initial_mass_msun, mass_grid_.mass.front());
-    const double hi = std::min(query.max_initial_mass_msun, mass_grid_.mass.back());
+    const auto support = supported_mass_interval(population_components_.front(), query);
+    const double lo = support.min_mass_msun;
+    const double hi = support.max_mass_msun;
     if (!(hi > lo)) {
         throw std::runtime_error("forward-source IMF quadrature has an empty mass interval");
     }
@@ -400,25 +401,26 @@ ForwardSource ForwardSourceGenerator::sample_from_population(
     if (!selection.empty()) {
         intervals = cached_matching_initial_mass_intervals(component, query);
     }
+    const auto support = supported_mass_interval(component, query);
     const int max_attempts = selection.empty() ? 1 : 64;
     for (int attempt = 0; attempt <= max_attempts; ++attempt) {
         double initial_mass = 0.0;
         if (selection.empty()) {
-            initial_mass = sample_initial_mass(query.min_initial_mass_msun,
-                                               query.max_initial_mass_msun,
+            initial_mass = sample_initial_mass(support.min_mass_msun,
+                                               support.max_mass_msun,
                                                rng);
         } else if (attempt < max_attempts) {
             initial_mass = sample_initial_mass_from_interval_bounds(intervals,
-                                                                    query.min_initial_mass_msun,
-                                                                    query.max_initial_mass_msun,
+                                                                    support.min_mass_msun,
+                                                                    support.max_mass_msun,
                                                                     rng);
         } else {
             // Conservative bounds can include gaps around non-monotonic
             // isochrone phases. Fall back to the exact allowed intervals only
             // after bounded proposals fail, without rejecting the event.
             initial_mass = sample_initial_mass_from_intervals(intervals,
-                                                              query.min_initial_mass_msun,
-                                                              query.max_initial_mass_msun,
+                                                              support.min_mass_msun,
+                                                              support.max_mass_msun,
                                                               rng);
         }
         population_query.initial_mass_msun = initial_mass;
@@ -442,12 +444,12 @@ double ForwardSourceGenerator::selection_probability(const PopulationComponent &
     if (query.magnitude_selections.empty()) return 1.0;
 
     const auto intervals = cached_matching_initial_mass_intervals(component, query);
-    const double total = imf_integral(query.min_initial_mass_msun,
-                                      query.max_initial_mass_msun);
+    const auto support = supported_mass_interval(component, query);
+    const double total = imf_integral(support.min_mass_msun, support.max_mass_msun);
     if (!(total > 0.0)) return 0.0;
     const double selected = imf_integral(intervals,
-                                         query.min_initial_mass_msun,
-                                         query.max_initial_mass_msun);
+                                         support.min_mass_msun,
+                                         support.max_mass_msun);
     return std::max(0.0, std::min(1.0, selected / total));
 }
 
@@ -479,6 +481,28 @@ std::vector<MassInterval> ForwardSourceGenerator::cached_matching_initial_mass_i
         interval_cache_->intervals.emplace(key, intervals);
     }
     return intervals;
+}
+
+MassInterval ForwardSourceGenerator::supported_mass_interval(
+    const PopulationComponent &component, const ForwardSourceQuery &query) const
+{
+    StellarPopulationQuery population_query;
+    population_query.component = query.component;
+    population_query.component_index = query.component_index;
+    population_query.log_age = query.log_age;
+    population_query.metallicity_mh = query.metallicity_mh;
+    population_query.use_default_log_age = query.use_default_log_age;
+    population_query.use_default_metallicity = query.use_default_metallicity;
+    const auto isochrone = component.population_model.initial_mass_interval(population_query);
+    MassInterval support;
+    support.min_mass_msun = std::max({query.min_initial_mass_msun,
+                                      mass_grid_.mass.front(), isochrone.min_mass_msun});
+    support.max_mass_msun = std::min({query.max_initial_mass_msun,
+                                      mass_grid_.mass.back(), isochrone.max_mass_msun});
+    if (!(support.max_mass_msun > support.min_mass_msun)) {
+        throw std::runtime_error("forward-source initial-mass range has no isochrone support");
+    }
+    return support;
 }
 
 double ForwardSourceGenerator::sample_initial_mass(double min_mass_msun,

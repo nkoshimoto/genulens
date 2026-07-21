@@ -27,6 +27,7 @@ public:
 
     const IsochroneGrid &isochrones() const { return isochrones_; }
     StellarProperties lookup(const StellarPopulationQuery &query) const;
+    MassInterval initial_mass_interval(const StellarPopulationQuery &query) const;
     std::vector<MassInterval> matching_initial_mass_intervals(
         const StellarPopulationQuery &query,
         const std::vector<MagnitudeSelection> &selection) const;

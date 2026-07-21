@@ -235,6 +235,27 @@ def test_old_thick_disk_rgb_tip_not_inflated_by_remnant_gap():
     assert np.unique(initial_mass[(initial_mass > 0.83) & (initial_mass < 1.0)]).size > 100
 
 
+def test_forward_source_default_mass_range_uses_full_isochrone_support():
+    """The default must retain evolved bar stars without endpoint pile-up."""
+    generator = genulens.ForwardSourceGenerator.load_default_for_bands(["Vmag", "Imag"])
+    query = genulens.ForwardSourceQuery()
+    query.component_index = 8
+    query.distance_pc = 10.0
+    query.min_initial_mass_msun = 0.09
+    query.use_default_log_age = False
+    query.log_age = 9.903
+    query.use_default_metallicity = False
+    query.metallicity_mh = 0.0
+
+    result = generator.imf_quadrature(query, 8192)
+    rows = result.to_numpy()
+    initial_mass = rows[:, result.columns.index("M_S_ini")]
+    radius = rows[:, result.columns.index("R_S")]
+    assert initial_mass.max() > 1.08  # RGB/AGB support lies above 1 Msun.
+    assert initial_mass.max() < 1.11  # Never sample beyond the table then clamp.
+    assert np.mean(radius > 2.0) > 1e-3
+
+
 def test_python_stellar_population_lookup():
     population = genulens.StellarPopulationModel.load_default_for_bands(["F146mag"])
     assert genulens.StellarPopulationModel.component_name(7) == "thick"
