@@ -267,6 +267,52 @@ ForwardSourceResult ForwardSourceGenerator::sample_many(const ForwardSourceQuery
     return result;
 }
 
+ForwardSourceResult ForwardSourceGenerator::imf_quadrature(const ForwardSourceQuery &query,
+                                                            std::size_t n_points) const
+{
+    if (n_points == 0) {
+        throw std::runtime_error("forward-source IMF quadrature requires n_points > 0");
+    }
+    if (population_components_.size() != 1) {
+        throw std::runtime_error(
+            "forward-source IMF quadrature requires a generator with one stellar population");
+    }
+    const double lo = std::max(query.min_initial_mass_msun, mass_grid_.mass.front());
+    const double hi = std::min(query.max_initial_mass_msun, mass_grid_.mass.back());
+    if (!(hi > lo)) {
+        throw std::runtime_error("forward-source IMF quadrature has an empty mass interval");
+    }
+    const double cmin = interpolate_cumulative(mass_grid_, std::log10(lo));
+    const double cmax = interpolate_cumulative(mass_grid_, std::log10(hi));
+    if (!(cmax > cmin)) {
+        throw std::runtime_error("forward-source IMF quadrature has zero IMF probability");
+    }
+
+    const auto &component = population_components_.front();
+    ForwardSourceResult result;
+    result.bands = bands();
+    result.sources.reserve(n_points);
+    for (std::size_t index = 0; index < n_points; ++index) {
+        StellarPopulationQuery population_query;
+        population_query.component = query.component;
+        population_query.component_index = query.component_index;
+        population_query.log_age = query.log_age;
+        population_query.metallicity_mh = query.metallicity_mh;
+        population_query.use_default_log_age = query.use_default_log_age;
+        population_query.use_default_metallicity = query.use_default_metallicity;
+        const double cdf = cmin + (cmax - cmin) *
+            (static_cast<double>(index) + 0.5) / static_cast<double>(n_points);
+        population_query.initial_mass_msun = invert_cumulative(mass_grid_, cdf);
+        ForwardSource source;
+        source.stellar = component.population_model.lookup(population_query);
+        source.distance_pc = query.distance_pc;
+        source.angular_radius_microarcsec = angular_radius_microarcsec(
+            source.stellar.radius_rsun, source.distance_pc);
+        result.sources.push_back(std::move(source));
+    }
+    return result;
+}
+
 double ForwardSourceGenerator::selection_probability(const ForwardSourceQuery &query) const
 {
     if (query.magnitude_selections.empty()) return 1.0;

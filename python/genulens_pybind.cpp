@@ -949,6 +949,8 @@ PYBIND11_MODULE(genulens, m)
             genulens::RandomEngine rng(seed);
             return generator.sample_many(query, n_sources, rng);
         }, py::arg("query"), py::arg("n_sources"), py::arg("seed") = 12304357UL)
+        .def("imf_quadrature", &genulens::model::ForwardSourceGenerator::imf_quadrature,
+             py::arg("query"), py::arg("n_points"))
         .def("selection_probability",
              [](const genulens::model::ForwardSourceGenerator &generator,
                 const genulens::model::ForwardSourceQuery &query) {

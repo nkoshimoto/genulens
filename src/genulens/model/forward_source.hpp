@@ -74,6 +74,14 @@ public:
     ForwardSource sample(const ForwardSourceQuery &query, genulens::RandomEngine &rng) const;
     ForwardSourceResult sample_many(const ForwardSourceQuery &query, std::size_t n_sources,
                                     genulens::RandomEngine &rng) const;
+    /// Deterministic equal-IMF-probability quadrature for one stellar population.
+    ///
+    /// Unlike ``sample_many``, this never uses a random engine.  It is for
+    /// constructing luminosity-function / CMD tables where rare post-main-
+    /// sequence phases must not be represented by a handful of random draws.
+    /// Every returned row has the same IMF probability weight.
+    ForwardSourceResult imf_quadrature(const ForwardSourceQuery &query,
+                                       std::size_t n_points) const;
     double selection_probability(const ForwardSourceQuery &query) const;
 
 private:
