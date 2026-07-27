@@ -4,6 +4,12 @@
 
 namespace genulens::model {
 
+// Return Galactic longitude in the conventional [-180, 180) interval.
+// The Galactic model accepts either 0--360 or signed longitudes, but
+// empirical relations written around the Galactic centre require the
+// signed representation.
+double wrapped_longitude_deg(double l_deg);
+
 struct PositionAngle {
     double degrees = 0.0;
     double cos_pa = 1.0;
@@ -23,4 +29,3 @@ private:
 };
 
 } // namespace genulens::model
-

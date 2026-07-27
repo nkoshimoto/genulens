@@ -38,6 +38,10 @@ int main()
     require(std::abs(xyz.x - 8160.0) < 1e-9, "coordinate conversion at Sun failed");
     const auto pa = genulens::model::CoordinateTransformer::position_angle(1.0, -3.9);
     require(std::isfinite(pa.degrees), "position angle calculation failed");
+    require(std::abs(genulens::model::wrapped_longitude_deg(355.84916456) + 4.15083544) < 1e-10,
+            "longitude wrapping from 0--360 to signed degrees failed");
+    require(std::abs(genulens::model::wrapped_longitude_deg(-4.15083544) + 4.15083544) < 1e-10,
+            "signed longitude wrapping changed unexpectedly");
 
     double locations[64] = {};
     double weights[64] = {};

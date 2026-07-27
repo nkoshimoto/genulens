@@ -6,6 +6,13 @@
 
 namespace genulens::model {
 
+double wrapped_longitude_deg(double l_deg)
+{
+    double wrapped = std::fmod(l_deg + 180.0, 360.0);
+    if (wrapped < 0.0) wrapped += 360.0;
+    return wrapped - 180.0;
+}
+
 namespace {
 
 void cross(double *c, const double *a, const double *b)
@@ -87,4 +94,3 @@ PositionAngle CoordinateTransformer::position_angle(double l_deg, double b_deg)
 }
 
 } // namespace genulens::model
-
