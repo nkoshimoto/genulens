@@ -44,6 +44,7 @@ struct MassInterval {
 class IsochroneGrid {
 public:
     static IsochroneGrid load(const std::filesystem::path &path);
+    static IsochroneGrid load_default_for_bands(const std::vector<std::string> &bands);
     static IsochroneGrid load_default_roman();
     static IsochroneGrid load_default_prime();
 

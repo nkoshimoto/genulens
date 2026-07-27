@@ -134,6 +134,18 @@ df = pd.DataFrame(result.to_numpy(), columns=result.columns)
 See [docs/quickstart.md](docs/quickstart.md) and
 [docs/python_api.md](docs/python_api.md) for details.
 
+The `pre_gapmoe` histogram helpers are also available from Python when installed
+from a wheel or source build:
+
+```python
+import genulens
+
+rho = genulens.pre_gapmoe.rho_profile(l=1.0, b=-3.9, SOURCE=1)
+rho_array = rho.to_numpy()
+```
+
+See [docs/pre_gapmoe.md](docs/pre_gapmoe.md) for the helper API and CLI options.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
@@ -168,6 +180,7 @@ Ian A. Bond and Takahiro Sumi.
 
 ## Release History
 
+- v2.0.0 alpha 3: Python API for bundled `pre_gapmoe` helper tables.
 - v2.0.0 alpha: PyPI package, refactored C++ core, direct Python API,
   source-forward isochrone support, extinction-map support, custom Python
   likelihoods, and rate-summary APIs.

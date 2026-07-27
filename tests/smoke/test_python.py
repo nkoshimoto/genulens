@@ -57,6 +57,41 @@ def test_python_ruc_alias():
     assert result.to_numpy().shape[0] == 3
 
 
+def test_python_pre_gapmoe_api():
+    mass = genulens.pre_gapmoe.mass_distribution(Nmass=16)
+    mass_arr = mass.to_numpy()
+    assert mass_arr.shape[0] > 0
+    assert mass_arr.shape[1] == len(mass.columns)
+    assert mass.columns[0] == "logM[Msun]"
+    assert "dN/dlogM_tot" in mass.columns
+
+    rho = genulens.pre_gapmoe.rho_profile(l=1.0, b=-3.9, Dmin=500, Dmax=1000, Dstep=500, SOURCE=1)
+    rho_arr = rho.to_numpy()
+    assert rho_arr.shape == (2, len(rho.columns))
+    assert rho.columns[0] == "D[pc]"
+    assert "rhoD_S_tot" in rho.columns
+
+    murel = genulens.pre_gapmoe.murel_distribution(
+        l=1.0,
+        b=-3.9,
+        GRID=1,
+        DLmin=0,
+        DLmax=1000,
+        DLstep=500,
+        DSmin=500,
+        DSmax=1000,
+        DSstep=500,
+        Nsimu=100,
+        mumax=20,
+        dmu=5,
+        AUTOERR=0,
+    )
+    murel_arr = murel.to_numpy()
+    assert murel_arr.shape[1] == len(murel.columns)
+    assert murel.columns[:6] == ["DS[pc]", "DL[pc]", "murel[mas/yr]", "phi[rad]", "dP/dmurel", "dP/dphi"]
+    assert any("calc_murel_dist" in part for part in murel.command)
+
+
 def test_python_rate_summary_api():
     cfg = genulens.Config(l=1.0, b=-3.9, n_simu=50, seed=1234)
     cfg.source.mode = "classic"
@@ -143,7 +178,7 @@ def test_python_genstars_extinction_map_api():
 
 
 def test_python_isochrone_grid_lookup():
-    grid = genulens.IsochroneGrid.load_default_roman()
+    grid = genulens.IsochroneGrid.load_default_for_bands(["F146mag"])
     assert grid.row_count == 41039
     assert grid.sequence_count == 113
     assert "F146mag" in grid.bands
@@ -161,7 +196,7 @@ def test_python_isochrone_grid_lookup():
 
 
 def test_python_isochrone_grid_skips_discontinuous_segments():
-    grid = genulens.IsochroneGrid.load_default_prime()
+    grid = genulens.IsochroneGrid.load_default_for_bands(["Imag"])
     query = genulens.IsochroneQuery()
     query.component = "bar"
     query.log_age = 9.903089987
@@ -174,7 +209,7 @@ def test_python_isochrone_grid_skips_discontinuous_segments():
 
 
 def test_python_stellar_population_lookup():
-    population = genulens.StellarPopulationModel.load_default_roman()
+    population = genulens.StellarPopulationModel.load_default_for_bands(["F146mag"])
     assert genulens.StellarPopulationModel.component_name(7) == "thick"
     assert genulens.StellarPopulationModel.component_index("NSD") == 9
 
@@ -189,7 +224,7 @@ def test_python_stellar_population_lookup():
 
 
 def test_python_forward_source_generator():
-    generator = genulens.ForwardSourceGenerator.load_default_roman()
+    generator = genulens.ForwardSourceGenerator.load_default_for_bands(["F146mag"])
     query = genulens.ForwardSourceQuery()
     query.component = "thin1"
     query.distance_pc = 8000.0
@@ -239,7 +274,6 @@ def test_python_forward_source_can_use_separate_imf_from_lens_imf():
         i_min=14.0,
         i_max=30.0,
         band="F146mag",
-        photometry="roman",
         min_mass=0.08,
         max_mass=2.0,
     )
@@ -261,7 +295,6 @@ def test_python_source_mode_convenience_methods():
         i_min=12.0,
         i_max=21.0,
         band="Imag",
-        photometry="prime",
         min_mass=0.1,
         max_mass=2.0,
     )
@@ -271,6 +304,31 @@ def test_python_source_mode_convenience_methods():
     result = genulens.simulate(cfg)
     assert result.to_numpy().shape[0] == 5
     assert "M_Imag_S" in result.columns
+
+
+def test_python_isochrone_table_is_selected_from_bands():
+    assert not hasattr(genulens.IsochroneGrid, "load_default_prime")
+    assert not hasattr(genulens.IsochroneGrid, "load_default_roman")
+    assert not hasattr(genulens.StellarPopulationModel, "load_default_prime")
+    assert not hasattr(genulens.StellarPopulationModel, "load_default_roman")
+    assert not hasattr(genulens.ForwardSourceGenerator, "load_default_prime")
+    assert not hasattr(genulens.ForwardSourceGenerator, "load_default_roman")
+
+    optical = genulens.ForwardSourceGenerator.load_default_for_bands(["Imag", "Vmag"])
+    roman = genulens.ForwardSourceGenerator.load_default_for_bands(["F146mag", "Ksmag_2mass"])
+    assert optical is not None
+    assert roman is not None
+
+    with pytest.raises(RuntimeError, match="span"):
+        genulens.ForwardSourceGenerator.load_default_for_bands(["Imag", "F146mag"])
+
+
+def test_python_isochrone_source_selects_photometry_from_band():
+    optical = genulens.Config().use_isochrone_source(band="Imag")
+    roman = genulens.Config().use_isochrone_source(band="F146mag")
+
+    assert optical.source.photometry == "prime"
+    assert roman.source.photometry == "roman"
 
 
 def test_python_simulation_forward_source_matches_source_selection():
@@ -314,7 +372,6 @@ def test_python_h_band_rate_summary_uses_isochrone_source_selection():
         i_min=11.0,
         i_max=18.0,
         band="Hmag_2mass",
-        photometry="prime",
         min_mass=0.09,
         max_mass=2.0,
     )
@@ -404,7 +461,7 @@ def test_python_simulation_forward_source_absolute_selection():
 
 def test_forward_source_isochrone_mixture_same_table_matches_default():
     table = "source_photometry/parsec_cmd/metallicity_grid/normalized/all_roman_parsec.dat"
-    default = genulens.ForwardSourceGenerator.load_default_roman()
+    default = genulens.ForwardSourceGenerator.load_default_for_bands(["F146mag"])
     mixed = genulens.ForwardSourceGenerator.load_mixture(table, table, 0.5)
 
     cut = genulens.MagnitudeSelection()
@@ -668,7 +725,7 @@ def test_python_simulation_verbosity_1_columns():
 
 
 def test_selection_probability_properties():
-    generator = genulens.ForwardSourceGenerator.load_default_roman()
+    generator = genulens.ForwardSourceGenerator.load_default_for_bands(["F146mag"])
 
     query = genulens.ForwardSourceQuery()
     query.component = "thin1"
@@ -730,7 +787,7 @@ def test_source_population_prior_points():
 
 def test_selection_probability_matches_sampling():
     """selection_probability must match the IMF fraction satisfying the magnitude cut."""
-    generator = genulens.ForwardSourceGenerator.load_default_roman()
+    generator = genulens.ForwardSourceGenerator.load_default_for_bands(["F146mag"])
 
     cut = genulens.MagnitudeSelection()
     cut.band = "F146mag"
@@ -762,7 +819,7 @@ def test_selection_probability_matches_sampling():
 
 def test_selection_probability_apparent_offset():
     """Apparent magnitude offset shifts the effective cut; closer distance = smaller offset."""
-    generator = genulens.ForwardSourceGenerator.load_default_roman()
+    generator = genulens.ForwardSourceGenerator.load_default_for_bands(["F146mag"])
 
     query = genulens.ForwardSourceQuery()
     query.component = "thin1"

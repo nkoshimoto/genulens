@@ -166,7 +166,8 @@ int main(int argc, char **argv)
     double gammaDs = getOptiond(argc, argv, "gammaDs", 1, 0.5);
 
     if (DMrc == 0.0)
-        DMrc = 14.3955 - 0.0239 * lSIMU + 0.0122 * fabs(bSIMU) + 0.128;
+        DMrc = 14.3955 - 0.0239 * genulens::model::wrapped_longitude_deg(lSIMU)
+             + 0.0122 * fabs(bSIMU) + 0.128;
     double sinb   = sin(bSIMU / 180.0 * 3.1415926535897932385);
     double hscale = hdust / (fabs(sinb) + 0.0001);
     double Dmean  = (DMrc > 0) ? pow(10.0, 0.2 * DMrc) * 10.0 : -9.99;

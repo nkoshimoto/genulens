@@ -431,6 +431,7 @@ int run_sampler_impl(RunContext &context,
         lSIMU = typed_config->l;
         bSIMU = typed_config->b;
     }
+    const double l_signed = gmodel::wrapped_longitude_deg(lSIMU);
     double Isst  = getOptiond(argc, argv, "Isrange",  1, 14.0);
     double Isen  = getOptiond(argc, argv, "Isrange",  2, 21.0);
     double VIsst = getOptiond(argc, argv, "VIsrange", 1,  0.0);
@@ -470,7 +471,7 @@ int run_sampler_impl(RunContext &context,
             }
         }
     }
-    if (emit_cli_output && (fabs(lSIMU) > 10 || fabs(bSIMU) > 7 || fabs(bSIMU) < 1.5))
+    if (emit_cli_output && (fabs(l_signed) > 10 || fabs(bSIMU) > 7 || fabs(bSIMU) < 1.5))
         printf("# WARNING: genulens is designed for |l| < ~10 and ~1.5 < |b| < ~7"
                " and (l,b)= (%.3f, %.3f) is outside the range.\n", lSIMU, bSIMU);
 
@@ -583,7 +584,7 @@ int run_sampler_impl(RunContext &context,
 
     // ------- NSD option parsing -------
     double MND = 0;
-    if (fabs(lSIMU) < 5 && fabs(bSIMU) < 2) context.density.ND = 3;
+    if (fabs(l_signed) < 5 && fabs(bSIMU) < 2) context.density.ND = 3;
     context.density.ND = getOptiond(argc, argv, "NSD", 1, context.density.ND);
     if (typed_config && typed_config->model.nsd.enabled >= 0) {
         context.density.ND = typed_config->model.nsd.enabled;
@@ -683,7 +684,8 @@ int run_sampler_impl(RunContext &context,
 
     // ------- Extinction -------
     if (DMrc == 0)
-        DMrc = 14.3955 - 0.0239*lSIMU + 0.0122*fabs(bSIMU) + 0.128;
+        DMrc = 14.3955 - 0.0239*l_signed
+             + 0.0122*fabs(bSIMU) + 0.128;
     if (sampling_options.n_simu == 0) exit(1);
 
     context.density.lDs    = (double*)malloc(sizeof(double) * 1);
@@ -902,6 +904,8 @@ int run_sampler_impl(RunContext &context,
     prepared.event_config.cosb    = cosb;     prepared.event_config.sinb  = sinb;
     prepared.event_config.cosl    = cosl;     prepared.event_config.sinl  = sinl;
     prepared.event_config.l       = lSIMU;   prepared.event_config.b     = bSIMU;
+    prepared.event_config.forced_source_component =
+        getOptioni(argc, argv, "__PRE_GAPMOE_SOURCE_COMPONENT", 1, -1);
     prepared.event_config.extinction = &extinction;
     prepared.event_config.AI0     = AI0;     prepared.event_config.AK0  = AK0;
     prepared.event_config.BHhd    = BHhd;    prepared.event_config.BHhb = BHhb;

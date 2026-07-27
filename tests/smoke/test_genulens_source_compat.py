@@ -132,7 +132,6 @@ def run_current_h_band_isochrone_with_extinction_map(l_deg, b_deg, n_simu=1000):
         i_min=11.0,
         i_max=18.0,
         band="Hmag_2mass",
-        photometry="prime",
         min_mass=0.09,
         max_mass=2.0,
     )

@@ -26,6 +26,10 @@ public:
         double cosl  = 1.0, sinl  = 0.0;
         double l = 0.0, b = 0.0;
 
+        // Internal hook used by the pre_gapmoe flow-training generator.
+        // A negative value preserves the standard source-mixture sampler.
+        int forced_source_component = -1;
+
         // Extinction
         const model::ExponentialDustExtinction *extinction = nullptr;
         double AI0 = 0.0, AK0 = 0.0;

@@ -95,6 +95,31 @@ IsochroneGrid IsochroneGrid::load_default_roman()
     return load("source_photometry/parsec_cmd/metallicity_grid/normalized/all_roman_parsec.dat");
 }
 
+IsochroneGrid IsochroneGrid::load_default_for_bands(const std::vector<std::string> &bands)
+{
+    if (bands.empty()) throw std::runtime_error("at least one isochrone band is required");
+    const std::vector<std::string> optical = {"Vmag", "Imag"};
+    const std::vector<std::string> roman = {"F087mag", "F146mag", "F213mag"};
+    const std::vector<std::string> shared = {"Jmag_2mass", "Hmag_2mass", "Ksmag_2mass"};
+    bool needs_optical = false;
+    bool needs_roman = false;
+    for (const auto &band : bands) {
+        if (std::find(optical.begin(), optical.end(), band) != optical.end()) {
+            needs_optical = true;
+        } else if (std::find(roman.begin(), roman.end(), band) != roman.end()) {
+            needs_roman = true;
+        } else if (std::find(shared.begin(), shared.end(), band) == shared.end()) {
+            throw std::runtime_error("unsupported default isochrone band: " + band);
+        }
+    }
+    if (needs_optical && needs_roman) {
+        throw std::runtime_error(
+            "requested isochrone bands span the optical and Roman tables; "
+            "provide a custom table containing all requested bands");
+    }
+    return needs_optical ? load_default_prime() : load_default_roman();
+}
+
 IsochroneGrid IsochroneGrid::load_default_prime()
 {
     return load("source_photometry/parsec_cmd/metallicity_grid/normalized/all_prime_parsec.dat");
