@@ -180,6 +180,8 @@ Ian A. Bond and Takahiro Sumi.
 
 ## Release History
 
+- v2.0.0 alpha 4: deterministic source-CMD IMF quadrature and corrected
+  isochrone mass support across discontinuous evolutionary phases.
 - v2.0.0 alpha 3: Python API for bundled `pre_gapmoe` helper tables.
 - v2.0.0 alpha: PyPI package, refactored C++ core, direct Python API,
   source-forward isochrone support, extinction-map support, custom Python
