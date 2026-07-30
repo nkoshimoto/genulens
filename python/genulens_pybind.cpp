@@ -862,6 +862,8 @@ PYBIND11_MODULE(genulens, m)
         .def_property_readonly("row_count", &genulens::model::IsochroneGrid::row_count)
         .def_property_readonly("sequence_count", &genulens::model::IsochroneGrid::sequence_count)
         .def("lookup", &genulens::model::IsochroneGrid::lookup, py::arg("query"))
+        .def("initial_mass_interval", &genulens::model::IsochroneGrid::initial_mass_interval,
+             py::arg("query"))
         .def("matching_initial_mass_intervals",
              &genulens::model::IsochroneGrid::matching_initial_mass_intervals,
              py::arg("query"), py::arg("selection"));
@@ -880,6 +882,8 @@ PYBIND11_MODULE(genulens, m)
         .def_static("load_default_for_bands", &genulens::model::StellarPopulationModel::load_default_for_bands,
                     py::arg("bands"))
         .def("lookup", &genulens::model::StellarPopulationModel::lookup, py::arg("query"))
+        .def("initial_mass_interval", &genulens::model::StellarPopulationModel::initial_mass_interval,
+             py::arg("query"))
         .def_static("component_name", &genulens::model::StellarPopulationModel::component_name, py::arg("component_index"))
         .def_static("component_index", &genulens::model::StellarPopulationModel::component_index, py::arg("component"))
         .def_static("default_log_age", &genulens::model::StellarPopulationModel::default_log_age,
@@ -949,6 +953,8 @@ PYBIND11_MODULE(genulens, m)
             genulens::RandomEngine rng(seed);
             return generator.sample_many(query, n_sources, rng);
         }, py::arg("query"), py::arg("n_sources"), py::arg("seed") = 12304357UL)
+        .def("imf_quadrature", &genulens::model::ForwardSourceGenerator::imf_quadrature,
+             py::arg("query"), py::arg("n_points"))
         .def("selection_probability",
              [](const genulens::model::ForwardSourceGenerator &generator,
                 const genulens::model::ForwardSourceQuery &query) {

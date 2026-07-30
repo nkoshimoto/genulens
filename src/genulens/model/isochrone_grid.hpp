@@ -52,7 +52,12 @@ public:
     std::size_t row_count() const { return rows_.size(); }
     std::size_t sequence_count() const { return sequences_.size(); }
 
+    /// Interpolate within continuous initial-mass segments.  Inside a
+    /// discontinuity, use the higher-initial-mass stellar state (the more
+    /// evolved side) while preserving the query's initial mass in the result.
     StellarProperties lookup(const IsochroneQuery &query) const;
+    /// Initial-mass support of the age/metallicity sequence selected by query.
+    MassInterval initial_mass_interval(const IsochroneQuery &query) const;
     std::vector<MassInterval> matching_initial_mass_intervals(
         const IsochroneQuery &query,
         const std::vector<MagnitudeSelection> &selection) const;

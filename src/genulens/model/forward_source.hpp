@@ -5,6 +5,7 @@
 #include "genulens/rng.hpp"
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,7 +17,8 @@ struct ForwardSourceQuery {
     int component_index = -1;
     double distance_pc = 8000.0;
     double min_initial_mass_msun = 0.09;
-    double max_initial_mass_msun = 1.0;
+    // Infinity means use the full support of the selected isochrone sequence.
+    double max_initial_mass_msun = std::numeric_limits<double>::infinity();
     double log_age = 0.0;
     double metallicity_mh = 0.0;
     bool use_default_log_age = true;
@@ -74,6 +76,14 @@ public:
     ForwardSource sample(const ForwardSourceQuery &query, genulens::RandomEngine &rng) const;
     ForwardSourceResult sample_many(const ForwardSourceQuery &query, std::size_t n_sources,
                                     genulens::RandomEngine &rng) const;
+    /// Deterministic equal-IMF-probability quadrature for one stellar population.
+    ///
+    /// Unlike ``sample_many``, this never uses a random engine.  It is for
+    /// constructing luminosity-function / CMD tables where rare post-main-
+    /// sequence phases must not be represented by a handful of random draws.
+    /// Every returned row has the same IMF probability weight.
+    ForwardSourceResult imf_quadrature(const ForwardSourceQuery &query,
+                                       std::size_t n_points) const;
     double selection_probability(const ForwardSourceQuery &query) const;
 
 private:
@@ -112,6 +122,8 @@ private:
     double imf_integral(const std::vector<MassInterval> &intervals,
                         double min_mass_msun,
                         double max_mass_msun) const;
+    MassInterval supported_mass_interval(const PopulationComponent &component,
+                                         const ForwardSourceQuery &query) const;
 };
 
 double angular_radius_microarcsec(double radius_rsun, double distance_pc);

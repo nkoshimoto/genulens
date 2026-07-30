@@ -274,8 +274,13 @@ StellarProperties IsochroneGrid::lookup(const IsochroneQuery &query) const
         t = (query.initial_mass_msun - lo->initial_mass_msun) /
             (hi->initial_mass_msun - lo->initial_mass_msun);
     }
-    if (!continuous_isochrone_segment(*lo, *hi)) {
-        t = (t < 0.5) ? 0.0 : 1.0;
+    if (lo != hi && !continuous_isochrone_segment(*lo, *hi)) {
+        // At fixed age, increasing initial mass advances stellar evolution.
+        // A gap after the last luminous row therefore represents masses that
+        // have already reached the higher-mass state (typically a remnant),
+        // not finite IMF support for either edge of the gap.  Make lookup
+        // right-continuous so the lower, short-lived phase has zero measure.
+        t = 1.0;
     }
 
     StellarProperties props;
@@ -285,7 +290,11 @@ StellarProperties IsochroneGrid::lookup(const IsochroneQuery &query) const
     props.log_age = lerp(lo->log_age, hi->log_age, t);
     props.metallicity_mh = lerp(lo->metallicity_mh, hi->metallicity_mh, t);
     props.zini = lerp(lo->zini, hi->zini, t);
-    props.initial_mass_msun = lerp(lo->initial_mass_msun, hi->initial_mass_msun, t);
+    // Preserve the sampled initial mass even when its stellar properties must
+    // be represented by the higher-mass edge of a discontinuous sequence.
+    props.initial_mass_msun = std::clamp(query.initial_mass_msun,
+                                        seq.rows.front().initial_mass_msun,
+                                        seq.rows.back().initial_mass_msun);
     props.current_mass_msun = lerp(lo->current_mass_msun, hi->current_mass_msun, t);
     props.radius_rsun = lerp(lo->radius_rsun, hi->radius_rsun, t);
     props.teff_k = lerp(lo->teff_k, hi->teff_k, t);
@@ -294,6 +303,13 @@ StellarProperties IsochroneGrid::lookup(const IsochroneQuery &query) const
         props.absolute_magnitudes[bands_[i]] = lerp(lo->magnitudes[i], hi->magnitudes[i], t);
     }
     return props;
+}
+
+MassInterval IsochroneGrid::initial_mass_interval(const IsochroneQuery &query) const
+{
+    const auto &seq = select_sequence(query);
+    if (seq.rows.empty()) throw std::runtime_error("selected empty isochrone sequence");
+    return {seq.rows.front().initial_mass_msun, seq.rows.back().initial_mass_msun};
 }
 
 std::vector<MassInterval> IsochroneGrid::matching_initial_mass_intervals(

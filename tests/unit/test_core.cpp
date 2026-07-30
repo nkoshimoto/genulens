@@ -145,6 +145,21 @@ int main()
     require(prime_star.absolute_magnitudes.count("Vmag") == 1, "prime isochrone V band missing");
     require(prime_star.absolute_magnitudes.count("Imag") == 1, "prime isochrone I band missing");
 
+    // For this old thick-disk sequence, 0.9 Msun lies between the RGB tip and
+    // the first white-dwarf row.  The whole gap must map to the remnant side;
+    // midpoint assignment would give the RGB tip several percent IMF weight.
+    iso_query.component = "thick";
+    iso_query.log_age = 10.079181246047625;
+    iso_query.metallicity_mh = -1.2;
+    iso_query.initial_mass_msun = 0.9;
+    const auto post_turnoff_star = prime_isochrones.lookup(iso_query);
+    require(std::abs(post_turnoff_star.initial_mass_msun - 0.9) < 1e-12,
+            "post-turnoff lookup did not preserve the requested initial mass");
+    require(post_turnoff_star.absolute_magnitudes.at("Imag") > 20.0,
+            "post-turnoff isochrone gap mapped to the luminous RGB edge");
+    require(post_turnoff_star.radius_rsun < 1e-3,
+            "post-turnoff isochrone gap did not map to the remnant edge");
+
     const auto population = genulens::model::StellarPopulationModel::load_default_roman();
     genulens::model::StellarPopulationQuery pop_query;
     pop_query.component_index = 7;
