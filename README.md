@@ -178,6 +178,11 @@ is also available.
 The copyright of the included supplementary code `option.cpp` belongs to
 Ian A. Bond and Takahiro Sumi.
 
+## Maintainer
+
+Current maintenance and operations are handled by [Kansuke Nunota](https://github.com/NunotaKansuke).
+For inquiries, contact [nunota@iral.ess.sci.osaka-u.ac.jp](mailto:nunota@iral.ess.sci.osaka-u.ac.jp).
+
 ## Release History
 
 - v2.0.0 alpha 4: deterministic source-CMD IMF quadrature and corrected
