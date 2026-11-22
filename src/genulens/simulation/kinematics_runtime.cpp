@@ -113,7 +113,7 @@ void store_cumuP_Shu(RunContext &ctx, char *infile) // calculate cumu prob dist 
   // read circular velocity
   FILE *fp;
   char line[1000];
-  char *words[100];
+  std::vector<const char *> words;
   if (ctx.kinematics.nVcs == 0){
     if((fp=fopen(infile,"r"))==NULL){
        printf("can't open %s\n",infile);
@@ -121,8 +121,8 @@ void store_cumuP_Shu(RunContext &ctx, char *infile) // calculate cumu prob dist 
     }
     ctx.kinematics.nVcs = 0;
     while (fgets(line,1000,fp) !=NULL){
-       split((char*)" ", line, words);
-       if (*words[0] == '#') continue;
+       split_table_fields(line, words);
+       if (words.empty() || *words[0] == '#') continue;
        ctx.kinematics.Rcs.data()[ctx.kinematics.nVcs]  = 1000*atof(words[0]); // kpc -> pc
        ctx.kinematics.Vcs.data()[ctx.kinematics.nVcs] =      atof(words[1]); // km/sec
        ctx.kinematics.nVcs++;

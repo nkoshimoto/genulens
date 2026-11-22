@@ -120,6 +120,15 @@ target_link_libraries(test_core PRIVATE genulens_core)
 add_test(NAME unit_core COMMAND test_core)
 set_tests_properties(unit_core PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
+find_program(VALGRIND_EXECUTABLE valgrind)
+if(VALGRIND_EXECUTABLE)
+    add_test(NAME classic_source_leaks
+        COMMAND "${VALGRIND_EXECUTABLE}" --leak-check=full --errors-for-leak-kinds=definite
+            --error-exitcode=1 $<TARGET_FILE:genulens>
+            l 1 b -3.9 AIrc 1 Isrange 17.8 18.2 Nsimu 10 seed 1234)
+    set_tests_properties(classic_source_leaks PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+
 add_test(NAME smoke_cli COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke/smoke_cli.sh")
 add_test(NAME regression_cli COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke/regression_cli.sh")
 
