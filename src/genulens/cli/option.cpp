@@ -28,29 +28,16 @@ double getOptiond(int argc, char *argv[], const char *argname, int argno, double
    else return atof(word);
 }
 /* -------------------------------------------------------------------*/
-int split(char *splitw, const char *s, char *word[])
-/* Count the number of words in a string and return indivual words */
+void split_table_fields(char *line, std::vector<const char *> &fields)
 {
-   int count = 0;
-   int  index;
-   char wd[100];
-   while (*s != '\0') {
-      while (*s == *splitw)   /* skip white space */
-           ++s;
-      if (*s != '\0') {          /* found a word */
-         ++count;
-         index = 0;
-         while (*s!=*splitw && *s != '\0') {
-            wd[index] = *s;      /* extract the word */
-            ++index;
-            ++s;
-         }
-         wd[index] = '\0';    /* put word in list */
-         //word[count-1] = new char[strlen(wd) + 1]; // for C++
-         //word[count-1] = calloc(strlen(wd)+1, sizeof(char)); // for C
-         word[count-1] = (char*)calloc(strlen(wd)+1, sizeof(char));
-         strcpy(word[count-1], wd);
-      }
-   }
-   return count;
+    fields.clear();
+    while (*line) {
+        line += strspn(line, " ");
+        if (!*line) break;
+        fields.push_back(line);
+        char *end = strchr(line, ' ');
+        if (!end) break;
+        *end = '\0';
+        line = end + 1;
+    }
 }

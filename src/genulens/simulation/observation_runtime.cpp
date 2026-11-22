@@ -216,15 +216,15 @@ void store_NSDmoments(RunContext &ctx, char *infile) // Read input_files/NSD_mom
   // read moments of Sormani+21's NSD DF model
   FILE *fp;
   char line[1000];
-  char *words[100];
+  std::vector<const char *> words;
   if((fp=fopen(infile,"r"))==NULL){
      printf("can't open %s\n",infile);
      exit(1);
   }
   int iRz = 0;
   while (fgets(line,1000,fp) !=NULL){
-     split((char*)" ", line, words);
-     if (*words[0] == '#') continue;
+     split_table_fields(line, words);
+     if (words.empty() || *words[0] == '#') continue;
      int iR = iRz % ctx.nsd_moments.nRND;
      int iz = iRz / ctx.nsd_moments.nRND;
      if (ctx.nsd_moments.RstND + iR*ctx.nsd_moments.dRND == 1000*atof(words[0]) && ctx.nsd_moments.zstND + iz*ctx.nsd_moments.dzND == 1000*atof(words[1])){

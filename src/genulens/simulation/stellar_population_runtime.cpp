@@ -140,8 +140,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
   if (B == 0) return;
 
   // Calc average mass-loss for WDs
-  double *ageMloss;
-  ageMloss       = (double *)calloc(ctx.stellar.nm+1, sizeof(double *));
+  std::vector<double> ageMloss(ctx.stellar.nm + 1);
   double cumMwt = 0, cumWDwt = 0;
   void Mini2Mrem (RunContext &ctx, double *pout, double M, int mean);
   for (int i=ctx.stellar.nm;i>=0;i--){
@@ -156,7 +155,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
   }
   // Read minimum died initial mass as a function of age
   char line[1000];
-  char *words[100];
+  std::vector<const char *> words;
   FILE *fp;
   char file1[] = "input_files/Minidie.dat";
   double MRGstD[250], MRGenD[250], MRGstB[50], MRGenB[50], MRGstND[10], MRGenND[10];
@@ -166,8 +165,8 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
   }
   ctx.stellar.nageD = 0, ctx.stellar.nageB = 0, ctx.stellar.nageND = 0;
   while (fgets(line,1000,fp) !=NULL){
-     split((char*)" ", line, words);
-     if (*words[0] == '#') continue;
+     split_table_fields(line, words);
+     if (words.empty() || *words[0] == '#') continue;
      if (*words[0] == 'N'){
        ctx.stellar.agesND.data()[ctx.stellar.nageND]    = atof(words[1]);
        ctx.stellar.MinidieND.data()[ctx.stellar.nageND] = atof(words[2]);
@@ -206,7 +205,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
     double PRG1 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG1);
     double PRG2 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG2);
     double PRG = PRG2 - PRG1; 
-    double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss, ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
+    double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss.data(), ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
     double PMWD = (1 - PM) * aveMloss;
     double PWD  = (1 - P);
     double wtSFR = exp(-gamma*(ageen-i)*0.01); // weight of this age
@@ -268,7 +267,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
       double PRG1 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG1);
       double PRG2 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG2);
       double PRG = PRG2 - PRG1; 
-      double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss, ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
+      double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss.data(), ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
       double PMWD = (1 - PM) * aveMloss;
       double PWD  = (1 - P);
       double aveMMS = PM   * PMlogM_cum[ctx.stellar.nm] / P   / PlogM_cum[ctx.stellar.nm]; // MSun/star for main sequence
@@ -292,7 +291,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
       double PRG1 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG1);
       double PRG2 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG2);
       double PRG = PRG2 - PRG1; 
-      double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss, ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
+      double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss.data(), ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
       double PMWD = (1 - PM) * aveMloss;
       double PWD  = (1 - P);
       double aveMMS = PM   * PMlogM_cum[ctx.stellar.nm] / P   / PlogM_cum[ctx.stellar.nm]; // MSun/star for main sequence
@@ -327,7 +326,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
     double PRG1 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG1);
     double PRG2 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG2);
     double PRG = PRG2 - PRG1; 
-    double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss, ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
+    double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss.data(), ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
     double PMWD = (1 - PM) * aveMloss;
     double PWD  = (1 - P);
     P   *= wtSFR;
@@ -366,7 +365,7 @@ void store_IMF_nBs(RunContext &ctx, int B, double *logMass, double *PlogM, doubl
     double PRG1 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG1);
     double PRG2 = interp_x(ctx.stellar.nm+1, PlogM_cum_norm,  ctx.stellar.logMst, ctx.stellar.dlogM, logMRG2);
     double PRG = PRG2 - PRG1; 
-    double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss, ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
+    double aveMloss = interp_x(ctx.stellar.nm+1, ageMloss.data(), ctx.stellar.logMst, ctx.stellar.dlogM, logMdie);
     double PMWD = (1 - PM) * aveMloss;
     double PWD  = (1 - P);
     P   *= wtSFR;
@@ -443,18 +442,18 @@ int read_MLemp(char *infile, double *M_emps, double **Mag_emps)
 {
    FILE *fp;
    char line[1000];
-   char *words[100];
+   std::vector<const char *> words;
    if((fp=fopen(infile,"r"))==NULL){
       printf("can't open %s\n",infile);
       exit(1);
    }
    int i=0;
    while (fgets(line,1000,fp) !=NULL){
-      int nwords = split((char*)" ", line, words);
-      if (*words[0] == '#') continue;
+      split_table_fields(line, words);
+      if (words.empty() || *words[0] == '#') continue;
       M_emps[i] = atof(words[0]);
       // printf ("# %2d %.3f",i,M_emps[i]);
-      for (int j=1; j<nwords; j++){ 
+      for (std::size_t j=1; j<words.size(); j++){
         Mag_emps[j-1][i] = atof(words[j]);
         // printf (" %6.3f",Mag_emps[j-1][i]);
       }
@@ -470,7 +469,7 @@ int make_LFs(RunContext &ctx, double *MIs_arg, double **CumuN_MIs_arg, double *l
    char *infile;
    FILE *fp;
    char line[1000];
-   char *words[100];
+   std::vector<const char *> words;
    int i=0;
    infile = (char*)"input_files/NbleNall_bin.dat";
    if((fp=fopen(infile,"r"))==NULL){
@@ -478,8 +477,8 @@ int make_LFs(RunContext &ctx, double *MIs_arg, double **CumuN_MIs_arg, double *l
       exit(1);
    }
    while (fgets(line,1000,fp) !=NULL){
-      int nwords = split((char*)" ", line, words);
-      if (*words[0] == '#') continue;
+      split_table_fields(line, words);
+      if (words.empty() || *words[0] == '#') continue;
       ctx.luminosity.MIs[i] = atof(words[0]);
       i++;
    }
@@ -549,8 +548,8 @@ int make_LFs(RunContext &ctx, double *MIs_arg, double **CumuN_MIs_arg, double *l
             (icomp == 9) ? 100 :
                            100 ;
      while (fgets(line,1000,fp) !=NULL){
-        int nwords = split((char*)" ", line, words);
-        if (*words[0] == '#') continue;
+        split_table_fields(line, words);
+        if (words.empty() || *words[0] == '#') continue;
         if (iagest == 0) iagest = atoi(words[0]);
         if ((atoi(words[0]) - iagest) % dtau != 0) continue;
         iageen = atoi(words[0]);  
@@ -628,7 +627,7 @@ int make_LFs(RunContext &ctx, double *MIs_arg, double **CumuN_MIs_arg, double *l
 void store_VI_MI(RunContext &ctx, double MIst, double MIen, int NbinMI, double VIst, double VIen, int NbinVI, double *MIs_arg, double *VIs_arg, double ***f_VI_Is_arg, double *logMass, double *PlogM_cum_norm){
   const char *file1;
   char line[1000];
-  char *words[100];
+  std::vector<const char *> words;
   FILE *fp;
   int nage, narry;
   double dMI = (double) (MIen - MIst)/NbinMI;
@@ -671,10 +670,10 @@ void store_VI_MI(RunContext &ctx, double MIst, double MIen, int NbinMI, double V
             (icomp == 8) ? 766 :
             (icomp == 9) ? 340 :
                            190;
-    double **Minis, **VIcs, **MIcs, *ages;
+    double **Minis, **VIcs, **MIcs;
     int *nMinis;
     nMinis  = (int *)calloc(nage, sizeof(int    *));
-    ages    = (double *)calloc(nage, sizeof(double *));
+    std::vector<double> ages(nage);
     Minis  = (double **)malloc(sizeof(double *) * nage);
     VIcs   = (double **)malloc(sizeof(double *) * nage);
     MIcs   = (double **)malloc(sizeof(double *) * nage);
@@ -687,8 +686,8 @@ void store_VI_MI(RunContext &ctx, double MIst, double MIen, int NbinMI, double V
     int dtau;
     double age0 = 0;
     while (fgets(line,1000,fp) !=NULL){
-       int nwords = split((char*)" ", line, words);
-       if (*words[0] == '#') continue;
+       split_table_fields(line, words);
+       if (words.empty() || *words[0] == '#') continue;
        double age = atof(words[0]);
        if (age != age0) iage++;
        age0 = age;
